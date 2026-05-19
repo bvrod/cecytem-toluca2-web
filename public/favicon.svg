@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CECyTEM Toluca II">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#C62828" />
+      <stop offset="100%" stop-color="#1E3A5F" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#g)" />
+  <path d="M18 32c0-8.284 6.716-15 15-15h13v6H33c-4.971 0-9 4.029-9 9s4.029 9 9 9h13v6H33c-8.284 0-15-6.716-15-15Z" fill="#fff" />
+  <path d="M30 20h6v24h-6z" fill="#fff" opacity=".9" />
+</svg>
