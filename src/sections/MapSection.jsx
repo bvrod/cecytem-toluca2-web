@@ -61,7 +61,7 @@ export default function MapSection({ contact }) {
           </a>
         </div>
 
-        <div className="glass-card overflow-hidden rounded-[2rem] p-3">
+        <div className="glass-card overflow-hidden rounded-[2rem] p-3 map-frame">
           <iframe
             src={contact.mapEmbed}
             title="Ubicación del plantel"

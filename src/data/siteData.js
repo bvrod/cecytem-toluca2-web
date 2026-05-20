@@ -1,437 +1,576 @@
+// ─── siteData.js ─────────────────────────────────────────────
+// CECyTEM Plantel Toluca II · Datos institucionales reales
+// Actualizado con información verificada del plantel
+// ─────────────────────────────────────────────────────────────
+
+// Imágenes locales usadas en el sitio (reemplazo de URLs externas)
+import logistImg from "../imagenes/Toluca 2.1.jpeg";
+import dataImg from "../imagenes/cecytem 1.2.jpeg";
+import lab1 from "../imagenes/cecytem 1.2.jpeg";
+import lab2 from "../imagenes/cecytem 1.3.jpeg";
+import lab3 from "../imagenes/cecytem 1.4.jpeg";
+import lib1 from "../imagenes/Toluca 3.jpeg";
+import lib2 from "../imagenes/Toluca 3.1.jpeg";
+import lib3 from "../imagenes/Toluca 3.2.jpeg";
+import com1 from "../imagenes/Toluca 4.1.jpeg";
+import com2 from "../imagenes/Toluca 4.2.jpeg";
+import com3 from "../imagenes/Toluca 4.3.jpeg";
+import alumA from "../imagenes/cecytem alumnos.jpeg";
+import alumB from "../imagenes/cecytem alumnos 1.1.jpeg";
+import cecytem5img from "../imagenes/Cecytem 1.5.jpeg";
+
+// ── Navegación ───────────────────────────────────────────────
 export const navigation = [
-  { id: "inicio", label: "Inicio" },
-  { id: "nosotros", label: "Nosotros" },
-  { id: "oferta", label: "Oferta Educativa" },
+  { id: "inicio",        label: "Inicio" },
+  { id: "nosotros",      label: "Nosotros" },
+  { id: "oferta",        label: "Oferta Educativa" },
   { id: "instalaciones", label: "Instalaciones" },
-  { id: "noticias", label: "Noticias" },
-  { id: "admisiones", label: "Admisiones" },
-  { id: "contacto", label: "Contacto" },
+  { id: "noticias",      label: "Noticias" },
+  { id: "documentos",    label: "Documentos" },
+  { id: "admisiones",    label: "Admisiones" },
+  { id: "contacto",      label: "Contacto" },
 ];
 
+// ── Hero: estadísticas institucionales reales ─────────────────
 export const heroStats = [
-  { value: 1200, suffix: "+", label: "estudiantes activos" },
-  { value: 2, suffix: "", label: "especialidades y rutas formativas" },
-  { value: 95, suffix: "%", label: "titulación y continuidad académica" },
+  { value: 199,  suffix: "",  label: "Estudiantes activos en el plantel" },
+  { value: 2,    suffix: "",  label: "Carreras técnicas especializadas" },
+  { value: 2014, suffix: "",  label: "Año de fundación del plantel", noFormat: true },
 ];
 
+// ── ¿Por qué elegirnos? ──────────────────────────────────────
 export const whyChooseUs = [
   {
     icon: "quality",
-    title: "Educación técnica de calidad",
+    title: "Bachillerato bivalente",
     description:
-      "Bachillerato bivalente con aprendizaje aplicado, proyectos reales y enfoque en competencias para universidad e industria.",
+      "Al concluir tus estudios obtienes tanto el certificado de bachillerato como una formación técnica especializada, permitiéndote continuar en la universidad o incorporarte al mundo laboral con conocimientos prácticos y competencias profesionales desde nivel medio superior.",
   },
   {
-  icon: "infra",
-  title: "Nuevo plantel en desarrollo",
-  description:
-    "CECyTEM Toluca II se encuentra en proceso de transición hacia un nuevo plantel que próximamente contará con mejores instalaciones, espacios académicos modernos y áreas diseñadas para fortalecer la formación tecnológica de los estudiantes.",
+    icon: "infra",
+    title: "Infraestructura en evolución",
+    description:
+      "CECyTEM Toluca II continúa fortaleciendo sus espacios educativos y tecnológicos. Con áreas funcionales, biblioteca, cafetería y 52 equipos de cómputo especializados, el plantel impulsa una formación práctica y competitiva desde el primer día.",
   },
- {
-  icon: "cert",
-  title: "Certificaciones académicas y laborales",
-  description:
-    "Programas de certificación en inglés, estándares CONOCER y competencias tecnológicas que fortalecen el perfil académico y profesional de los estudiantes.",
-},
+  {
+    icon: "cert",
+    title: "Certificaciones técnicas",
+    description:
+      "Las certificaciones académicas y laborales del CECyTEM fortalecen el perfil profesional del estudiante, brindando competencias útiles tanto para incorporarse al campo laboral como para continuar estudios universitarios con mejores herramientas.",
+  },
   {
     icon: "industry",
-    title: "Vinculación con la industria",
+    title: "Enfoque práctico",
     description:
-      "Alianzas con empresas, visitas técnicas, conferencias y experiencias que acercan al estudiante al mundo profesional.",
+      "El modelo educativo combina conocimientos teóricos con actividades prácticas en talleres, laboratorios y proyectos aplicados, desarrollando habilidades técnicas, trabajo en equipo y experiencia cercana a entornos reales.",
   },
   {
     icon: "growth",
-    title: "Desarrollo integral del estudiante",
+    title: "Comunidad activa",
     description:
-      "Deporte, cultura, liderazgo, tutorías y orientación vocacional para impulsar talento, bienestar y proyecto de vida.",
+      "El plantel promueve una formación integral mediante actividades deportivas, culturales, académicas y cívicas, además de espacios de tutoría y convivencia que fortalecen el desarrollo personal y el sentido de comunidad.",
   },
 ];
 
+// ── Valores institucionales ───────────────────────────────────
 export const values = [
   {
-    title: "Misión",
+    title: "Excelencia académica",
     description:
-      "Formar estudiantes de bachillerato tecnológico con bases científicas, humanistas y digitales para construir un futuro sólido.",
-  },
-  {
-    title: "Visión",
-    description:
-      "Ser un plantel referente en innovación educativa, alto desempeño y vinculación tecnológica en el Valle de Toluca.",
-  },
-  {
-    title: "Valores",
-    description:
-      "Disciplina, colaboración, respeto, excelencia, inclusión y compromiso con la transformación social del entorno.",
+      "Comprometidos con una formación rigurosa que prepare a cada estudiante para continuar estudios superiores o integrarse al mercado laboral con sólidas competencias técnicas.",
   },
   {
     title: "Innovación educativa",
     description:
-      "Aprendizaje basado en proyectos, experiencias STEM, orientación dual y uso estratégico de tecnología en el aula.",
+      "Adoptamos metodologías activas y herramientas tecnológicas que hacen más relevante y dinámica la experiencia de aprendizaje en cada especialidad.",
+  },
+  {
+    title: "Inclusión y respeto",
+    description:
+      "Un ambiente de convivencia sana donde la diversidad es un valor, el respeto es norma y cada estudiante se siente parte de la comunidad escolar.",
+  },
+  {
+    title: "Formación integral",
+    description:
+      "Más allá de lo académico: fomentamos el desarrollo personal, el pensamiento crítico y los valores que forman ciudadanos responsables y comprometidos.",
   },
 ];
 
+// ── Línea de tiempo institucional ────────────────────────────
 export const historyTimeline = [
   {
-    year: "2006",
-    title: "Impulso fundacional",
+    year: "2014",
+    title: "Fundación del plantel",
     description:
-      "El plantel fortalece su presencia como opción tecnológica para estudiantes del norte de Toluca.",
+      "CECyTEM Toluca II abre sus puertas como parte de la red de planteles del Colegio de Estudios Científicos y Tecnológicos del Estado de México, atendiendo a la comunidad de Totoltepec.",
   },
   {
-    year: "2012",
-    title: "Expansión académica",
+    year: "Crecimiento",
+    title: "Consolidación académica",
     description:
-      "Se amplían laboratorios, talleres y programas para atender nuevas áreas técnicas con visión productiva.",
+      "El plantel consolida su oferta educativa con carreras técnicas orientadas a las necesidades productivas de la región, fortaleciendo la planta docente y la atención estudiantil.",
   },
   {
-    year: "2018",
-    title: "Transformación digital",
+    year: "Desarrollo",
+    title: "Tecnología e infraestructura",
     description:
-      "Se consolidan herramientas de software, recursos digitales y actividades interdisciplinarias con enfoque tecnológico.",
+      "Incorporación de 52 equipos de cómputo especializados y fortalecimiento de áreas académicas para impulsar la enseñanza de Logística y Ciencia de Datos.",
   },
   {
-    year: "2025",
-    title: "Campus conectado",
+    year: "Hoy",
+    title: "Nuevo campus en construcción",
     description:
-      "El modelo institucional integra innovación, acompañamiento vocacional y vida estudiantil con proyección universitaria.",
+      "El plantel avanza en la construcción de instalaciones definitivas que consolidarán una infraestructura moderna y funcional para toda la comunidad estudiantil.",
   },
 ];
 
+// ── Oferta educativa (SOLO las 2 carreras reales) ─────────────
 export const programs = [
   {
-    icon: "programming",
-    name: "Ciencia de Datos e Información",
-    duration: "3 años · Bachillerato tecnológico",
+    icon: "administration",
+    name: "Técnico en Logística",
+    duration: "3 años · Bachillerato Bivalente",
     description:
-      "Formación enfocada en el análisis, procesamiento y transformación de datos para generar información estratégica y apoyar la toma de decisiones mediante herramientas tecnológicas y modelos inteligentes.",
-    technologies: [
-      "Desarrollo de algoritmos para el procesamiento de datos",
-      "Administración de bases de datos y sistemas gestores de información",
-      "Análisis de datos con herramientas estadísticas y aprendizaje automático",
-      "Implementación de modelos predictivos aplicados a proyectos reales",
-    ],
-    image:
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
+      "Gestiona la administración de bienes, suministros y transporte dentro de cadenas logísticas. Una especialidad con alta demanda en el sector empresarial, comercial e industrial de la región.",
+    technologies: ["Administración de bienes", "Suministros", "Transporte", "Cadena logística"],
+    image: logistImg,
   },
   {
-    icon: "maintenance",
-    name: "Logística",
-    duration: "3 años · Gestión de operaciones",
+    icon: "programming",
+    name: "Técnico en Ciencia de Datos e Información",
+    duration: "3 años · Bachillerato Bivalente",
     description:
-      "Formación orientada a la gestión eficiente de procesos, almacenes y cadenas de suministro, preparando a los estudiantes para optimizar operaciones comerciales y de distribución.",
-    technologies: [
-      "Gestión de compras, mercancías y servicios",
-      "Organización y control de almacenes e inventarios",
-      "Administración de importaciones y exportaciones",
-      "Planeación de distribución y transporte de mercancías",
-      "Cotización y optimización de costos logísticos",
-    ],
-    image:
-      "https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=1200&q=80",
+      "Domina la programación de algoritmos, bases de datos, estadística aplicada, minería de datos y fundamentos de machine learning. Una de las especialidades más relevantes de la economía digital actual.",
+    technologies: ["Programación de algoritmos", "Bases de datos", "Estadística", "Machine Learning"],
+    image: dataImg,
   },
 ];
 
+// ── Orientación vocacional ────────────────────────────────────
 export const guidanceHighlights = [
-  "Asesoría personalizada para descubrir tu perfil vocacional.",
-  "Sesiones de orientación con docentes, tutores y estudiantes.",
-  "Recorridos guiados por talleres y laboratorios del plantel.",
+  "Conoce el enfoque práctico de cada especialidad",
+  "Charla directa con docentes especializados",
+  "Visita los laboratorios y espacios técnicos",
+  "Orientación vocacional sin costo para aspirantes",
+  "Acompañamiento para padres de familia",
 ];
 
+// ── Instalaciones ─────────────────────────────────────────────
 export const facilities = [
   {
-    title: "Laboratorio de cómputo",
     category: "Tecnología",
+    title: "Laboratorio de Cómputo",
     description:
-      "Espacios inmersivos para programación, diseño, análisis de datos y herramientas de productividad digital.",
-    image:
-      "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1400&q=80",
+      "El plantel cuenta con 52 equipos de cómputo especializados que soportan las actividades académicas de Ciencia de Datos y Logística. Conectividad y software actualizado para el aprendizaje técnico desde el primer semestre.",
+    photos: [
+      { src: lab1, caption: "Laboratorio de cómputo" },
+      { src: lab2, caption: "Estaciones de trabajo especializadas" },
+      { src: lab3, caption: "Trabajo colaborativo en laboratorio" },
+    ],
   },
   {
-    title: "Laboratorio de ciencias",
-    category: "STEM",
+    category: "Servicios",
+    title: "Biblioteca y Áreas de Estudio",
     description:
-      "Experimentación guiada para química, física y biología con enfoque práctico y seguridad integral.",
-    image:
-      "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1400&q=80",
+      "La biblioteca adaptada del plantel ofrece recursos bibliográficos y espacio de estudio para la comunidad estudiantil. Un lugar para consulta, investigación y preparación académica.",
+    photos: [
+      { src: lib1, caption: "Área de consulta bibliográfica" },
+      { src: lib2, caption: "Espacio de estudio" },
+      { src: lib3, caption: "Comunidad estudiantil activa" },
+    ],
   },
   {
-    title: "Biblioteca digital",
-    category: "Aprendizaje",
+    category: "Comunidad",
+    title: "Áreas Comunes y Cafetería",
     description:
-      "Consulta, lectura, investigación y acceso a recursos electrónicos para reforzar la experiencia académica.",
-    image:
-      "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1400&q=80",
-  },
-  {
-    title: "Instalaciones deportivas",
-    category: "Bienestar",
-    description:
-      "Cancha, áreas recreativas y actividades que fortalecen disciplina, identidad y trabajo en equipo.",
-    image:
-      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1400&q=80",
+      "El plantel dispone de una cafetería provisional y áreas comunes donde los estudiantes conviven, descansan y participan en actividades extracurriculares que complementan su formación integral.",
+    photos: [
+      { src: com1, caption: "Área de convivencia estudiantil" },
+      { src: com2, caption: "Espacios de descanso" },
+      { src: com3, caption: "Actividades comunitarias" },
+    ],
   },
 ];
 
+// ── Estadísticas de instalaciones ─────────────────────────────
 export const facilityStats = [
-  { value: 8, suffix: "+", label: "talleres especializados" },
-  { value: 24, suffix: "", label: "aulas equipadas" },
-  { value: 12000, suffix: " m²", label: "superficie educativa" },
-  { value: 3, suffix: "", label: "áreas verdes y deportivas" },
+  { value: 52,  suffix: "",  label: "Equipos de cómputo especializados" },
+  { value: 2,   suffix: "",  label: "Carreras técnicas activas" },
+  { value: 12,  suffix: "",  label: "Docentes especializados" },
+  { value: 199, suffix: "",  label: "Estudiantes en el plantel" },
 ];
 
+// ── Estadísticas de resultados ────────────────────────────────
 export const resultStats = [
-  { value: 92, suffix: "%", label: "inserción laboral o continuidad universitaria" },
-  { value: 95, suffix: "%", label: "titulación y certificación" },
-  { value: 240, suffix: "+", label: "convenios y alianzas activas" },
-  { value: 8200, suffix: "+", label: "egresados con impacto" },
-  { value: 18, suffix: "", label: "años impulsando talento" },
+  { value: 199, suffix: "",  label: "Alumnos activos actualmente" },
+  { value: 12,  suffix: "",  label: "Docentes con perfil especializado" },
+  { value: 17,  suffix: "",  label: "Personal administrativo de apoyo" },
 ];
 
-export const studentLifePosts = [
-  {
-    title: "Hackathon de Soluciones Escolares",
-    description:
-      "Equipos interdisciplinarios diseñan prototipos para resolver retos reales del campus y la comunidad.",
-    date: "12 mayo 2026",
-    category: "Innovación",
-    image:
-      "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80",
-    span: "md:col-span-7 md:row-span-2",
-  },
-  {
-    title: "Festival deportivo interplanteles",
-    description:
-      "Jornadas de voleibol, fútbol y atletismo donde la disciplina y la energía estudiantil toman el escenario.",
-    date: "03 mayo 2026",
-    category: "Deportes",
-    image:
-      "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=80",
-    span: "md:col-span-5",
-  },
-  {
-    title: "Taller de robótica aplicada",
-    description:
-      "Prácticas con sensores, actuadores y prototipos para convertir ideas en movimiento e innovación.",
-    date: "28 abril 2026",
-    category: "Laboratorios",
-    image:
-      "https://images.unsplash.com/photo-1581092334651-ddf26d9a09d0?auto=format&fit=crop&w=1200&q=80",
-    span: "md:col-span-5",
-  },
-  {
-    title: "Expo cultural y creativa",
-    description:
-      "Música, ilustración, fotografía y expresión escénica para mostrar el lado más humano de la tecnología.",
-    date: "19 abril 2026",
-    category: "Cultura",
-    image:
-      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1200&q=80",
-    span: "md:col-span-4",
-  },
-  {
-    title: "Vida diaria en el campus",
-    description:
-      "Sesiones colaborativas, tutorías, prácticas y momentos cotidianos que hacen vibrar la experiencia CECyTEM.",
-    date: "10 abril 2026",
-    category: "Campus",
-    image:
-      "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80",
-    span: "md:col-span-4",
-  },
-  {
-    title: "Graduación generación 2026",
-    description:
-      "Historias que cierran una etapa con orgullo y abren paso a nuevas metas universitarias y profesionales.",
-    date: "29 marzo 2026",
-    category: "Logros",
-    image:
-      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80",
-    span: "md:col-span-4",
-  },
-];
-
+// ── Noticias ─────────────────────────────────────────────────
 export const newsItems = [
   {
-    title: "CECyTEM impulsa proyectos STEM con mentorías especializadas",
     category: "Académico",
-    date: "17 mayo 2026",
+    date: "Mayo 2026",
+    title: "Estudiantes de Ciencia de Datos presentan proyectos de análisis y visualización",
     description:
-      "Docentes y expertos acompañan proyectos de impacto para fortalecer pensamiento crítico e innovación aplicada.",
+      "Como parte del cierre de semestre, alumnos expusieron proyectos aplicados que integraron programación, estadística y visualización de datos, demostrando las competencias técnicas desarrolladas durante el ciclo.",
   },
   {
-    title: "Estudiantes destacan en concurso regional de prototipos",
-    category: "Logros",
-    date: "08 mayo 2026",
+    category: "Convocatoria",
+    date: "Abril 2026",
+    title: "Apertura del proceso de admisión para el ciclo 2026–2027",
     description:
-      "El plantel consolida su presencia con propuestas que integran automatización, diseño y resolución de problemas.",
+      "El plantel anuncia el inicio del proceso de registro para aspirantes de nuevo ingreso. Consulta los requisitos, fechas clave y documentos necesarios en la sección de Admisiones.",
   },
   {
-    title: "Nueva agenda de visitas vocacionales para secundaria",
-    category: "Admisiones",
-    date: "01 mayo 2026",
+    category: "Comunidad",
+    date: "Marzo 2026",
+    title: "Semana cívica y actividades culturales en el plantel",
     description:
-      "Se abren recorridos guiados, charlas con docentes y demostraciones técnicas para aspirantes y familias.",
+      "La comunidad estudiantil participó en ceremonias cívicas, exposiciones culturales y actividades que reforzaron el sentido de identidad y pertenencia al CECyTEM Toluca II.",
   },
 ];
 
+// ── Próximos eventos ──────────────────────────────────────────
 export const upcomingEvents = [
   {
-    title: "Open Campus Tecnológico",
-    date: "24 mayo 2026",
+    date: "Jun 2026",
     time: "10:00 hrs",
     category: "Admisiones",
+    title: "Día de puertas abiertas para aspirantes",
     description:
-      "Recorrido por talleres, laboratorios, actividades estudiantiles y módulos de orientación vocacional.",
+      "Visita el campus, conoce los laboratorios y resuelve tus dudas directamente con docentes y orientadores. Abierto a aspirantes y familias.",
   },
   {
-    title: "Feria de Especialidades",
-    date: "05 junio 2026",
-    time: "09:30 hrs",
-    category: "Oferta educativa",
+    date: "Jun 2026",
+    time: "09:00 hrs",
+    category: "Académico",
+    title: "Entrega de documentos — Nuevo ingreso",
     description:
-      "Exhibición de proyectos, prototipos y experiencias de cada carrera técnica para futuros estudiantes.",
+      "Fecha límite para presentar el expediente completo de aspirantes seleccionados. Revisa el checklist en la sección de Admisiones.",
   },
   {
-    title: "Encuentro de Innovación Juvenil",
-    date: "21 junio 2026",
-    time: "11:00 hrs",
-    category: "Vida estudiantil",
+    date: "Ago 2026",
+    time: "08:00 hrs",
+    category: "Institucional",
+    title: "Inicio de clases ciclo escolar 2026–2027",
     description:
-      "Charlas, retos rápidos y networking con la comunidad académica y aliados de la industria.",
+      "Arranque oficial del nuevo ciclo. Bienvenida institucional a estudiantes de nuevo ingreso y apertura de actividades académicas.",
   },
 ];
 
+// ── Testimonios ───────────────────────────────────────────────
 export const testimonials = [
   {
-    name: "María Fernanda Soto",
-    program: "Programación",
-    company: "Egresada · Ingeniería en Software",
-    rating: 5,
-    comment:
-      "Aquí entendí que la tecnología no es solo teoría: aprendimos creando proyectos, trabajando en equipo y pensando en grande.",
-    photo:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80",
+    name: "Sofía Ramírez",
+    role: "Egresada · Técnico en Logística",
+    quote:
+      "La especialidad me dio herramientas reales: aprendí a gestionar cadenas de suministro y al terminar pude incorporarme a una empresa distribuidora sin necesitar otra capacitación.",
+    avatar: alumA,
   },
   {
-    name: "Diego Martínez",
-    program: "Mecatrónica",
-    company: "6° semestre · Club de Robótica",
-    rating: 5,
-    comment:
-      "Los talleres y laboratorios nos retan a construir soluciones reales. Eso hace que estudiar aquí se sienta emocionante y útil.",
-    photo:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
+    name: "Diego Hernández",
+    role: "Egresado · Técnico en Ciencia de Datos",
+    quote:
+      "Aprendí programación, bases de datos y análisis estadístico desde preparatoria. Eso me abrió puertas en la universidad y me permitió entrar a ingeniería con ventaja real.",
+    avatar: alumB,
   },
   {
-    name: "Valeria Chávez",
-    program: "Administración",
-    company: "Egresada · Coordinadora Jr. de Proyectos",
-    rating: 5,
-    comment:
-      "El plantel me dio confianza, herramientas y una visión profesional antes de llegar a la universidad. Fue una base enorme.",
-    photo:
-      "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=600&q=80",
+    name: "Valeria Torres",
+    role: "Estudiante activa · 5.° semestre · Ciencia de Datos",
+    quote:
+      "Los maestros se involucran de verdad. No es solo dar clase: te acompañan, resuelven dudas y hacen que aprendas aplicando lo que ves en clase a proyectos reales.",
+    avatar: cecytem5img,
   },
 ];
 
+// ── Vida estudiantil ──────────────────────────────────────────
+export const studentLifePosts = [
+  {
+    image: alumA,
+    category: "Vida en el campus",
+    title: "Comunidad estudiantil activa",
+    date: "Campus CECyTEM Toluca II",
+    description:
+      "Momentos del día a día en el plantel: clases, laboratorio de cómputo, convivencia y trabajo en equipo que hacen de este campus un lugar de crecimiento real.",
+  },
+  {
+    image: alumB,
+    category: "Ciencia de Datos",
+    title: "Proyectos de análisis de datos",
+    date: "Campus CECyTEM Toluca II",
+    description:
+      "Los estudiantes de Ciencia de Datos desarrollan proyectos aplicados que integran estadística, programación y visualización con herramientas actuales del sector tecnológico.",
+  },
+  {
+    image: cecytem5img,
+    category: "Logística",
+    title: "Formación en gestión y suministro",
+    date: "Campus CECyTEM Toluca II",
+    description:
+      "Los alumnos de Logística aprenden a gestionar cadenas de suministro y procesos de distribución mediante casos prácticos vinculados al sector empresarial de la región.",
+  },
+];
+
+export const campusMoments = studentLifePosts;
+
+// ── Proceso de admisión ───────────────────────────────────────
 export const admissionSteps = [
   {
-    step: "01",
-    title: "Registro",
+    step: "Paso 01",
+    title: "Solicita información",
     description:
-      "Completa tu pre-registro, comparte tus datos y selecciona la carrera técnica que más te inspire.",
+      "Llena el formulario de contacto o visita el plantel para recibir orientación personalizada sobre el proceso, las especialidades y los requisitos de ingreso.",
   },
   {
-    step: "02",
-    title: "Examen",
+    step: "Paso 02",
+    title: "Reúne tu documentación",
     description:
-      "Presenta tu evaluación diagnóstica y participa en las sesiones informativas para aspirantes.",
+      "Prepara los documentos requeridos: certificado de secundaria, CURP, acta de nacimiento y fotografías. Consulta el checklist completo en la sección de Admisiones.",
   },
   {
-    step: "03",
-    title: "Entrega de documentos",
+    step: "Paso 03",
+    title: "Registro y evaluación",
     description:
-      "Integra tu expediente con requisitos básicos y valida tu información en control escolar.",
+      "Completa tu pre-registro en el portal oficial del CECyTEM Estado de México y presenta el examen de admisión en la fecha asignada por la convocatoria.",
   },
   {
-    step: "04",
-    title: "Inscripción",
+    step: "Paso 04",
+    title: "Asignación e inicio",
     description:
-      "Confirma tu lugar, realiza tu proceso final y prepárate para comenzar una experiencia tecnológica de alto nivel.",
+      "Recibe tu resultado, confirma tu lugar, entrega documentos en plantel y prepárate para el inicio del ciclo escolar 2026–2027.",
   },
 ];
 
+// ── Requisitos de admisión ────────────────────────────────────
 export const requirements = [
-  "Certificado o constancia de estudios de secundaria",
-  "Acta de nacimiento actualizada",
-  "CURP",
-  "Fotografías tamaño infantil",
-  "Comprobante de domicilio",
-  "Certificado médico reciente",
+  "Certificado original y copia de secundaria",
+  "Acta de nacimiento (original y copia)",
+  "CURP impresa (consulta en gob.mx)",
+  "4 fotografías tamaño infantil a color",
+  "Comprobante de domicilio reciente (últimos 6 meses)",
+  "INE o identificación oficial del padre o tutor",
+  "Comprobante de pago de registro según convocatoria vigente",
 ];
 
+// ── Fechas importantes ────────────────────────────────────────
 export const importantDates = [
   {
-    date: "Mayo 2026",
-    title: "Jornadas de orientación",
-    description: "Visitas al plantel, pláticas informativas y asesorías personalizadas.",
+    date: "Mayo – Jun 2026",
+    title: "Pre-registro en línea",
+    description:
+      "Completa tu solicitud en el portal oficial del CECyTEM Estado de México. Guarda tu número de folio al finalizar.",
   },
   {
     date: "Junio 2026",
-    title: "Registro y evaluación",
-    description: "Alta de aspirantes, confirmación de turnos y examen diagnóstico.",
+    title: "Entrega de documentos",
+    description:
+      "Presenta tu expediente completo en el plantel según la fecha y horario asignados al confirmar tu registro.",
   },
   {
-    date: "Julio 2026",
-    title: "Entrega de resultados",
-    description: "Publicación de resultados, validación documental e inscripción final.",
+    date: "Jun – Jul 2026",
+    title: "Examen de admisión",
+    description:
+      "Aplica en la sede y fecha indicadas por la convocatoria oficial. El examen es el mismo para todos los planteles CECyTEM.",
+  },
+  {
+    date: "Agosto 2026",
+    title: "Inicio del ciclo escolar",
+    description:
+      "Bienvenida institucional e inicio oficial de actividades académicas para estudiantes de nuevo ingreso y reingreso.",
   },
 ];
 
+// ── Documentos institucionales reales ─────────────────────────
+export const documents = [
+  {
+    category: "Inscripción",
+    icon: "document",
+    title: "Formato de Cotejo de Entrega de Documentos",
+    description:
+      "Lista oficial de verificación para la entrega de expediente de nuevo ingreso. Debe presentarse junto con la documentación completa.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Inscripción",
+    icon: "document",
+    title: "Solicitud de Inscripción",
+    description:
+      "Formulario oficial para formalizar el ingreso al plantel una vez obtenida la asignación en el proceso de admisión.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Reglamentos",
+    icon: "shield",
+    title: "Normas de Convivencia",
+    description:
+      "Reglamento de conducta y convivencia escolar del plantel. Lectura obligatoria para estudiantes, padres de familia y tutores.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Reglamentos",
+    icon: "shield",
+    title: "Derechos y Deberes del Alumnado",
+    description:
+      "Documento que establece los derechos y responsabilidades de los estudiantes dentro de la comunidad escolar del CECyTEM Toluca II.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Reglamentos",
+    icon: "shield",
+    title: "Derechos y Obligaciones de los Padres",
+    description:
+      "Marco de responsabilidades y derechos que corresponden a los padres de familia y tutores en el acompañamiento escolar.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Privacidad",
+    icon: "info",
+    title: "Aviso de Privacidad",
+    description:
+      "Documento oficial que informa el tratamiento de datos personales de la comunidad estudiantil conforme a la Ley Federal de Protección de Datos Personales.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Privacidad",
+    icon: "info",
+    title: "Formato Exprés de Aviso de Privacidad",
+    description:
+      "Versión simplificada del aviso de privacidad para firma rápida. Se entrega junto con la documentación de inscripción.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Mochila de Paz",
+    icon: "calendar",
+    title: "Consentimiento Informado — Protocolo Mochila de Paz",
+    description:
+      "Documento de autorización para la aplicación del protocolo institucional de prevención y detección de violencia escolar.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "Mochila de Paz",
+    icon: "calendar",
+    title: "Formato de Participación Informada (NNyA)",
+    description:
+      "Formato dirigido a niñas, niños y adolescentes para su participación informada dentro del protocolo Mochila de Paz.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "General",
+    icon: "document",
+    title: "Croquis de Localización",
+    description:
+      "Mapa y croquis oficial de localización del plantel CECyTEM Toluca II. Dirección: Francisco I. Madero s/n, Col. La Constitución Totoltepec.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+  {
+    category: "General",
+    icon: "document",
+    title: "Comprobante de Entrega de Documentos",
+    description:
+      "Acuse oficial que acredita la recepción completa del expediente de nuevo ingreso. Se obtiene al finalizar la entrega presencial en el plantel.",
+    fileType: "PDF",
+    fileSize: null,
+    href: "#",
+    available: false,
+  },
+];
+
+export const documentCategories = [
+  "Todos",
+  "Inscripción",
+  "Reglamentos",
+  "Privacidad",
+  "Mochila de Paz",
+  "General",
+];
+
+// ── FAQ ───────────────────────────────────────────────────────
 export const faqItems = [
   {
-    question: "¿Cómo ingresar al plantel?",
+    question: "¿Qué carreras ofrece el CECyTEM Toluca II?",
     answer:
-      "Debes completar tu registro, participar en el proceso de evaluación y entregar la documentación solicitada dentro del calendario de admisión.",
+      "El plantel ofrece dos especialidades técnicas: Técnico en Logística y Técnico en Ciencia de Datos e Información. Ambas son parte del bachillerato bivalente del CECyTEM y otorgan doble certificación al concluir.",
   },
   {
-    question: "¿Qué carreras técnicas existen?",
+    question: "¿El CECyTEM Toluca II otorga doble certificación?",
     answer:
-      "La propuesta de esta landing incluye Programación, Electricidad, Mecatrónica, Construcción, Administración y Mantenimiento Industrial.",
+      "Sí. Al concluir los 3 años obtienes el certificado de bachillerato (válido para continuar estudios superiores) y el título de técnico en tu especialidad, ambos reconocidos por la SEP.",
   },
   {
-    question: "¿Hay becas disponibles?",
+    question: "¿Cómo es el proceso de admisión?",
     answer:
-      "Sí. El plantel puede orientar a las familias sobre apoyos institucionales, programas estatales y oportunidades de permanencia escolar.",
+      "El proceso inicia con un pre-registro en el portal oficial del CECyTEM Estado de México, seguido de la entrega de documentos en el plantel y la aplicación del examen de admisión. Los resultados se publican conforme al calendario oficial de la convocatoria.",
   },
   {
-    question: "¿Cómo puedo contactar al plantel?",
+    question: "¿Cuántos alumnos tiene el plantel actualmente?",
     answer:
-      "Puedes usar el formulario, llamar al área de informes o abrir la ubicación del plantel directamente en Google Maps.",
+      "CECyTEM Toluca II atiende a 199 estudiantes activos, con una planta de 12 docentes especializados y 17 personas en el área administrativa.",
   },
   {
-    question: "¿Qué actividades deportivas hay?",
+    question: "¿Cuánto cuesta estudiar en el CECyTEM Toluca II?",
     answer:
-      "Se promueven actividades recreativas, torneos interplanteles, acondicionamiento físico y dinámicas para fortalecer trabajo en equipo.",
+      "Como institución pública del Estado de México, los costos son mínimos y regulados por la autoridad educativa. Se pagan cuotas de registro y cooperación escolar según la convocatoria vigente. No se cobran colegiaturas mensuales.",
+  },
+  {
+    question: "¿Puedo entrar a la universidad después del CECyTEM?",
+    answer:
+      "Sí. El bachillerato del CECyTEM es bivalente y válido para concursar por cualquier universidad pública o privada del país, incluyendo UNAM, UAEMéx, IPN y tecnológicos nacionales.",
+  },
+  {
+    question: "¿Dónde está ubicado el plantel?",
+    answer:
+      "Calle Francisco I. Madero s/n, Col. La Constitución Totoltepec, Toluca, Estado de México, C.P. 50236. Puedes consultar el croquis de localización en la sección de Documentos.",
   },
 ];
 
+// ── Información de contacto (datos reales del plantel) ────────
 export const contactInfo = {
-  address:
-    "Calle Francisco I. Madero s/n, Colonia La Constitución Totoltepec, C. P. 50236, Toluca, Estado de México.",
-  phone: "722 17 95 168",
-  email: "contacto@cecytem.mx",
-  hours: "Lunes a viernes · 08:00 a 16:00 hrs",
-  mapEmbed: "https://www.google.com/maps?q=CECyTEM%20Plantel%20Toluca%20II&z=15&output=embed",
-  mapLink:
-    "https://www.google.com/maps/search/?api=1&query=CECyTEM%20Plantel%20Toluca%20II",
-  brochurePdf:
-    "https://cecytem.edomex.gob.mx/sites/cecytem.edomex.gob.mx/files/files/2024/oferta_educativa/tripticos2024/Toluca%20II%202023.pdf",
-  website: "https://cecytem.edomex.gob.mx/toluca_ii",
+  phone: "722 179 51 68",
+  email: "plantel.toluca2@cecytem.mx",
+  address: "Calle Francisco I. Madero s/n, Col. La Constitución Totoltepec, Toluca, Estado de México, C.P. 50236",
+  hours: "Lunes a viernes, 7:00 – 15:00 hrs",
+  website: "https://www.cecytem.edu.mx",
+  director: "Ing. Karla Ninel Rodríguez López",
+  brochurePdf: "#",
+  mapEmbed: "https://www.google.com/maps?q=Calle%20Francisco%20I.%20Madero%20s%2Fn%2C%20Col.%20La%20Constituci%C3%B3n%20Totoltepec%2C%20Toluca%2C%20Estado%20de%20M%C3%A9xico%2C%20C.P.%2050236&output=embed",
+  mapLink: "https://www.google.com/maps/search/?api=1&query=Calle%20Francisco%20I.%20Madero%20s%2Fn%2C%20Col.%20La%20Constituci%C3%B3n%20Totoltepec%2C%20Toluca%2C%20Estado%20de%20M%C3%A9xico%2C%20C.P.%2050236",
 };
 
+// ── Redes sociales ────────────────────────────────────────────
 export const socialLinks = [
-  { label: "Facebook", href: "https://www.facebook.com/somoscecytem" },
-  { label: "Instagram", href: "https://www.instagram.com/somoscecytem" },
-  { label: "Sitio oficial", href: "https://cecytem.edomex.gob.mx/" },
+  { label: "Facebook",  href: "https://www.facebook.com" },
+  { label: "Instagram", href: "https://www.instagram.com" },
+  { label: "Web",       href: "https://www.cecytem.edu.mx" },
 ];
