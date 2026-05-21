@@ -72,111 +72,102 @@ export default function FacilityGallery({ photos = [], title = "" }) {
   return (
     <div className="space-y-6">
       {/* Gallery Grid */}
-      <div className="glass-card rounded-[2.3rem] overflow-hidden p-4 sm:p-5">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-max min-h-[400px]">
+      <div className="glass-card rounded-[2.3rem] overflow-hidden p-4 sm:p-5 shadow-glow">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[220px] min-h-[420px]">
           <AnimatePresence mode="wait">
             {visiblePhotos.map((photo, idx) => (
               <motion.div
                 key={`${currentPage}-${idx}`}
-                initial={{ opacity: 0, scale: 0.9 }}
+                className="group relative overflow-hidden rounded-[1.5rem] cursor-default gallery-grid-item"
+                initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-                className="relative overflow-hidden rounded-lg group cursor-pointer"
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ duration: 0.35, delay: idx * 0.04 }}
               >
                 <img
-                  src={photo.src || photo.url}
-                  alt={photo.caption || photo.alt}
-                  className="w-full h-32 sm:h-40 object-cover group-hover:scale-105 transition-transform duration-300"
+                  src={photo.src}
+                  alt={photo.caption}
+                  className="h-full w-full object-cover"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300 flex items-center justify-center">
-                  <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg
-                      width="20"
-                      height="20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35M11 8v6M8 11h6" />
-                    </svg>
-                  </span>
+                {/* Overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {/* Caption */}
+                <div className="absolute inset-x-0 bottom-0 p-3 text-white text-xs font-semibold line-clamp-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                  {photo.caption}
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
+      </div>
 
-        {/* Controls */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-          {/* Counter */}
-          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
-            Mostrando {start + 1}–{end} de <span className="text-[var(--text)]">{photos.length}</span>{" "}
-            fotos
-          </p>
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+        {/* Counter */}
+        <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-[var(--muted)]">
+          Mostrando {start + 1}–{end} de <span className="text-[var(--text)]">{photos.length}</span>{" "}
+          fotos
+        </p>
 
-          {/* Progress Bar */}
-          <div className="w-full sm:w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-[#8B21F2]"
-              initial={{ width: "0%" }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.1, ease: "linear" }}
-            />
-          </div>
-
-          {/* Pagination Dots */}
-          <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goToPage(i)}
-                className={`rounded-full border-none cursor-pointer transition-all ${
-                  i === currentPage
-                    ? "bg-[#8B21F2] w-2 h-2"
-                    : "bg-white/20 w-1.5 h-1.5 hover:bg-white/30"
-                }`}
-                aria-label={`Página ${i + 1}`}
-              />
-            ))}
-          </div>
+        {/* Progress Bar */}
+        <div className="w-full sm:w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-[#1e3a5f]"
+            initial={{ width: "0%" }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.1, ease: "linear" }}
+          />
         </div>
 
-        {/* Navigation Buttons */}
-        {totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-center gap-3">
+        {/* Pagination Dots */}
+        <div className="flex items-center gap-2">
+          {Array.from({ length: totalPages }).map((_, i) => (
             <button
-              onClick={handlePrev}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-[var(--text)]"
-              aria-label="Página anterior"
-            >
-              <FaChevronLeft size={16} />
-            </button>
-
-            <span className="text-xs font-semibold uppercase text-[var(--muted)]">
-              {currentPage + 1} / {totalPages}
-            </span>
-
-            <button
-              onClick={handleNext}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-[var(--text)]"
-              aria-label="Página siguiente"
-            >
-              <FaChevronRight size={16} />
-            </button>
-
-            <button
-              onClick={() => setAutoplayOn(!autoplayOn)}
-              className="ml-2 px-3 py-1.5 rounded-full bg-[#8B21F2]/20 hover:bg-[#8B21F2]/30 transition-colors text-xs font-semibold uppercase text-[#8B21F2]"
-            >
-              {autoplayOn ? "⏸ ON" : "▶ OFF"}
-            </button>
-          </div>
-        )}
+              key={i}
+              onClick={() => goToPage(i)}
+              className={`rounded-full border-none cursor-pointer transition-all ${
+                i === currentPage
+                  ? "bg-[#1e3a5f] w-2 h-2"
+                  : "bg-white/20 w-1.5 h-1.5 hover:bg-white/30"
+              }`}
+              aria-label={`Página ${i + 1}`}
+            />
+          ))}
+        </div>
       </div>
+
+      {/* Navigation Buttons */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            onClick={handlePrev}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-[var(--text)]"
+            aria-label="Página anterior"
+          >
+            <FaChevronLeft size={16} />
+          </button>
+
+          <span className="text-xs font-semibold uppercase text-[var(--muted)]">
+            {currentPage + 1} / {totalPages}
+          </span>
+
+          <button
+            onClick={handleNext}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-[var(--text)]"
+            aria-label="Página siguiente"
+          >
+            <FaChevronRight size={16} />
+          </button>
+
+          <button
+            onClick={() => setAutoplayOn(!autoplayOn)}
+            className="ml-2 px-3 py-1.5 rounded-full bg-[#1e3a5f]/20 hover:bg-[#1e3a5f]/30 transition-colors text-xs font-semibold uppercase text-[#1e3a5f]"
+          >
+            {autoplayOn ? "⏸ ON" : "▶ OFF"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

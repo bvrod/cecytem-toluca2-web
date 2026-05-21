@@ -1,9 +1,9 @@
 // ─── siteData.js ─────────────────────────────────────────────
 // CECyTEM Plantel Toluca II · Datos institucionales reales
-// Actualizado con información verificada del plantel
+// Actualizado con información verificada del plantel (Ciclo 2026)
 // ─────────────────────────────────────────────────────────────
 
-// Imágenes locales usadas en el sitio (reemplazo de URLs externas)
+// Imágenes de carreras e instalaciones
 import logistImg from "../imagenes/Toluca 2.1.jpeg";
 import dataImg from "../imagenes/cecytem 1.2.jpeg";
 import lab1 from "../imagenes/cecytem 1.2.jpeg";
@@ -33,9 +33,9 @@ export const navigation = [
 
 // ── Hero: estadísticas institucionales reales ─────────────────
 export const heroStats = [
-  { value: 199,  suffix: "",  label: "Estudiantes activos en el plantel" },
-  { value: 2,    suffix: "",  label: "Carreras técnicas especializadas" },
-  { value: 2014, suffix: "",  label: "Año de fundación del plantel", noFormat: true },
+  { value: 199,  suffix: "",    label: "Estudiantes activos en el plantel" },
+  { value: 2,    suffix: "",    label: "Carreras técnicas especializadas" },
+  { value: 2014, suffix: "",    label: "Año de fundación del plantel", noFormat: true },
 ];
 
 // ── ¿Por qué elegirnos? ──────────────────────────────────────
@@ -124,7 +124,7 @@ export const historyTimeline = [
   },
 ];
 
-// ── Oferta educativa (SOLO las 2 carreras reales) ─────────────
+// ── Oferta educativa (Fieles al plan de estudios vigente) ─────
 export const programs = [
   {
     icon: "administration",
@@ -192,7 +192,7 @@ export const facilities = [
   },
 ];
 
-// ── Estadísticas de instalaciones ─────────────────────────────
+// ── Estadísticas de secciones internas ────────────────────────
 export const facilityStats = [
   { value: 52,  suffix: "",  label: "Equipos de cómputo especializados" },
   { value: 2,   suffix: "",  label: "Carreras técnicas activas" },
@@ -200,14 +200,13 @@ export const facilityStats = [
   { value: 199, suffix: "",  label: "Estudiantes en el plantel" },
 ];
 
-// ── Estadísticas de resultados ────────────────────────────────
 export const resultStats = [
   { value: 199, suffix: "",  label: "Alumnos activos actualmente" },
   { value: 12,  suffix: "",  label: "Docentes con perfil especializado" },
   { value: 17,  suffix: "",  label: "Personal administrativo de apoyo" },
 ];
 
-// ── Noticias ─────────────────────────────────────────────────
+// ── Noticias (Ciclo Actual 2026) ──────────────────────────────
 export const newsItems = [
   {
     category: "Académico",
@@ -273,19 +272,19 @@ export const testimonials = [
     name: "Diego Hernández",
     role: "Egresado · Técnico en Ciencia de Datos",
     quote:
-      "Aprendí programación, bases de datos y análisis estadístico desde preparatoria. Eso me abrió puertas en la universidad y me permitió entrar a ingeniería con ventaja real.",
+      "Aprendí programación, bases de datos y análisis de datos desde preparatoria. Eso me abrió puertas en la universidad y me permitió entrar a ingeniería con ventaja real.",
     avatar: alumB,
   },
   {
     name: "Valeria Torres",
-    role: "Estudiante activa · 5.° semestre · Ciencia de Datos",
+    role: "Estudiante activa · Ciencia de Datos",
     quote:
       "Los maestros se involucran de verdad. No es solo dar clase: te acompañan, resuelven dudas y hacen que aprendas aplicando lo que ves en clase a proyectos reales.",
     avatar: cecytem5img,
   },
 ];
 
-// ── Vida estudiantil ──────────────────────────────────────────
+// ── Vida estudiantil / Posts ──────────────────────────────────
 export const studentLifePosts = [
   {
     image: alumA,
@@ -541,7 +540,7 @@ export const faqItems = [
   {
     question: "¿Cuánto cuesta estudiar en el CECyTEM Toluca II?",
     answer:
-      "Como institución pública del Estado de México, los costos son mínimos y regulados por la autoridad educativa. Se pagan cuotas de registro y cooperación escolar según la convocatoria vigente. No se cobran colegiaturas mensuales.",
+      "Como institución pública del Estado de México, los costos son mínimos y regulados por la autoridad educativa. Se pagan cuotas de registro y de cooperación escolar según la convocatoria vigente. No se cobran colegiaturas mensuales.",
   },
   {
     question: "¿Puedo entrar a la universidad después del CECyTEM?",
@@ -564,8 +563,8 @@ export const contactInfo = {
   website: "https://www.cecytem.edu.mx",
   director: "Ing. Karla Ninel Rodríguez López",
   brochurePdf: "#",
-  mapEmbed: "https://www.google.com/maps?q=Calle%20Francisco%20I.%20Madero%20s%2Fn%2C%20Col.%20La%20Constituci%C3%B3n%20Totoltepec%2C%20Toluca%2C%20Estado%20de%20M%C3%A9xico%2C%20C.P.%2050236&output=embed",
-  mapLink: "https://www.google.com/maps/search/?api=1&query=Calle%20Francisco%20I.%20Madero%20s%2Fn%2C%20Col.%20La%20Constituci%C3%B3n%20Totoltepec%2C%20Toluca%2C%20Estado%20de%20M%C3%A9xico%2C%20C.P.%2050236",
+  mapEmbed: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3765.4246875936774!2d-99.5786438!3d19.3225217!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d20980647b74f9%3A0xe7261944da9cbbf0!2sCECyTEM%20Plantel%20Toluca%20II!5e0!3m2!1ses-419!2smx!4v1716315000000!5m2!1ses-419!2smx",
+  mapLink: "https://maps.app.goo.gl/9Z3RjZszB9D2C7zY8",
 };
 
 // ── Redes sociales ────────────────────────────────────────────

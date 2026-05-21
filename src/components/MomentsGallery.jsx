@@ -1,61 +1,24 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronLeft, FaChevronRight, FaXmark } from "react-icons/fa6";
-import cecytemAlumnos1 from "../imagenes/cecytem alumnos.jpeg";
-import cecytemAlumnos2 from "../imagenes/cecytem alumnos 1.1.jpeg";
-import cecytem1 from "../imagenes/cecytem 1.2.jpeg";
-import cecytem2 from "../imagenes/cecytem 1.3.jpeg";
-import cecytem3 from "../imagenes/cecytem 1.4.jpeg";
-import cecytem4 from "../imagenes/Cecytem 1.5.jpeg";
-import cecytem5 from "../imagenes/cecytem 1.6.jpeg";
-import cecytem6 from "../imagenes/cecytem 1.7.jpeg";
 
-const MOMENTS = [
-  {
-    src: cecytemAlumnos1,
-    caption: "Momentos de aprendizaje en el campus",
-    alt: "Estudiantes en actividad",
-  },
-  {
-    src: cecytemAlumnos2,
-    caption: "Vida estudiantil CECyTEM",
-    alt: "Actividad de alumnos",
-  },
-  {
-    src: cecytem1,
-    caption: "Campus CECyTEM Toluca II",
-    alt: "Instalaciones del plantel",
-  },
-  {
-    src: cecytem2,
-    caption: "Espacios académicos",
-    alt: "Área del campus",
-  },
-  {
-    src: cecytem3,
-    caption: "Ambiente de trabajo colaborativo",
-    alt: "Estudiantes colaborando",
-  },
-  {
-    src: cecytem4,
-    caption: "Desarrollo de habilidades técnicas",
-    alt: "Actividad técnica",
-  },
-  {
-    src: cecytem5,
-    caption: "Formación integral del estudiante",
-    alt: "Experiencia educativa",
-  },
-  {
-    src: cecytem6,
-    caption: "Innovación en el aula",
-    alt: "Proyecto estudiantil",
-  },
+// Importamos la base de datos de imágenes unificada
+import { bentoGalleryMoments as MOMENTS } from "../data/siteData"; // Revisa que la ruta apunte correctamente a tu siteData
+
+// Patrón cíclico para las columnas del diseño Bento (en base a un grid de 6 columnas en desktop)
+const GRID_SPANS = [
+  "md:col-span-2 md:row-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-3 md:row-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-3",
 ];
 
 export default function MomentsGallery() {
   const [selectedIndex, setSelectedIndex] = useState(null);
-  const [autoplayEnabled, setAutoplayEnabled] = useState(true);
 
   const handleNext = () => {
     setSelectedIndex((prev) => (prev + 1) % MOMENTS.length);
@@ -65,84 +28,78 @@ export default function MomentsGallery() {
     setSelectedIndex((prev) => (prev - 1 + MOMENTS.length) % MOMENTS.length);
   };
 
-  const gridItems = [
-    { span: "md:col-span-2 md:row-span-2", index: 0 },
-    { span: "md:col-span-2", index: 1 },
-    { span: "md:col-span-2", index: 2 },
-    { span: "md:col-span-3 md:row-span-2", index: 3 },
-    { span: "md:col-span-2", index: 4 },
-    { span: "md:col-span-2", index: 5 },
-    { span: "md:col-span-2", index: 6 },
-    { span: "md:col-span-3", index: 7 },
-  ];
-
   return (
     <div className="space-y-8">
-      {/* Grid Gallery */}
+      {/* Grid Gallery - Bento Layout Dinámico */}
       <div className="grid auto-rows-[160px] gap-4 md:auto-rows-[180px] md:gap-5 md:grid-cols-6">
-        {gridItems.map((item) => (
-          <motion.div
-            key={MOMENTS[item.index].caption}
-            className={`group relative overflow-hidden rounded-[1.5rem] cursor-pointer ${item.span} border border-white/10 backdrop-blur-sm gallery-item-glow`}
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.5, delay: item.index * 0.05 }}
-            onClick={() => setSelectedIndex(item.index)}
-            whileHover={{ scale: 1.02 }}
-          >
-            <img
-              src={MOMENTS[item.index].src}
-              alt={MOMENTS[item.index].alt}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {MOMENTS.map((item, index) => {
+          // El operador modular (%) asegura que las proporciones del Bento se repitan cíclicamente
+          const spanClass = GRID_SPANS[index % GRID_SPANS.length];
 
-            {/* Hover Info */}
-            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-              <p className="text-xs sm:text-sm font-semibold text-white line-clamp-2">
-                {MOMENTS[item.index].caption}
-              </p>
-            </div>
+          return (
+            <motion.div
+              key={`${item.caption}-${index}`}
+              className={`group relative overflow-hidden rounded-[1.5rem] cursor-pointer ${spanClass} gallery-grid-item`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, amount: 0.1 }}
+              transition={{ duration: 0.4, delay: (index % 8) * 0.04 }}
+              onClick={() => setSelectedIndex(index)}
+              whileHover={{ scale: 1.02 }}
+            >
+              <img
+                src={item.src}
+                alt={item.alt}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Play Icon */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <div className="rounded-full bg-white/20 backdrop-blur-sm p-3 sm:p-4">
-                <svg
-                  width="20"
-                  height="20"
-                  fill="white"
-                  viewBox="0 0 24 24"
-                  className="drop-shadow"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+              {/* Hover Info */}
+              <div className="absolute inset-x-0 bottom-0 p-4 translate-y-2 group-hover:translate-y-0 transition-transform duration-300 z-10">
+                <p className="text-xs sm:text-sm font-semibold text-white line-clamp-2">
+                  {item.caption}
+                </p>
               </div>
-            </div>
-          </motion.div>
-        ))}
+
+              {/* Play / Ver Icon */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="rounded-full bg-white/20 backdrop-blur-sm p-3">
+                  <svg
+                    width="20"
+                    height="20"
+                    fill="white"
+                    viewBox="0 0 24 24"
+                    className="drop-shadow"
+                  >
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox Integrado */}
       <AnimatePresence>
         {selectedIndex !== null && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSelectedIndex(null)}
           >
             <motion.div
-              className="relative w-full max-w-4xl max-h-[90vh] rounded-[2rem] overflow-hidden bg-black border border-white/10 lightbox-glow"
-              initial={{ scale: 0.8, y: 20 }}
+              className="relative w-full max-w-5xl max-h-[85vh] rounded-[2.2rem] overflow-hidden bg-black border border-white/10 lightbox-glow"
+              initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.8, y: 20 }}
+              exit={{ scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Image */}
-              <div className="relative w-full pt-[66.67%] overflow-hidden">
+              {/* Contenedor de la Imagen */}
+              <div className="relative w-full pt-[60%] overflow-hidden bg-gradient-to-b from-black/10 to-black">
                 <img
                   src={MOMENTS[selectedIndex].src}
                   alt={MOMENTS[selectedIndex].alt}
@@ -150,48 +107,52 @@ export default function MomentsGallery() {
                 />
               </div>
 
-              {/* Info and Controls */}
-              <div className="p-6 space-y-4">
-                <p className="text-lg font-bold text-white">
-                  {MOMENTS[selectedIndex].caption}
-                </p>
-                <p className="text-sm text-white/70">
-                  {selectedIndex + 1} de {MOMENTS.length}
-                </p>
+              {/* Controles e Información Inferior */}
+              <div className="p-6 space-y-4 bg-gradient-to-t from-black via-black/90 to-black/40 backdrop-blur-sm">
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <p className="text-base sm:text-lg font-bold text-white">
+                      {MOMENTS[selectedIndex].caption}
+                    </p>
+                    <p className="text-xs sm:text-sm text-white/50 mt-1">
+                      Fotografía {selectedIndex + 1} de {MOMENTS.length} · Campus Toluca II
+                    </p>
+                  </div>
+                </div>
 
-                {/* Controls */}
-                <div className="flex items-center gap-3 flex-wrap">
+                {/* Barra de Progreso y Botones de Acción */}
+                <div className="flex items-center gap-4 flex-wrap pt-2">
                   <button
                     onClick={handlePrev}
-                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                    className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white border border-white/10"
                     aria-label="Anterior"
                   >
-                    <FaChevronLeft size={20} />
+                    <FaChevronLeft size={18} />
                   </button>
 
                   <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
-                      className="h-full bg-[#8B21F2]"
+                      className="h-full bg-blue-500"
                       initial={{ width: "0%" }}
                       animate={{ width: `${((selectedIndex + 1) / MOMENTS.length) * 100}%` }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.2 }}
                     />
                   </div>
 
                   <button
                     onClick={handleNext}
-                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                    className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white border border-white/10"
                     aria-label="Siguiente"
                   >
-                    <FaChevronRight size={20} />
+                    <FaChevronRight size={18} />
                   </button>
 
                   <button
                     onClick={() => setSelectedIndex(null)}
-                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                    className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white border border-white/20 ml-2"
                     aria-label="Cerrar"
                   >
-                    <FaXmark size={20} />
+                    <FaXmark size={18} />
                   </button>
                 </div>
               </div>

@@ -46,7 +46,6 @@ import Lightbox from "./components/Lightbox";
 import SectionHeading from "./components/SectionHeading";
 import ThemeToggle from "./components/ThemeToggle";
 import FacilityGallery from "./components/FacilityGallery";
-import MomentsGallery from "./components/MomentsGallery";
 import heroA from "./imagenes/Toluca 2.jpeg";
 import heroB from "./imagenes/cecytem 1.3.jpeg";
 import heroC from "./imagenes/Toluac 2.2.jpeg";
@@ -75,8 +74,7 @@ import {
   values,
   whyChooseUs,
 } from "./data/siteData";
-
-const StudentLifeSection = lazy(() => import("./sections/StudentLifeSection"));
+import ComunidadSection from "./sections/ComunidadSection";
 const TestimonialSection  = lazy(() => import("./sections/TestimonialSection"));
 const FAQSection          = lazy(() => import("./sections/FAQSection"));
 const MapSection          = lazy(() => import("./sections/MapSection"));
@@ -421,8 +419,8 @@ export default function App() {
               <HeroBadge>CECyTEM Toluca II · Ciclo 2026–2027</HeroBadge>
 
               <h1 className="mt-6 max-w-3xl font-heading text-5xl font-black leading-[1.02] tracking-tight text-[var(--text)] sm:text-6xl lg:text-7xl">
-                Tu bachillerato
-                <span className="block text-gradient">con especialidad técnica</span>
+                TU BACHILLERATO
+                <span className="block text-gradient">CON ESPECIALIDAD TECNICA</span>
               </h1>
 
               <p className="mt-6 max-w-xl text-base leading-8 text-[var(--muted)] sm:text-lg">
@@ -831,9 +829,9 @@ export default function App() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="mt-8 flex items-start gap-4 rounded-[1.6rem] border border-[#8B21F2]/25 bg-[#8B21F2]/8 px-6 py-5"
+              className="mt-8 flex items-start gap-4 rounded-[1.6rem] border border-[#159b45]/25 bg-[#159b45]/8 px-6 py-5"
             >
-              <span className="mt-0.5 text-[#8B21F2]"><LuRocket size={20} /></span>
+              <span className="mt-0.5 text-[#1db954]"><LuRocket size={20} /></span>
               <div>
                 <p className="font-semibold text-[var(--text)]">Nuevo plantel en desarrollo</p>
                 <p className="mt-1 text-sm leading-7 text-[var(--muted)]">
@@ -855,7 +853,7 @@ export default function App() {
                 >
                   <div className="grid gap-8 md:grid-cols-[1fr_1.2fr] md:items-start">
                     <div>
-                      <span className="rounded-full border border-[#8B21F2]/30 bg-[#8B21F2]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#8B21F2]">
+                      <span className="rounded-full border border-[#1db954]/30 bg-[#159b45]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#159b45]">
                         {facility.category}
                       </span>
                       <h3 className="mt-4 font-heading text-2xl font-black text-[var(--text)]">
@@ -935,22 +933,11 @@ export default function App() {
         </section>
 
         {/* ── NOTICIAS Y VIDA ESTUDIANTIL ──────────────────── */}
-        <section id="noticias">
-          <SectionShell>
-            <Suspense fallback={placeholderFallback}>
-              <StudentLifeSection posts={studentLifePosts} onPreview={openStudentStory} />
-            </Suspense>
-
-            <div className="mt-10">
-              <SectionHeading
-                eyebrow="Momentos"
-                title="Momentos CECyTEM"
-                description="Galería institucional con instantes reales de la vida escolar: talleres, convivencias y proyectos."
-              />
-              <div className="mt-6">
-                <MomentsGallery />
-              </div>
-            </div>
+     <section id="noticias">
+  <SectionShell>
+    <Suspense fallback={placeholderFallback}>
+      <ComunidadSection posts={studentLifePosts} onPreview={openStudentStory} />
+    </Suspense>
 
             <div className="mt-20 grid gap-10 xl:grid-cols-[1.02fr_0.98fr]">
               {/* Noticias */}
