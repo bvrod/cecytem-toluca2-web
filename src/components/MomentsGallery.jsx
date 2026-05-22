@@ -132,7 +132,7 @@ export default function MomentsGallery() {
 
                   <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
-                      className="h-full bg-blue-500"
+                      className="h-full bg-[var(--accent)]"
                       initial={{ width: "0%" }}
                       animate={{ width: `${((selectedIndex + 1) / MOMENTS.length) * 100}%` }}
                       transition={{ duration: 0.2 }}

@@ -819,7 +819,7 @@ export default function App() {
           <SectionShell>
             <SectionHeading
               eyebrow="Instalaciones"
-              title="Un campus diseñado para aprender haciendo"
+              title="Un plantel para aprender haciendo"
               description="Contamos con aulas, laboratorio de cómputo, talleres técnicos y áreas deportivas. Un plantel en crecimiento que fortalece su infraestructura ciclo a ciclo."
             />
 
@@ -829,9 +829,9 @@ export default function App() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="mt-8 flex items-start gap-4 rounded-[1.6rem] border border-[#159b45]/25 bg-[#159b45]/8 px-6 py-5"
+              className="mt-8 flex items-start gap-4 rounded-[1.6rem] border border-[var(--accent)]/25 bg-[var(--accent)]/8 px-6 py-5"
             >
-              <span className="mt-0.5 text-[#1db954]"><LuRocket size={20} /></span>
+              <span className="mt-0.5 text-[var(--accent)]"><LuRocket size={20} /></span>
               <div>
                 <p className="font-semibold text-[var(--text)]">Nuevo plantel en desarrollo</p>
                 <p className="mt-1 text-sm leading-7 text-[var(--muted)]">
@@ -853,7 +853,7 @@ export default function App() {
                 >
                   <div className="grid gap-8 md:grid-cols-[1fr_1.2fr] md:items-start">
                     <div>
-                      <span className="rounded-full border border-[#1db954]/30 bg-[#159b45]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[#159b45]">
+                      <span className="rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
                         {facility.category}
                       </span>
                       <h3 className="mt-4 font-heading text-2xl font-black text-[var(--text)]">

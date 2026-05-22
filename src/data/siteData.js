@@ -4,17 +4,49 @@
 // ─────────────────────────────────────────────────────────────
 
 // Imágenes de carreras e instalaciones
-import logistImg from "../imagenes/Toluca 2.1.jpeg";
-import dataImg from "../imagenes/cecytem 1.2.jpeg";
-import lab1 from "../imagenes/cecytem 1.2.jpeg";
-import lab2 from "../imagenes/cecytem 1.3.jpeg";
-import lab3 from "../imagenes/cecytem 1.4.jpeg";
-import lib1 from "../imagenes/Toluca 3.jpeg";
+import logistImg from "../imagenes/Gemini_Generated_Image_9yr3a69yr3a69yr3.png";
+import dataImg from "../imagenes/Gemini_Generated_Image_fq2inrfq2inrfq2i.png";
+import lab1 from "../imagenes/sala de computo 1.1.jpeg";
+import lab2 from "../imagenes/sala de computo 1.2.jpeg";
+import lab3 from "../imagenes/sala de computo.jpeg";
+import lib1 from "../imagenes/Toluca 5.4.jpeg";
 import lib2 from "../imagenes/Toluca 3.1.jpeg";
 import lib3 from "../imagenes/Toluca 3.2.jpeg";
-import com1 from "../imagenes/Toluca 4.1.jpeg";
-import com2 from "../imagenes/Toluca 4.2.jpeg";
-import com3 from "../imagenes/Toluca 4.3.jpeg";
+import lib4 from "../imagenes/Toluca 3.9.jpeg";
+import lib5 from "../imagenes/Toluca 3.6.jpeg";
+import lib6 from "../imagenes/Toluca 4.6.jpeg";
+import lib7 from "../imagenes/Toluca 4.9.jpeg";
+import lib8 from "../imagenes/Toluca 5.3.jpeg";
+import lib9 from "../imagenes/Toluca 5.5.jpeg";
+import lib10 from "../imagenes/Toluca 5.6.jpeg";
+import lib11 from "../imagenes/Toluca 5.7.jpeg";
+import lib12 from "../imagenes/Toluca 5.8.jpeg";
+import lib13 from "../imagenes/Toluca 5.9.jpeg";
+import lib14 from "../imagenes/Toluca 6.jpeg";
+import lib15 from "../imagenes/Toluca 6.1.jpeg";
+import lib16 from "../imagenes/Toluca 6.4.jpeg";
+import com1 from "../imagenes/Toluca 3.5.jpeg";
+import com2 from "../imagenes/Toluca 4.6.jpeg";
+import com3 from "../imagenes/Toluca 5.1.jpeg";
+import com4 from "../imagenes/Toluca 3.1.jpeg";
+import com5 from "../imagenes/Actividades 1.1.jpeg";
+import com6 from "../imagenes/actividades.jpeg";
+import com7 from "../imagenes/Deportes toluca 2.1.jpeg";
+import com8 from "../imagenes/Deportes toluca 2.2.jpeg";
+import com9 from "../imagenes/Deportes toluca 2.3.jpeg";
+import com10 from "../imagenes/Deportes toluca 2.4.jpeg";
+import com11 from "../imagenes/Deportes toluca 2.5.jpeg";
+import com12 from "../imagenes/Deportes toluca 2.6.jpeg";
+import com13 from "../imagenes/Deportes toluca 2.7.jpeg";
+import com14 from "../imagenes/Deportes toluca 2.8.jpeg";
+import com15 from "../imagenes/Deportes toluca 2.9.jpeg";
+import com16 from "../imagenes/Deportes toluca 2.jpeg";
+import com17 from "../imagenes/Deportes toluca 3.1.jpeg";
+import com18 from "../imagenes/Deportes toluca 3.2.jpeg";
+import com19 from "../imagenes/Deportes toluca 3.3.jpeg";
+import com20 from "../imagenes/Deportes toluca 3.4.jpeg";
+import com21 from "../imagenes/Deportes toluca 3.5.jpeg";
+import com22 from "../imagenes/Deportes toluca 3.jpeg";
 import alumA from "../imagenes/cecytem alumnos.jpeg";
 import alumB from "../imagenes/cecytem alumnos 1.1.jpeg";
 import cecytem5img from "../imagenes/Cecytem 1.5.jpeg";
@@ -169,25 +201,57 @@ export const facilities = [
     ],
   },
   {
-    category: "Servicios",
-    title: "Biblioteca y Áreas de Estudio",
+    category: "Momentos CECyTEM",
+    title: "#TOLUCA II",
     description:
-      "La biblioteca adaptada del plantel ofrece recursos bibliográficos y espacio de estudio para la comunidad estudiantil. Un lugar para consulta, investigación y preparación académica.",
+      "Experiencias, logros y actividades que reflejan el espíritu, la identidad y el orgullo de nuestra comunidad estudiantil.",
     photos: [
-      { src: lib1, caption: "Área de consulta bibliográfica" },
-      { src: lib2, caption: "Espacio de estudio" },
-      { src: lib3, caption: "Comunidad estudiantil activa" },
-    ],
+    { src: lib1, caption: "#OrgulloTolucaII" },
+    { src: lib2, caption: "#ComunidadCECyTEM" },
+    { src: lib3, caption: "#TalentoQueTrasciende" },
+    { src: lib4, caption: "#FuturoEnConstrucción" },
+    { src: lib5, caption: "#FormaciónIntegral" },
+    { src: lib6, caption: "#CrecimientoPersonal" },
+    { src: lib7, caption: "#IdentidadCECyTEM" },
+    { src: lib8, caption: "#ExperienciaEducativa" },
+    { src: lib9, caption: "#ComunidadUnida" },
+    { src: lib10, caption: "#AprendizajeActivo" },
+    { src: lib11, caption: "#DesarrolloDeHabilidades" },
+    { src: lib12, caption: "#FormaciónParaElFuturo" },
+    { src: lib13, caption: "#OrgulloEstudiantil" },
+    { src: lib14, caption: "#CulturaCECyTEM" },
+    { src: lib15, caption: "#VidaEnElCampus" },
+    { src: lib16, caption: "#ExperienciasQueInspiran" },
+  ],
   },
   {
-    category: "Comunidad",
-    title: "Áreas Comunes y Cafetería",
+    category: "Mas que clases",
+    title: "Actividades que Forman Lideres",
     description:
-      "El plantel dispone de una cafetería provisional y áreas comunes donde los estudiantes conviven, descansan y participan en actividades extracurriculares que complementan su formación integral.",
+      "Actividades que fortalecen el talento, la disciplina y el desarrollo integral de nuestros estudiantes.",
     photos: [
       { src: com1, caption: "Área de convivencia estudiantil" },
       { src: com2, caption: "Espacios de descanso" },
       { src: com3, caption: "Actividades comunitarias" },
+      { src: com4, caption: "Eventos cívicos y culturales" },
+      { src: com5, caption: "Actividades extracurriculares" },
+      { src: com6, caption: "Talleres de desarrollo personal" },
+      { src: com7, caption: "Deporte en CECyTEM Toluca" },
+      { src: com8, caption: "Actividad deportiva institucional" },
+      { src: com9, caption: "Formación física y salud" },
+      { src: com10, caption: "Torneo de fútbol interno" },
+      { src: com11, caption: "Competencia deportiva estudiantil" },
+      { src: com12, caption: "Valores de trabajo en equipo" },
+      { src: com13, caption: "Encuentros deportivos locales" },
+      { src: com14, caption: "Equipo representativo del plantel" },
+      { src: com15, caption: "Identidad y disciplina deportiva" },
+      { src: com16, caption: "Convivencia inter-escolar" },
+      { src: com17, caption: "Torneo estudiantil de fútbol" },
+      { src: com18, caption: "Desarrollo deportivo integral" },
+      { src: com19, caption: "Sana competencia en el plantel" },
+      { src: com20, caption: "Talleres deportivos de fin de semana" },
+      { src: com21, caption: "Selección de atletas CECyTEM" },
+      { src: com22, caption: "Deporte, salud y convivencia" },
     ],
   },
 ];

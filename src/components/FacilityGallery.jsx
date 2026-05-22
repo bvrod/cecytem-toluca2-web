@@ -113,7 +113,7 @@ export default function FacilityGallery({ photos = [], title = "" }) {
         {/* Progress Bar */}
         <div className="w-full sm:w-48 h-1 bg-white/10 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-[#1e3a5f]"
+            className="h-full bg-[var(--accent)]"
             initial={{ width: "0%" }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.1, ease: "linear" }}
@@ -128,7 +128,7 @@ export default function FacilityGallery({ photos = [], title = "" }) {
               onClick={() => goToPage(i)}
               className={`rounded-full border-none cursor-pointer transition-all ${
                 i === currentPage
-                  ? "bg-[#1e3a5f] w-2 h-2"
+                  ? "bg-[var(--accent)] w-2 h-2"
                   : "bg-white/20 w-1.5 h-1.5 hover:bg-white/30"
               }`}
               aria-label={`Página ${i + 1}`}
@@ -162,7 +162,7 @@ export default function FacilityGallery({ photos = [], title = "" }) {
 
           <button
             onClick={() => setAutoplayOn(!autoplayOn)}
-            className="ml-2 px-3 py-1.5 rounded-full bg-[#1e3a5f]/20 hover:bg-[#1e3a5f]/30 transition-colors text-xs font-semibold uppercase text-[#1e3a5f]"
+            className="ml-2 px-3 py-1.5 rounded-full bg-[var(--accent)]/20 hover:bg-[var(--accent)]/30 transition-colors text-xs font-semibold uppercase text-[var(--accent)]"
           >
             {autoplayOn ? "⏸ ON" : "▶ OFF"}
           </button>
