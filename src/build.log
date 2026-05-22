@@ -1,0 +1,122 @@
+
+> cecytem-toluca-2@0.1.0 build
+> vite build
+
+[36mvite v8.0.13 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 582 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                       0.75 kB │ gzip:   0.44 kB
+dist/assets/cecytem-logo-D-SeB2oU.png                                87.78 kB
+dist/assets/Toluca 4.5-DwV6VmU1.jpeg                                127.55 kB
+dist/assets/cecytem 1.4-q6YyMan1.jpeg                               132.08 kB
+dist/assets/Toluca 4-9wEaguv0.jpeg                                  132.91 kB
+dist/assets/cecytem 1.3-9FEyXKeo.jpeg                               135.42 kB
+dist/assets/Deportes toluca 2.1-4-_WpmhZ.jpeg                       144.35 kB
+dist/assets/Toluca 3.7-D28AYbiu.jpeg                                144.93 kB
+dist/assets/Ciencia de datos 1.6-BV9_hxU8.jpeg                      146.13 kB
+dist/assets/Ciencia de datos 2.1-hpsT_pQ2.jpeg                      148.29 kB
+dist/assets/Ciencia de datos 1.4-BEdFF1p8.jpeg                      149.66 kB
+dist/assets/Toluca 4.1-9sRvs1nf.jpeg                                150.32 kB
+dist/assets/Ciencia de datos 1.2-Beia203i.jpeg                      154.41 kB
+dist/assets/Ciencia de datos1.5-C5rMHKxV.jpeg                       157.27 kB
+dist/assets/Ciencia de datos 1-8duKRowy.jpeg                        158.18 kB
+dist/assets/Ciencia de datos 1.9-CUKpQzY4.jpeg                      158.94 kB
+dist/assets/Ciencia de datos 1.3-XmPROvgn.jpeg                      159.97 kB
+dist/assets/Toluca 4.2-BpJb3H6C.jpeg                                160.67 kB
+dist/assets/Logistica 1.1-CW6j6O8G.jpeg                             162.90 kB
+dist/assets/Deportes toluca 2.2-BfUcGciM.jpeg                       165.45 kB
+dist/assets/Toluca 2.9-DKxmnV-L.jpeg                                166.17 kB
+dist/assets/Ciencia de datos 1.8-CAGwwVxq.jpeg                      166.48 kB
+dist/assets/sala de computo-BJ8KvFoR.jpeg                           168.37 kB
+dist/assets/Toluca 4.4-CaEUWxSJ.jpeg                                168.66 kB
+dist/assets/Logistica 1.3-B8KZ-bYH.jpeg                             169.04 kB
+dist/assets/Ciencia de datos-BRWy_RoZ.jpeg                          173.18 kB
+dist/assets/Ciencia de datos 1.7-DCNEVku9.jpeg                      177.37 kB
+dist/assets/sala de computo 1.2-BynxjKG2.jpeg                       180.49 kB
+dist/assets/Logistica 1.6-gp2jUkSN.jpeg                             181.51 kB
+dist/assets/Toluca 6.4-DSBYKU6Z.jpeg                                183.60 kB
+dist/assets/Deportes toluca 3-CFEyGRrq.jpeg                         184.62 kB
+dist/assets/Logistica 1.7-CiP4jWOw.jpeg                             185.01 kB
+dist/assets/Toluca 4.3-CzCDUwCf.jpeg                                186.55 kB
+dist/assets/Logistica 1_2-BuZ8L2rf.jpeg                             187.30 kB
+dist/assets/Actividades 1.1-DUJQgf0v.jpeg                           187.58 kB
+dist/assets/Deportes toluca 3.5-CUOuYEUx.jpeg                       188.13 kB
+dist/assets/Toluca 4.7-kTmViNZB.jpeg                                188.67 kB
+dist/assets/Logistica 1.5-D8Fp6lMF.jpeg                             190.72 kB
+dist/assets/Aulas-D026OVp0.jpeg                                     192.38 kB
+dist/assets/Logistica 1.4-CjwuGUzH.jpeg                             193.70 kB
+dist/assets/Deportes toluca 2-CaOe7YBz.jpeg                         194.06 kB
+dist/assets/Logistica-BmvWKGgC.jpeg                                 196.75 kB
+dist/assets/Deportes toluca 3.1-DwEDKzJV.jpeg                       196.78 kB
+dist/assets/Ciencia de datos 2-AGIuagcX.jpeg                        197.38 kB
+dist/assets/cecytem alumnos 1.1-BWGHlqA5.jpeg                       199.41 kB
+dist/assets/Toluca 5.2-DdFQkcpm.jpeg                                199.69 kB
+dist/assets/cecytem 1.2-0O8GtzyL.jpeg                               201.07 kB
+dist/assets/Toluca 3.4-B91mtd_a.jpeg                                204.22 kB
+dist/assets/Toluca 2.8-rNjufymc.jpeg                                206.72 kB
+dist/assets/Actividades 1.2-fZFsg870.jpeg                           211.16 kB
+dist/assets/sala de computo 1.1-0mshur1q.jpeg                       213.90 kB
+dist/assets/Toluca 5.1-XWygbWoi.jpeg                                216.51 kB
+dist/assets/Deportes toluca 2.3-D2fee2mn.jpeg                       218.28 kB
+dist/assets/Toluca 5.6-DTLo-bnW.jpeg                                220.97 kB
+dist/assets/cecytem alumnos-D68JpL6r.jpeg                           221.83 kB
+dist/assets/Toluca 6-BRaWT0gS.jpeg                                  224.38 kB
+dist/assets/Deportes toluca 3.2-D49STDhm.jpeg                       224.90 kB
+dist/assets/Deportes toluca 3.4-DBLbLwen.jpeg                       225.08 kB
+dist/assets/Toluca 3.9-B3Y44IkY.jpeg                                231.89 kB
+dist/assets/Deportes toluca 2.8-DodZyILP.jpeg                       232.84 kB
+dist/assets/actividades-3c9-nRZv.jpeg                               234.45 kB
+dist/assets/Toluca 3.3-DTxvp-pW.jpeg                                239.60 kB
+dist/assets/Toluca 5.3-DU4SJfk9.jpeg                                244.28 kB
+dist/assets/Toluca 5.9-Bz-vTmRh.jpeg                                248.30 kB
+dist/assets/Toluca 5.8-DQw8FE_b.jpeg                                249.59 kB
+dist/assets/Deportes toluca 2.6-DfxlyGat.jpeg                       249.73 kB
+dist/assets/Cecytem 1.5-BrtI3jJ_.jpeg                               250.43 kB
+dist/assets/Toluca 4.6-pJlh7M5D.jpeg                                251.11 kB
+dist/assets/Toluca 5-CZYNfL8Q.jpeg                                  256.85 kB
+dist/assets/Toluca 6.1-vwxn6_4i.jpeg                                257.91 kB
+dist/assets/Toluca 5.7-DJtbbmLE.jpeg                                257.95 kB
+dist/assets/Toluca 5.5-ChLRSDhI.jpeg                                260.19 kB
+dist/assets/cecytem 1.6-CWfGxc-q.jpeg                               266.44 kB
+dist/assets/Toluca 3.5-DjTiFjl0.jpeg                                269.15 kB
+dist/assets/Deportes toluca 3.3-3kzC55rW.jpeg                       272.30 kB
+dist/assets/Toluca 3-DakiYweo.jpeg                                  291.31 kB
+dist/assets/Deportes toluca 2.4-BCl16vDD.jpeg                       294.27 kB
+dist/assets/cecytem 1.7-CVVbsohm.jpeg                               307.81 kB
+dist/assets/Toluca 6.3-DfD5rlG_.jpeg                                308.64 kB
+dist/assets/Toluca 4.8-CvbM8Jr0.jpeg                                308.82 kB
+dist/assets/Toluca 2-CA6pCa74.jpeg                                  311.83 kB
+dist/assets/Toluca 3.6-CLHp7h9O.jpeg                                318.93 kB
+dist/assets/Toluca 6.2-3yCS96vy.jpeg                                329.14 kB
+dist/assets/Toluca 5.4-BWsy3v4D.jpeg                                329.97 kB
+dist/assets/Toluca 2.6-C-WB28J4.jpeg                                330.89 kB
+dist/assets/Deportes toluca 2.9-DSxFKtej.jpeg                       332.38 kB
+dist/assets/Toluca 2.5-2m1NwuOl.jpeg                                332.83 kB
+dist/assets/Toluca 3.8-CeuaICxg.jpeg                                332.91 kB
+dist/assets/Toluca 3.1-B5DxoqIS.jpeg                                365.74 kB
+dist/assets/Toluca 2.3-B4nkaVRL.jpeg                                380.55 kB
+dist/assets/Toluca 2.4-Riq198m7.jpeg                                388.97 kB
+dist/assets/Toluac 2.2-DHazFERx.jpeg                                400.38 kB
+dist/assets/Toluca 4.9-CGDj4gkw.jpeg                                418.58 kB
+dist/assets/Toluca 2.1-D4131JO9.jpeg                                449.58 kB
+dist/assets/Deportes toluca 2.5-DzxrY_wB.jpeg                       453.77 kB
+dist/assets/Deportes toluca 2.7-BKpGtNPN.jpeg                       489.57 kB
+dist/assets/Toluca 3.2-CENYtXC9.jpeg                                493.64 kB
+dist/assets/Toluca 2.7-BnQOt07v.jpeg                                609.21 kB
+dist/assets/Gemini_Generated_Image_fq2inrfq2inrfq2i-hVk18JVm.png  2,084.16 kB
+dist/assets/Gemini_Generated_Image_35znbv35znbv35zn-DB4AW8XC.png  2,165.99 kB
+dist/assets/Gemini_Generated_Image_ucbvlyucbvlyucbv-Bau40QOP.png  2,289.73 kB
+dist/assets/Gemini_Generated_Image_9yr3a69yr3a69yr3-BDO270Io.png  2,290.77 kB
+dist/assets/index-BFpmtBq5.css                                       72.85 kB │ gzip:  12.19 kB
+dist/assets/FAQSection-2_XW0KmF.js                                    1.37 kB │ gzip:   0.74 kB
+dist/assets/MapSection-qv79z33V.js                                    2.36 kB │ gzip:   0.81 kB
+dist/assets/TestimonialSection-tBdEl_Ij.js                            5.54 kB │ gzip:   2.18 kB
+dist/assets/index-DMKbVikF.js                                       525.04 kB │ gzip: 160.61 kB
+
+[32m✓ built in 1.03s[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m

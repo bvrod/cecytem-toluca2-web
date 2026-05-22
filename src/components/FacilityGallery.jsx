@@ -74,10 +74,10 @@ export default function FacilityGallery({ photos = [], title = "" }) {
       {/* Gallery Grid */}
       <div className="glass-card rounded-[2.3rem] overflow-hidden p-4 sm:p-5 shadow-glow">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[220px] min-h-[420px]">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="popLayout">
             {visiblePhotos.map((photo, idx) => (
               <motion.div
-                key={`${currentPage}-${idx}`}
+                key={photo.src}
                 className="group relative overflow-hidden rounded-[1.5rem] cursor-default gallery-grid-item"
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}

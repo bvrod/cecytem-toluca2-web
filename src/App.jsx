@@ -1277,7 +1277,7 @@ export default function App() {
                     <FaArrowRight />
                   </button>
 
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence mode="popLayout">
                     {submitState === "success" ? (
                       <motion.p
                         key="success"

@@ -126,7 +126,7 @@ export default function ComunidadSection({ posts = [], onPreview = () => {} }) {
       {/* Mobile view: stacked cards for page-like interaction */}
       <div className="md:hidden">
         <div className="relative h-[76vh] w-full overflow-hidden">
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {visibleStack.map((photo, index) => {
               const isTop = index === 0;
               const offset = index * 9;
@@ -262,7 +262,7 @@ export default function ComunidadSection({ posts = [], onPreview = () => {} }) {
                 >
                   Siguiente <FaChevronRight />
                 </button>
-              </div>
+              </div>+++++++++++
             </div>
           </motion.div>
         )}
