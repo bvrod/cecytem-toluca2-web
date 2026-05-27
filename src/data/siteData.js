@@ -6,9 +6,9 @@
 // Imágenes de carreras e instalaciones
 import logistImg from "../imagenes/Gemini_Generated_Image_9yr3a69yr3a69yr3.png";
 import dataImg from "../imagenes/Gemini_Generated_Image_fq2inrfq2inrfq2i.png";
-import lab1 from "../imagenes/sala de computo 1.1.jpeg";
-import lab2 from "../imagenes/sala de computo 1.2.jpeg";
-import lab3 from "../imagenes/sala de computo.jpeg";
+import lab1 from "../imagenes/Sala de computo 1.1.jpeg";
+import lab2 from "../imagenes/Sala de computo 1.2.jpeg";
+import lab3 from "../imagenes/Sala de computo.jpeg";
 import lib1 from "../imagenes/Toluca 5.4.jpeg";
 import lib2 from "../imagenes/Toluca 3.1.jpeg";
 import lib3 from "../imagenes/Toluca 3.2.jpeg";
@@ -33,9 +33,9 @@ import com5 from "../imagenes/Actividades 1.1.jpeg";
 import com6 from "../imagenes/actividades.jpeg";
 import com7 from "../imagenes/Deportes toluca 2.1.jpeg";
 import com8 from "../imagenes/Deportes toluca 2.2.jpeg";
-import com9 from "../imagenes/Deportes toluca 2.3.jpeg";
+import com9 from "../imagenes/Deportes Toluca 2.3.jpeg";
 import com10 from "../imagenes/Deportes toluca 2.4.jpeg";
-import com11 from "../imagenes/Deportes toluca 2.5.jpeg";
+import com11 from "../imagenes/Deportes Toluca 2.5.jpeg";
 import com12 from "../imagenes/Deportes toluca 2.6.jpeg";
 import com13 from "../imagenes/Deportes toluca 2.7.jpeg";
 import com14 from "../imagenes/Deportes toluca 2.8.jpeg";
