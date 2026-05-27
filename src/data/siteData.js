@@ -50,6 +50,16 @@ import com22 from "../imagenes/Deportes toluca 3.jpeg";
 import alumA from "../imagenes/cecytem alumnos.jpeg";
 import alumB from "../imagenes/cecytem alumnos 1.1.jpeg";
 import cecytem5img from "../imagenes/Cecytem 1.5.jpeg";
+// Documentos PDF
+import protocoloConvivencia from "../Documents/01 PROTOCOLO PARA LA CONVIVENCIA ARMÓNICA DEL ESTUDIANTADO EN LOS PLANTELES FEDERALES DE EMS _250823 FINAL-1.pdf";
+import normasConvivencia from "../Documents/01Normas de convivencia escolar.pdf";
+import protocolosSeguridad from "../Documents/02 PROTOCOLOS DE SEGURIDAD PARA LOS PLANTELES FEDERALES _250823 FINAL.pdf";
+import derechosDeberes from "../Documents/02Derechos y Deberes Alumnos Plantel Toluca II.pdf";
+import formatoExprAviso from "../Documents/04 Formato Exprés de Aviso de Privacidad.pdf";
+import anexoParticipacion from "../Documents/ANEXO 05 Participación Informada Mochila de paz.pdf";
+import anexoConsentimiento from "../Documents/ANEXO 3 CONSENTIMIENTO INFORMADO Mochila de paz.pdf";
+import formatoCotejo from "../Documents/Formato de Cotejo de entrega de Documentos.pdf";
+import formatoCroquis from "../Documents/Formato de Croquis.pdf";
 
 // ── Navegación ───────────────────────────────────────────────
 export const navigation = [
@@ -451,122 +461,91 @@ export const documents = [
     category: "Inscripción",
     icon: "document",
     title: "Formato de Cotejo de Entrega de Documentos",
-    description:
-      "Lista oficial de verificación para la entrega de expediente de nuevo ingreso. Debe presentarse junto con la documentación completa.",
+    description: "Lista oficial de verificación para la entrega de expediente de nuevo ingreso.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
-  },
-  {
-    category: "Inscripción",
-    icon: "document",
-    title: "Solicitud de Inscripción",
-    description:
-      "Formulario oficial para formalizar el ingreso al plantel una vez obtenida la asignación en el proceso de admisión.",
-    fileType: "PDF",
-    fileSize: null,
-    href: "#",
-    available: false,
+    href: formatoCotejo,
+    available: true,
   },
   {
     category: "Reglamentos",
     icon: "shield",
-    title: "Normas de Convivencia",
-    description:
-      "Reglamento de conducta y convivencia escolar del plantel. Lectura obligatoria para estudiantes, padres de familia y tutores.",
+    title: "Normas de Convivencia Escolar",
+    description: "Reglamento de conducta y convivencia escolar del plantel.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
+    href: normasConvivencia,
+    available: true,
   },
   {
     category: "Reglamentos",
     icon: "shield",
     title: "Derechos y Deberes del Alumnado",
-    description:
-      "Documento que establece los derechos y responsabilidades de los estudiantes dentro de la comunidad escolar del CECyTEM Toluca II.",
+    description: "Documento que establece los derechos y responsabilidades de los estudiantes.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
-  },
-  {
-    category: "Reglamentos",
-    icon: "shield",
-    title: "Derechos y Obligaciones de los Padres",
-    description:
-      "Marco de responsabilidades y derechos que corresponden a los padres de familia y tutores en el acompañamiento escolar.",
-    fileType: "PDF",
-    fileSize: null,
-    href: "#",
-    available: false,
-  },
-  {
-    category: "Privacidad",
-    icon: "info",
-    title: "Aviso de Privacidad",
-    description:
-      "Documento oficial que informa el tratamiento de datos personales de la comunidad estudiantil conforme a la Ley Federal de Protección de Datos Personales.",
-    fileType: "PDF",
-    fileSize: null,
-    href: "#",
-    available: false,
+    href: derechosDeberes,
+    available: true,
   },
   {
     category: "Privacidad",
     icon: "info",
     title: "Formato Exprés de Aviso de Privacidad",
-    description:
-      "Versión simplificada del aviso de privacidad para firma rápida. Se entrega junto con la documentación de inscripción.",
+    description: "Versión simplificada del aviso de privacidad para firma rápida.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
+    href: formatoExprAviso,
+    available: true,
   },
   {
     category: "Mochila de Paz",
     icon: "calendar",
-    title: "Consentimiento Informado — Protocolo Mochila de Paz",
-    description:
-      "Documento de autorización para la aplicación del protocolo institucional de prevención y detección de violencia escolar.",
+    title: "Consentimiento Informado — Mochila de Paz (ANEXO)",
+    description: "Documento de autorización para el protocolo Mochila de Paz.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
+    href: anexoConsentimiento,
+    available: true,
   },
   {
     category: "Mochila de Paz",
     icon: "calendar",
-    title: "Formato de Participación Informada (NNyA)",
-    description:
-      "Formato dirigido a niñas, niños y adolescentes para su participación informada dentro del protocolo Mochila de Paz.",
+    title: "Formato de Participación Informada — Mochila de Paz (ANEXO)",
+    description: "Formato de participación informada para NNyA dentro del protocolo.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
+    href: anexoParticipacion,
+    available: true,
   },
   {
     category: "General",
     icon: "document",
-    title: "Croquis de Localización",
-    description:
-      "Mapa y croquis oficial de localización del plantel CECyTEM Toluca II. Dirección: Francisco I. Madero s/n, Col. La Constitución Totoltepec.",
+    title: "Formato de Croquis (Localización)",
+    description: "Mapa y croquis oficial de localización del plantel.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
+    href: formatoCroquis,
+    available: true,
   },
   {
-    category: "General",
-    icon: "document",
-    title: "Comprobante de Entrega de Documentos",
-    description:
-      "Acuse oficial que acredita la recepción completa del expediente de nuevo ingreso. Se obtiene al finalizar la entrega presencial en el plantel.",
+    category: "Seguridad",
+    icon: "shield",
+    title: "Protocolos de Seguridad para los Planteles",
+    description: "Documentos técnicos sobre protocolos de seguridad institucional.",
     fileType: "PDF",
     fileSize: null,
-    href: "#",
-    available: false,
+    href: protocolosSeguridad,
+    available: true,
+  },
+  {
+    category: "Reglamentos",
+    icon: "document",
+    title: "Protocolo para la Convivencia Armónica",
+    description: "Protocolo institucional para la convivencia armónica del estudiantado.",
+    fileType: "PDF",
+    fileSize: null,
+    href: protocoloConvivencia,
+    available: true,
   },
 ];
 

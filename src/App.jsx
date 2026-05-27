@@ -313,49 +313,60 @@ export default function App() {
       <div className="ambient-background" aria-hidden="true" />
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="glass-card flex items-center justify-between rounded-[1.8rem] px-4 py-3 sm:px-5">
-            <button
-              type="button"
-              onClick={() => handleAnchorClick("inicio")}
-              className="text-left"
-              aria-label="Ir al inicio"
-            >
-              <LogoMark />
-            </button>
+      <header className="fixed inset-x-0 top-0 z-50 px-4 pt-5 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-screen-2xl">
+          <div className="glass-card flex items-center justify-between rounded-[1.8rem] px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+            <div className="flex min-w-0 items-center gap-x-3 lg:gap-x-4 xl:gap-x-6">
+              <button
+                type="button"
+                onClick={() => handleAnchorClick("inicio")}
+                className="shrink-0 text-left"
+                aria-label="Ir al inicio"
+              >
+                <LogoMark />
+              </button>
 
-            <div className="hidden items-center gap-2 xl:flex">
-              {navigation.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleAnchorClick(item.id)}
-                  className={`nav-link rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                    activeSection === item.id ? "is-active" : ""
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+              <div className="hidden items-center gap-x-1.5 xl:ml-2 xl:flex 2xl:gap-x-3">
+                {navigation.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleAnchorClick(item.id)}
+                    className={`nav-link whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold leading-none transition-all 2xl:px-4 2xl:py-2 2xl:text-sm ${
+                      activeSection === item.id ? "is-active" : ""
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-2.5 2xl:gap-3">
+              <a
+                href="http://localhost:5174"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cta-secondary hidden items-center justify-center gap-1.5 whitespace-nowrap !rounded-xl !px-3 !py-1.5 !text-sm 2xl:inline-flex"
+              >
+                <FaGlobe className="text-sm" />
+                Portal
+              </a>
+              <button
+                type="button"
+                onClick={() => handleAnchorClick("admisiones")}
+                className="cta-primary hidden items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm 2xl:inline-flex"
+              >
+                Inscríbete
+                <FaArrowRight />
+              </button>
               <ThemeToggle
                 theme={theme}
                 onToggle={() => setTheme((c) => (c === "light" ? "dark" : "light"))}
               />
               <button
                 type="button"
-                onClick={() => handleAnchorClick("admisiones")}
-                className="cta-primary hidden items-center gap-2 xl:inline-flex"
-              >
-                Inscríbete
-                <FaArrowRight />
-              </button>
-              <button
-                type="button"
-                className="glass-card flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--text)] xl:hidden"
+                className="glass-card flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--text)] 2xl:hidden"
                 onClick={() => setMobileOpen((c) => !c)}
                 aria-expanded={mobileOpen}
                 aria-controls="mobile-navigation"
@@ -370,13 +381,23 @@ export default function App() {
             {mobileOpen ? (
               <motion.div
                 id="mobile-navigation"
-                className="glass-card mt-3 overflow-hidden rounded-[1.8rem] p-4 xl:hidden"
+                className="glass-card mt-3 overflow-hidden rounded-[1.8rem] p-4 2xl:hidden"
                 initial={{ opacity: 0, y: -14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25 }}
               >
                 <div className="grid gap-2">
+                  <a
+                    href="http://localhost:5174"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileOpen(false)}
+                    className="cta-secondary inline-flex w-full items-center justify-center gap-2"
+                  >
+                    <FaGlobe />
+                    Portal Institucional
+                  </a>
                   {navigation.map((item) => (
                     <button
                       key={item.id}

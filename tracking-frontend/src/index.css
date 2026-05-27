@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+body {
+  background-color: #f9fafb; /* Blanco limpio institucional */
+  color: #111827;            /* Texto en negro profundo */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
