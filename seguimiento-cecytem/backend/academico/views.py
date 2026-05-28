@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db import transaction
@@ -6,6 +7,7 @@ from django.contrib.auth import get_user_model
 from .models import Grupo, Materia, Alumno
 from .serializers import GrupoSerializer, MateriaSerializer, AlumnoSerializer
 from seguimiento.models import AsignacionDocente
+from seguimiento.serializers import AsignacionDocenteSerializer
 
 Usuario = get_user_model()
 
@@ -142,7 +144,36 @@ class MateriaViewSet(viewsets.ModelViewSet):
             )
 
 class AlumnoViewSet(viewsets.ModelViewSet):
-    """ViewSet para CRUD de Alumnos"""
+    """ViewSet para CRUD de Alumnos con filtrado por grupo"""
     queryset = Alumno.objects.all()
     serializer_class = AlumnoSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filtrar alumnos por grupo si se especifica en query params"""
+        queryset = Alumno.objects.all()
+        grupo_id = self.request.query_params.get('grupo', None)
+        asignacion_id = self.request.query_params.get('asignacion', None)
+        
+        # Si viene el ID de la asignación, obtener el grupo de esa asignación
+        if asignacion_id:
+            try:
+                asignacion = AsignacionDocente.objects.get(id=asignacion_id)
+                queryset = queryset.filter(grupo=asignacion.grupo)
+            except AsignacionDocente.DoesNotExist:
+                pass
+        # Si viene directamente el ID del grupo, filtrar por ese
+        elif grupo_id:
+            queryset = queryset.filter(grupo_id=grupo_id)
+        
+        return queryset
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def docente_dashboard(request):
+    """Retorna las asignaciones del docente autenticado para el dashboard."""
+    docente = request.user
+    asignaciones = AsignacionDocente.objects.filter(docente=docente)
+    serializer = AsignacionDocenteSerializer(asignaciones, many=True)
+    return Response(serializer.data)

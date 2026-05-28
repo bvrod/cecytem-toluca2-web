@@ -312,12 +312,23 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
 // ─── AlumnosSection ────────────────────────────────────────────────────────────
 
 function AlumnosSection() {
-  const [alumnos, setAlumnos]   = useState([]);
-  const [grupos,  setGrupos]    = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [modal,   setModal]     = useState(null);
-  const [form,    setForm]      = useState({ grupo: "", semestre: "", turno: "" });
-  const [saving,  setSaving]    = useState(false);
+  const [alumnos, setAlumnos]           = useState([]);
+  const [grupos,  setGrupos]            = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [modal,   setModal]              = useState(null);
+  const [form,    setForm]              = useState({ grupo: "", semestre: "", turno: "" });
+  const [saving,  setSaving]            = useState(false);
+  const [alumnoModalOpen, setAlumnoModalOpen] = useState(false);
+  const [formAlumno, setFormAlumno]     = useState({
+    firstName: "",
+    lastName: "",
+    numeroControl: "",
+    curp: "",
+    carrera: "",
+    semestre: "",
+    grupo: "",
+    turno: "Matutino",
+  });
   const { toast, show } = useToast();
 
   const load = useCallback(async () => {
@@ -347,11 +358,11 @@ function AlumnosSection() {
       turno:    grupo?.turno ?? "",
     });
     setModal({
-      id:       alumno.id,
-      userId:   alumno.user,
+      id:        alumno.id,
+      userId:    alumno.user,
       matricula: alumno.matricula ?? "",
-      nombre:   alumno.nombre_completo ?? "",
-      email:    alumno.email ?? "",
+      nombre:    alumno.nombre_completo ?? "",
+      email:     alumno.email ?? "",
     });
   };
 
@@ -388,10 +399,110 @@ function AlumnosSection() {
     }
   };
 
+// ─── Crear nuevo alumno ──────────────────────────────────────────────────────
+
+const handleSaveAlumno = async (e) => {
+    e.preventDefault();
+
+    // Validar campos requeridos
+    if (
+      !formAlumno.firstName.trim() ||
+      !formAlumno.lastName.trim() ||
+      !formAlumno.numeroControl.trim() ||
+      !formAlumno.curp.trim() ||
+      !formAlumno.carrera ||
+      !formAlumno.semestre ||
+      !formAlumno.grupo
+    ) {
+      show("Por favor completa todos los campos requeridos.", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 1️⃣ PASO CORREGIDO: Apuntamos al endpoint real en la app de autenticación
+      const userResponse = await api.post("/auth/usuarios/", {
+        username:     formAlumno.numeroControl.trim(),
+        first_name:   formAlumno.firstName.trim(),
+        last_name:    formAlumno.lastName.trim(),
+        email:        `${formAlumno.numeroControl.trim()}@cecytem.edu.mx`,
+        password:     formAlumno.curp.trim(),
+        rol:          "ALUMNO",
+      });
+
+      // Extraemos el UUID que Django generó para el usuario base
+      const userUuid = userResponse.data.id; 
+
+      if (!userUuid) {
+        throw new Error("El servidor creó el usuario pero no devolvió un ID (UUID) válido.");
+      }
+
+      // 2️⃣ PASO: Creamos el perfil del alumno en la app académica ligándole el UUID
+      await api.post("/academico/alumnos/", {
+        user:         userUuid, 
+        curp:         formAlumno.curp.trim(),
+        carrera:      formAlumno.carrera,
+        semestre:     Number.parseInt(formAlumno.semestre, 10),
+        grupo:        Number.parseInt(formAlumno.grupo, 10),
+        turno:        formAlumno.turno,
+      });
+
+      show(`Alumno ${formAlumno.firstName} ${formAlumno.lastName} creado e inscrito exitosamente.`);
+      setAlumnoModalOpen(false);
+      setFormAlumno({
+        firstName: "",
+        lastName: "",
+        numeroControl: "",
+        curp: "",
+        carrera: "",
+        semestre: "",
+        grupo: "",
+        turno: "Matutino",
+      });
+      await load();
+
+    } catch (err) {
+      console.error("--- ERROR EN EL PROCESO DE REGISTRO ---");
+      if (err.response) {
+        console.log("STATUS CODE:", err.response.status);
+        console.dir(err.response.data);
+        alert("DJANGO RECHAZÓ LA OPERACIÓN POR:\n" + JSON.stringify(err.response.data, null, 2));
+      } else {
+        console.log("Error general:", err.message);
+        alert("Ocurrió un error: " + err.message);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+  // Filtrar grupos por carrera, semestre y turno para el formulario de alta
+  const gruposFiltrados = grupos.filter((g) => {
+    if (!g) return false;
+
+    // 1. Normalizar Carrera: Elimina acentos, espacios y guiones bajos
+    const carreraFormulario = (formAlumno.carrera || "").replace(/_/g, "").replace(/\s+/g, "").trim().toUpperCase();
+    const carreraBackend = (g.carrera || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/_/g, "").replace(/\s+/g, "").trim().toUpperCase();
+    
+    // Soporte para coincidencias parciales (ej. LOGISTICA o CIENCIADATOS)
+    const carreraMatch = !formAlumno.carrera || carreraBackend.includes(carreraFormulario) || carreraFormulario.includes(carreraBackend);
+
+    // 2. Normalizar Semestre: Comparación numérica limpia
+    const semestreMatch = !formAlumno.semestre || Number(g.semestre) === Number(formAlumno.semestre);
+
+    // 3. Normalizar Turno: Comparación en minúsculas sin espacios
+    const turnoMatch = !formAlumno.turno || String(g.turno || "").trim().toLowerCase() === String(formAlumno.turno).trim().toLowerCase();
+
+    return carreraMatch && semestreMatch && turnoMatch;
+  });
+
   return (
     <>
       <Toast toast={toast} />
-      <SectionTitle title="Alumnos" subtitle="Consulta el padron y reasigna grupos." />
+      <div className="mb-6 flex items-center justify-between">
+        <SectionTitle title="Alumnos" subtitle="Consulta el padron y reasigna grupos." />
+        <Btn variant="primary" onClick={() => setAlumnoModalOpen(true)}>+ Nuevo Alumno</Btn>
+      </div>
+
       <Table cols={["Matricula", "Nombre", "Correo", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
         {alumnos.map((alumno, idx) => {
           const grupo = grupos.find((g) => g.id === alumno.grupo);
@@ -422,6 +533,7 @@ function AlumnosSection() {
         })}
       </Table>
 
+      {/* ─── MODAL: ACTUALIZAR GRUPO DE ALUMNO EXISTENTE ─── */}
       {modal ? (
         <Modal title="Actualizar alumno" onClose={() => setModal(null)}>
           <form className="space-y-4" onSubmit={handleSave}>
@@ -464,39 +576,296 @@ function AlumnosSection() {
           </form>
         </Modal>
       ) : null}
+
+      {/* ─── MODAL: REGISTRAR NUEVO ALUMNO ─── */}
+      {alumnoModalOpen ? (
+        <Modal title="Registrar Nuevo Alumno" onClose={() => setAlumnoModalOpen(false)}>
+          <form className="space-y-4" onSubmit={handleSaveAlumno}>
+            
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Nombre(s)" required>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Ej. Luis Rodrigo"
+                  value={formAlumno.firstName}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, firstName: e.target.value }))}
+                />
+              </Field>
+              <Field label="Apellidos" required>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Ej. Briseño"
+                  value={formAlumno.lastName}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, lastName: e.target.value }))}
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Número de Control (Usuario)" required>
+                <input
+                  type="text"
+                  className={`${inputCls} font-mono`}
+                  placeholder="Ej. 231502..."
+                  value={formAlumno.numeroControl}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, numeroControl: e.target.value }))}
+                />
+              </Field>
+              <Field label="CURP (Contraseña)" required>
+                <input
+                  type="text"
+                  className={`${inputCls} font-mono uppercase`}
+                  placeholder="18 caracteres"
+                  maxLength={18}
+                  value={formAlumno.curp}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, curp: e.target.value }))}
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Carrera" required>
+                <select
+                  className={inputCls}
+                  value={formAlumno.carrera}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, carrera: e.target.value, grupo: "" }))}
+                >
+                  <option value="">Seleccionar carrera</option>
+                  <option value="LOGISTICA">Técnico en Logística</option>
+                  <option value="CIENCIA_DATOS">Técnico en Ciencia de Datos</option>
+                </select>
+              </Field>
+              <Field label="Semestre" required>
+                <select
+                  className={inputCls}
+                  value={formAlumno.semestre}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, semestre: e.target.value, grupo: "" }))}
+                >
+                  <option value="">Seleccionar semestre</option>
+                  {[1, 2, 3, 4, 5, 6].map(n => (
+                    <option key={n} value={n}>{n}° Semestre</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Turno" required>
+                <select
+                  className={inputCls}
+                  value={formAlumno.turno}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, turno: e.target.value, grupo: "" }))}
+                >
+                  <option value="Matutino">Matutino</option>
+                  <option value="Vespertino">Vespertino</option>
+                </select>
+              </Field>
+              <Field label="Grupo Destino" required>
+                <select
+                  className={inputCls}
+                  value={formAlumno.grupo}
+                  onChange={(e) => setFormAlumno(c => ({ ...c, grupo: e.target.value }))}
+                >
+                  {!formAlumno.carrera || !formAlumno.semestre ? (
+                    <option value="">Por favor selecciona Carrera y Semestre primero</option>
+                  ) : gruposFiltrados.length === 0 ? (
+                    <option value="">No hay grupos que coincidan ({formAlumno.turno})</option>
+                  ) : (
+                    <option value="">Seleccionar grupo ({gruposFiltrados.length} disponible/s)</option>
+                  )}
+                  
+                  {gruposFiltrados.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.semestre}0{g.grupo_letra || "2"} - {carreraLabels[g.carrera] || g.carrera} ({g.turno})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="rounded-lg bg-violet-950/40 p-3 border border-violet-800/30 text-xs text-violet-300">
+              💡 <strong>Credenciales automáticas:</strong> El alumno iniciará sesión con su <strong>Número de Control</strong> y su contraseña será su <strong>CURP</strong>. Se autogenerará su correo institucional.
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <Btn variant="ghost" onClick={() => setAlumnoModalOpen(false)}>Cancelar</Btn>
+              <Btn variant="primary" type="submit" loading={saving}>Crear e Inscribir Alumno</Btn>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </>
   );
 }
 
-// ─── DocentesSection ───────────────────────────────────────────────────────────
+// ─── DocentesSection (CON CREACIÓN DE USUARIOS DOCENTES) ───────────────────────
 
 function DocentesSection() {
   const [docentes,     setDocentes]     = useState([]);
   const [materias,     setMaterias]     = useState([]);
+  const [grupos,       setGrupos]       = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [modal,        setModal]        = useState(null); // Modos: "add_materia", "register_docente"
+  const [detailsModal, setDetailsModal] = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  
+  // Estado para el formulario de asignación
+  const [form, setForm] = useState({ materia_id: "", grupo_id: "" });
+  
+  // 💡 NUEVO: Estado para el formulario de registro de docentes
+  const [formDocente, setFormDocente] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    claveServidor: ""
+  });
+
+  const { toast, show } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [docentesResult, materiasResult, asignacionesResult] = await Promise.allSettled([
-      api.get("/auth/usuarios/?rol=DOCENTE"),
-      api.get("/academico/materias/"),
-      api.get("/seguimiento/asignaciones/"),
-    ]);
-    setDocentes(docentesResult.status     === "fulfilled" ? extractList(docentesResult.value.data)     : []);
-    setMaterias(materiasResult.status     === "fulfilled" ? extractList(materiasResult.value.data)     : []);
-    setAsignaciones(asignacionesResult.status === "fulfilled" ? extractList(asignacionesResult.value.data) : []);
-    setLoading(false);
+    try {
+      const [docentesResult, materiasResult, gruposResult, asignacionesResult] = await Promise.allSettled([
+        api.get("/auth/usuarios/?rol=DOCENTE"),
+        api.get("/academico/materias/"),
+        api.get("/academico/grupos/"),
+        api.get("/seguimiento/asignaciones/"),
+      ]);
+      setDocentes(docentesResult.status === "fulfilled" ? extractList(docentesResult.value.data) : []);
+      setMaterias(materiasResult.status === "fulfilled" ? extractList(materiasResult.value.data) : []);
+      setGrupos(gruposResult.status === "fulfilled" ? extractList(gruposResult.value.data) : []);
+      setAsignaciones(asignacionesResult.status === "fulfilled" ? extractList(asignacionesResult.value.data) : []);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const getAssignments = (docenteId) => asignaciones.filter((a) => a.docente === docenteId);
 
+  const openDetails = (docente) => {
+    const assignments = getAssignments(docente.id);
+    setDetailsModal({ docente, assignments });
+  };
+
+  const openAddMateria = (docente) => {
+    setModal({
+      mode: "add_materia",
+      docenteId: docente.id,
+      docenteName: `${docente.first_name ?? ""} ${docente.last_name ?? ""}`.trim() || docente.username,
+    });
+    setForm({ materia_id: "", grupo_id: "" });
+  };
+
+  // 💡 NUEVO: Abrir modal de registro de docente limpio
+  const openRegisterDocente = () => {
+    setModal({ mode: "register_docente" });
+    setFormDocente({ firstName: "", lastName: "", email: "", claveServidor: "" });
+  };
+
+  // 💡 NUEVO: Función para enviar el registro del maestro a Django
+  const handleCreateDocente = async (e) => {
+    e.preventDefault();
+    
+    if (!formDocente.firstName.trim() || !formDocente.lastName.trim() || !formDocente.email.trim() || !formDocente.claveServidor.trim()) {
+      show("Por favor completa todos los campos del docente.", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Petición a tu endpoint de autenticación configurado previamente
+      await api.post("/auth/usuarios/", {
+        username:   formDocente.email.trim(),          // 🔐 Su usuario de acceso será su correo
+        email:      formDocente.email.trim(),
+        first_name: formDocente.firstName.trim(),
+        last_name:  formDocente.lastName.trim(),
+        password:   formDocente.claveServidor.trim(),  // 🔐 Su contraseña será su Clave de Servidor Público
+        rol:        "DOCENTE",                         // Flag para lógica de negocio o serializador
+      });
+
+      show(`Docente ${formDocente.firstName} creado con éxito de forma sincronizada.`);
+      setModal(null);
+      await load(); // Recargar tabla
+    } catch (err) {
+      console.error("--- ERROR AL REGISTRAR DOCENTE ---", err);
+      if (err.response) {
+        alert("DJANGO RECHAZÓ EL REGISTRO POR:\n" + JSON.stringify(err.response.data, null, 2));
+      } else {
+        show("No se pudo registrar al docente. Error de conexión.", "error");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddMateria = async (e) => {
+    e.preventDefault();
+    if (!form.materia_id || !form.grupo_id) {
+      show("Selecciona la materia y el grupo destino.", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      const existingAsig = asignaciones.find(
+        (a) => a.docente === modal.docenteId && 
+               a.materia === Number.parseInt(form.materia_id, 10) &&
+               a.grupo === Number.parseInt(form.grupo_id, 10)
+      );
+      if (existingAsig) {
+        show("Este docente ya tiene asignada esta materia en el grupo seleccionado.", "error");
+        setSaving(false);
+        return;
+      }
+      await api.post("/seguimiento/asignaciones/", {
+        docente: modal.docenteId,
+        materia: Number.parseInt(form.materia_id, 10),
+        grupo:   Number.parseInt(form.grupo_id, 10),
+      });
+      show("Materia y grupo asignados al docente correctamente.");
+      setModal(null);
+      setForm({ materia_id: "", grupo_id: "" });
+      await load();
+    } catch (err) {
+      if (err.response) {
+        alert("DJANGO RECHAZÓ LA ASIGNACIÓN POR:\n" + JSON.stringify(err.response.data, null, 2));
+      } else {
+        show("No se pudo asignar la materia. Error de conexión.", "error");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveMateria = async (asignacionId) => {
+    if (!window.confirm("¿Remover esta asignación de materia?")) return;
+    try {
+      await api.delete(`/seguimiento/asignaciones/${asignacionId}/`);
+      show("Materia removida del docente.");
+      await load();
+      if (detailsModal) {
+        const docenteUpdated = docentes.find((d) => d.id === detailsModal.docente.id);
+        if (docenteUpdated) openDetails(docenteUpdated);
+      }
+    } catch {
+      show("No se pudo remover la materia.", "error");
+    }
+  };
+
   return (
     <>
-      <SectionTitle title="Docentes" subtitle="Listado sincronizado con usuarios y asignaciones activas." />
-      <Table cols={["Nombre", "Correo", "Usuario", "Materias", "Grupos"]} loading={loading} emptyText="Sin docentes registrados">
+      <Toast toast={toast} />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <SectionTitle title="Docentes" subtitle="Listado sincronizado con usuarios y asignaciones activas." />
+        {/* 💡 NUEVO: Botón para detonar el modal de registro */}
+        <Btn variant="primary" onClick={openRegisterDocente}>+ Registrar Docente</Btn>
+      </div>
+
+      <Table cols={["Nombre", "Correo", "Usuario (Correo)", "Materias", "Grupos", ""]} loading={loading} emptyText="Sin docentes registrados">
         {docentes.map((docente, idx) => {
           const assignments = getAssignments(docente.id);
           const subjectIds  = [...new Set(assignments.map((a) => a.materia))];
@@ -538,31 +907,199 @@ function DocentesSection() {
                   {groupIds.length > 3 ? <Pill color="gray">+{groupIds.length - 3}</Pill> : null}
                 </div>
               </TD>
+              <TD>
+                <div className="flex flex-wrap gap-2">
+                  <Btn variant="ghost" size="sm" onClick={() => openDetails(docente)}>Detalles</Btn>
+                  <Btn variant="ghost" size="sm" onClick={() => openAddMateria(docente)}>+ Materia</Btn>
+                </div>
+              </TD>
             </TR>
           );
         })}
       </Table>
+
+      {/* Modal Detalles */}
+      {detailsModal ? (
+        <Modal title={`Detalles: ${detailsModal.docente.first_name ?? ""} ${detailsModal.docente.last_name ?? ""}`} onClose={() => setDetailsModal(null)}>
+          <div className="space-y-4">
+            <Card className="p-4">
+              <div className="flex items-start gap-3">
+                <Avatar label={`${detailsModal.docente.first_name ?? ""} ${detailsModal.docente.last_name ?? ""}`} />
+                <div>
+                  <div className="text-sm font-semibold text-gray-100">
+                    {detailsModal.docente.first_name} {detailsModal.docente.last_name}
+                  </div>
+                  <div className="text-xs text-gray-500">{detailsModal.docente.email || "Sin correo"}</div>
+                  <div className="text-xs text-gray-500">Usuario: {detailsModal.docente.username}</div>
+                </div>
+              </div>
+            </Card>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-100 mb-3">Materias asignadas</h4>
+              <div className="space-y-2 max-h-96 overflow-auto">
+                {detailsModal.assignments.length > 0 ? (
+                  detailsModal.assignments.map((asig) => (
+                    <div key={asig.id} className="flex items-center justify-between p-3 rounded-lg bg-violet-500/5 border border-violet-500/10">
+                      <div>
+                        <div className="font-medium text-gray-100 text-sm">{asig.materia_detalle?.clave}</div>
+                        <div className="text-xs text-gray-500">{asig.materia_detalle?.nombre}</div>
+                        {asig.grupo_detalle && (
+                          <div className="text-xs text-gray-400 mt-1">Grupo: {groupCode(asig.grupo_detalle)}</div>
+                        )}
+                      </div>
+                      <Btn variant="danger" size="sm" onClick={() => handleRemoveMateria(asig.id)}>Remover</Btn>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500">Sin materias asignadas</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {/* Modal Agregar Materia */}
+      {modal?.mode === "add_materia" ? (
+        <Modal title={`Asignar materia a ${modal.docenteName}`} onClose={() => setModal(null)}>
+          <form className="space-y-4" onSubmit={handleAddMateria}>
+            <Field label="Materia" required>
+              <select className={inputCls} value={form.materia_id} onChange={(e) => setForm((c) => ({ ...c, materia_id: e.target.value }))}>
+                <option value="">Seleccionar materia</option>
+                {materias.map((m) => <option key={m.id} value={m.id}>{m.clave} - {m.nombre}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Grupo Destino" required>
+              <select className={inputCls} value={form.grupo_id} onChange={(e) => setForm((c) => ({ ...c, grupo_id: e.target.value }))}>
+                <option value="">Seleccionar grupo académico</option>
+                {grupos.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.semestre}°{g.nombre} - {g.carrera} ({g.turno})
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
+              <Btn variant="primary" type="submit" loading={saving}>Asignar materia</Btn>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {/* 💡 NUEVO MODAL: Formulario de Registro para Docentes */}
+      {modal?.mode === "register_docente" ? (
+        <Modal title="Registrar Nuevo Docente Institucional" onClose={() => setModal(null)}>
+          <form className="space-y-4" onSubmit={handleCreateDocente}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Nombre(s) *" required>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Ej. Arturo"
+                  value={formDocente.firstName}
+                  onChange={(e) => setFormDocente({ ...formDocente, firstName: e.target.value })}
+                />
+              </Field>
+              <Field label="Apellidos *" required>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Ej. López"
+                  value={formDocente.lastName}
+                  onChange={(e) => setFormDocente({ ...formDocente, lastName: e.target.value })}
+                />
+              </Field>
+            </div>
+
+            <Field label="Correo Institucional (Usuario de Acceso) *" required>
+              <input
+                type="email"
+                className={inputCls}
+                placeholder="ejemplo@cecytem.edu.mx"
+                value={formDocente.email}
+                onChange={(e) => setFormDocente({ ...formDocente, email: e.target.value })}
+              />
+            </Field>
+
+            <Field label="Clave de Servidor Público (Contraseña Inicial) *" required>
+              <input
+                type="text"
+                className={inputCls}
+                placeholder="Clave impresa en el gafete institucional"
+                value={formDocente.claveServidor}
+                onChange={(e) => setFormDocente({ ...formDocente, claveServidor: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Nota: Las credenciales se vincularán para que use el correo completo como inicio de sesión.
+              </p>
+            </Field>
+
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
+              <Btn variant="primary" type="submit" loading={saving}>Crear Docente</Btn>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </>
   );
 }
 
 // ─── GruposSection ─────────────────────────────────────────────────────────────
 
+// ─── GruposSection (REDISEÑADO) ────────────────────────────────────────────────
+// Reemplaza la función GruposSection completa en AdminDashboard.jsx
+
+// Helpers necesarios (ya existen en AdminDashboard.jsx, no duplicar):
+// extractList, groupCode, groupLabel, carreraLabels, CARRERAS_POR_SEMESTRE
+// Card, Btn, Pill, Avatar, Modal, Field, Table, TR, TD, SectionTitle, Toast,
+// useToast, inputCls, C
+
+// Mapa de materias por semestre y carrera.
+// Ajusta los IDs y nombres según tu base de datos real.
+// Esta función filtra del catálogo de materias por semestre/carrera si tu API
+// ya las devuelve filtradas; de lo contrario usa el catálogo completo.
+const getMateriasPorSemestreCarrera = (todasMaterias, semestre, carrera) => {
+  // Si tu API no filtra por semestre/carrera, devuelve todas.
+  // Puedes agregar lógica de filtrado aquí cuando tu backend lo soporte.
+  return todasMaterias;
+};
+
 function GruposSection() {
-  const [grupos,       setGrupos]       = useState([]);
-  const [docentes,     setDocentes]     = useState([]);
-  const [materias,     setMaterias]     = useState([]);
-  const [asignaciones, setAsignaciones] = useState([]);
-  const [alumnos,      setAlumnos]      = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [saving,       setSaving]       = useState(false);
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [editGroup,    setEditGroup]    = useState(null);   // null = create mode
-  const [detailsGroup, setDetailsGroup] = useState(null);
-  const [form, setForm] = useState({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino", docente_id: "", materia_id: "" });
+  const [grupos,       setGrupos]       = React.useState([]);
+  const [docentes,     setDocentes]     = React.useState([]);
+  const [materias,     setMaterias]     = React.useState([]);
+  const [asignaciones, setAsignaciones] = React.useState([]);
+  const [alumnos,      setAlumnos]      = React.useState([]);
+  const [loading,      setLoading]      = React.useState(true);
+  const [saving,       setSaving]       = React.useState(false);
+
+  // Modal state
+  const [modalOpen,     setModalOpen]     = React.useState(false);
+  const [editGroup,     setEditGroup]     = React.useState(null); // null = crear, obj = editar
+  const [detailsGroup,  setDetailsGroup]  = React.useState(null);
+  const [alumnosModal,  setAlumnosModal]  = React.useState({ open: false, grupo: null, lista: [], loading: false });
+
+  // Fase 1: datos básicos del grupo
+  const [fase1, setFase1] = React.useState({
+    semestre: "", carrera: "", grupo_letra: "", turno: "Matutino",
+  });
+
+  // Fase 2: array de { materia_id, docente_id } — una fila por materia
+  const [asignForm, setAsignForm] = React.useState([]);
+
+  // Paso activo del modal (0 = fase1, 1 = fase2)
+  const [step, setStep] = React.useState(0);
+
   const { toast, show } = useToast();
 
-  const load = useCallback(async () => {
+  // ─── Carga de datos ─────────────────────────────────────────────────────────
+
+  const load = React.useCallback(async () => {
     setLoading(true);
     const [gr, doc, mat, asig, al] = await Promise.allSettled([
       api.get("/academico/grupos/"),
@@ -571,200 +1108,364 @@ function GruposSection() {
       api.get("/seguimiento/asignaciones/"),
       api.get("/academico/alumnos/"),
     ]);
-    setGrupos(gr.status       === "fulfilled" ? extractList(gr.value.data)   : []);
-    setDocentes(doc.status    === "fulfilled" ? extractList(doc.value.data)  : []);
-    setMaterias(mat.status    === "fulfilled" ? extractList(mat.value.data)  : []);
+    setGrupos(gr.status         === "fulfilled" ? extractList(gr.value.data)   : []);
+    setDocentes(doc.status      === "fulfilled" ? extractList(doc.value.data)  : []);
+    setMaterias(mat.status      === "fulfilled" ? extractList(mat.value.data)  : []);
     setAsignaciones(asig.status === "fulfilled" ? extractList(asig.value.data) : []);
-    setAlumnos(al.status      === "fulfilled" ? extractList(al.value.data)   : []);
+    setAlumnos(al.status        === "fulfilled" ? extractList(al.value.data)   : []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => setForm({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino", docente_id: "", materia_id: "" });
+  // ─── Helpers ────────────────────────────────────────────────────────────────
 
   const getAsignacion = (grupoId) => asignaciones.find((a) => a.grupo === grupoId);
 
-  const usedGroupLetters = grupos
-    .filter((g) => g.semestre === Number.parseInt(form.semestre, 10) && g.carrera === form.carrera)
+  const getAsignacionesPorGrupo = (grupoId) =>
+    asignaciones.filter((a) => a.grupo === grupoId);
+
+  const usedGroupLetras = grupos
+    .filter(
+      (g) =>
+        g.semestre === Number.parseInt(fase1.semestre, 10) &&
+        g.carrera  === fase1.carrera &&
+        // Al editar, excluir la letra actual del grupo que estamos editando
+        (!editGroup || g.id !== editGroup.grupoId)
+    )
     .map((g) => String(g.grupo_letra));
 
-  const gruposDisponibles = !form.semestre || !form.carrera
+  const letrasDisponibles = !fase1.semestre || !fase1.carrera
     ? []
-    : ["1", "2", "3", "4"].filter((l) => !usedGroupLetters.includes(l));
+    : ["1", "2", "3", "4"].filter((l) => !usedGroupLetras.includes(l));
+
+  const materiasFiltradas = getMateriasPorSemestreCarrera(
+    materias, fase1.semestre, fase1.carrera
+  );
+
+  // ─── Reset / Open modals ────────────────────────────────────────────────────
+
+  const resetAll = () => {
+    setFase1({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino" });
+    setAsignForm([]);
+    setStep(0);
+    setEditGroup(null);
+  };
 
   const openCreate = () => {
-    resetForm();
-    setEditGroup(null);
+    resetAll();
     setModalOpen(true);
   };
 
   const openEditGroup = (grupo) => {
-    const asig = getAsignacion(grupo.id);
-    setForm({
-      semestre:   String(grupo.semestre || ""),
-      carrera:    grupo.carrera || "",
+    const asigs = getAsignacionesPorGrupo(grupo.id);
+
+    setFase1({
+      semestre:    String(grupo.semestre || ""),
+      carrera:     grupo.carrera || "",
       grupo_letra: String(grupo.grupo_letra || ""),
-      turno:      grupo.turno || "Matutino",
-      docente_id: asig?.docente ? String(asig.docente) : "",
-      materia_id: asig?.materia ? String(asig.materia) : "",
+      turno:       grupo.turno || "Matutino",
     });
-    setEditGroup({ grupoId: grupo.id, asigId: asig?.id ?? null });
+
+    // Precarga la fase 2 con las asignaciones existentes
+    const rows = materias.map((mat) => {
+      const asig = asigs.find((a) => a.materia === mat.id);
+      return {
+        materia_id:   mat.id,
+        materia_clave: mat.clave,
+        materia_nombre: mat.nombre,
+        docente_id:   asig?.docente ? String(asig.docente) : "",
+        asig_id:      asig?.id ?? null, // Para UPDATE
+      };
+    });
+
+    setAsignForm(rows);
+    setEditGroup({ grupoId: grupo.id });
+    setStep(0);
     setModalOpen(true);
   };
 
-  // Create
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!form.semestre || !form.carrera || !form.grupo_letra || !form.docente_id || !form.materia_id) {
-      show("Completa todos los campos obligatorios.", "error");
+  // Cuando avanza de Fase 1 → Fase 2, construye/actualiza filas
+  const goToFase2 = () => {
+    if (!fase1.semestre || !fase1.carrera || !fase1.grupo_letra) {
+      show("Completa semestre, carrera y grupo antes de continuar.", "error");
       return;
     }
+
+    // Si estamos editando, las filas ya vienen precargadas; solo actualizamos
+    // la lista si la carrera/semestre cambió
+    const currentMats = getMateriasPorSemestreCarrera(
+      materias, fase1.semestre, fase1.carrera
+    );
+
+    setAsignForm((prev) =>
+      currentMats.map((mat) => {
+        const existing = prev.find((r) => r.materia_id === mat.id);
+        return existing ?? {
+          materia_id:     mat.id,
+          materia_clave:  mat.clave,
+          materia_nombre: mat.nombre,
+          docente_id:     "",
+          asig_id:        null,
+        };
+      })
+    );
+
+    setStep(1);
+  };
+
+  const updateDocenteEnFila = (materiaId, docenteId) => {
+    setAsignForm((prev) =>
+      prev.map((row) =>
+        row.materia_id === materiaId ? { ...row, docente_id: docenteId } : row
+      )
+    );
+  };
+
+  // ─── Parseo de errores DRF ───────────────────────────────────────────────────
+
+  const parseDRFError = (err) => {
+    if (!err.response?.data) return "Error desconocido al guardar.";
+    const data = err.response.data;
+    if (typeof data === "string") return data;
+    if (Array.isArray(data))     return data.join(" | ");
+    return Object.entries(data)
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+      .join(" | ");
+  };
+
+  // ─── Crear grupo ─────────────────────────────────────────────────────────────
+
+  const handleCreate = async () => {
     setSaving(true);
     try {
-      await api.post("/academico/grupos/", {
-        semestre:    Number.parseInt(form.semestre, 10),
-        carrera:     form.carrera,
-        grupo_letra: String(form.grupo_letra),
-        turno:       form.turno,
-        docente_id:  Number.parseInt(form.docente_id, 10),
-        materia_id:  Number.parseInt(form.materia_id, 10),
+      // 1. Crear el grupo
+      const grupoRes = await api.post("/academico/grupos/", {
+        semestre:    Number.parseInt(fase1.semestre, 10),
+        carrera:     fase1.carrera,
+        grupo_letra: String(fase1.grupo_letra),
+        turno:       fase1.turno,
       });
-      show("Grupo creado correctamente.");
+      const grupoId = grupoRes.data.id;
+
+      // 2. Limpiar y validar asignaciones: filter out empty/invalid docente_id
+      const asignacionesValidas = asignForm.filter((r) => {
+        // Validar que docente_id sea una cadena no-vacía y convertible a número
+        if (!r.docente_id || typeof r.docente_id !== "string" || r.docente_id.trim() === "") {
+          return false;
+        }
+        const docenteNum = Number.parseInt(r.docente_id, 10);
+        return !isNaN(docenteNum) && docenteNum > 0;
+      });
+
+      // 3. Crear las asignaciones válidas
+      if (asignacionesValidas.length > 0) {
+        const resultados = await Promise.allSettled(
+          asignacionesValidas.map((row) =>
+            api.post("/seguimiento/asignaciones/", {
+              docente: Number.parseInt(row.docente_id, 10),
+              materia: row.materia_id,
+              grupo:   grupoId,
+            })
+          )
+        );
+
+        // Revisar si hubo fallos individuales
+        const fallos = resultados.filter((r) => r.status === "rejected");
+        if (fallos.length > 0) {
+          console.error("Fallos al crear asignaciones:", fallos);
+          show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron. Verifica en Editar.`, "error");
+        } else {
+          show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado con ${asignacionesValidas.length} asignación(es).`);
+        }
+      } else {
+        show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado sin asignaciones.`);
+      }
+
       setModalOpen(false);
-      resetForm();
+      resetAll();
       await load();
     } catch (err) {
-      if (err.response?.data) {
-        const msg = Object.entries(err.response.data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" | ");
-        show(`Error: ${msg}`, "error");
-      } else {
-        show("No se pudo crear el grupo.", "error");
-      }
+      console.error("Error creating group:", err);
+      show(parseDRFError(err), "error");
     } finally {
       setSaving(false);
     }
   };
 
-  // Edit
-  const handleEdit = async (e) => {
-    e.preventDefault();
+  // ─── Editar grupo ────────────────────────────────────────────────────────────
+
+  const handleEdit = async () => {
     if (!editGroup?.grupoId) return;
-    if (!form.semestre || !form.carrera || !form.grupo_letra) {
-      show("Completa los campos obligatorios.", "error");
-      return;
-    }
     setSaving(true);
     try {
+      // 1. Actualizar datos básicos del grupo
       await api.put(`/academico/grupos/${editGroup.grupoId}/`, {
-        semestre:    Number.parseInt(form.semestre, 10),
-        carrera:     form.carrera,
-        grupo_letra: String(form.grupo_letra),
-        turno:       form.turno,
+        semestre:    Number.parseInt(fase1.semestre, 10),
+        carrera:     fase1.carrera,
+        grupo_letra: String(fase1.grupo_letra),
+        turno:       fase1.turno,
       });
-      const payloadAsig = {
-        docente: form.docente_id ? Number.parseInt(form.docente_id, 10) : null,
-        materia: form.materia_id ? Number.parseInt(form.materia_id, 10) : null,
-        grupo:   editGroup.grupoId,
-      };
-      if (editGroup.asigId) {
-        await api.put(`/seguimiento/asignaciones/${editGroup.asigId}/`, payloadAsig);
-      } else if (payloadAsig.docente && payloadAsig.materia) {
-        await api.post("/seguimiento/asignaciones/", payloadAsig);
+
+      // 2. Gestionar asignaciones: UPDATE las existentes, CREATE las nuevas, DELETE las removidas
+      const asignActuales = getAsignacionesPorGrupo(editGroup.grupoId);
+
+      // Limpiar y validar asignaciones
+      const asignacionesValidas = asignForm.filter((r) => {
+        if (!r.docente_id || typeof r.docente_id !== "string" || r.docente_id.trim() === "") {
+          return false;
+        }
+        const docenteNum = Number.parseInt(r.docente_id, 10);
+        return !isNaN(docenteNum) && docenteNum > 0;
+      });
+
+      const operaciones = asignForm.map(async (row) => {
+        const asigExistente = asignActuales.find((a) => a.materia === row.materia_id);
+        const esValida =
+          row.docente_id &&
+          typeof row.docente_id === "string" &&
+          row.docente_id.trim() !== "" &&
+          !isNaN(Number.parseInt(row.docente_id, 10));
+
+        if (asigExistente && esValida) {
+          // Actualizar si el docente cambió
+          const docenteActual = Number.parseInt(row.docente_id, 10);
+          if (Number(asigExistente.docente) !== docenteActual) {
+            await api.patch(`/seguimiento/asignaciones/${asigExistente.id}/`, {
+              docente: docenteActual,
+            });
+          }
+        } else if (asigExistente && !esValida) {
+          // Eliminar si se removió el docente
+          await api.delete(`/seguimiento/asignaciones/${asigExistente.id}/`);
+        } else if (!asigExistente && esValida) {
+          // Crear nueva asignación
+          await api.post("/seguimiento/asignaciones/", {
+            docente: Number.parseInt(row.docente_id, 10),
+            materia: row.materia_id,
+            grupo:   editGroup.grupoId,
+          });
+        }
+        // Si no había y sigue sin docente: no hacer nada
+      });
+
+      const resultados = await Promise.allSettled(operaciones);
+      const fallos = resultados.filter((r) => r.status === "rejected");
+
+      if (fallos.length > 0) {
+        console.error("Fallos al actualizar asignaciones:", fallos);
+        show(`Grupo actualizado, pero ${fallos.length} cambio(s) en asignaciones fallaron.`, "error");
+      } else {
+        show("Grupo actualizado correctamente.");
       }
-      show("Grupo actualizado correctamente.");
+
       setModalOpen(false);
-      setEditGroup(null);
-      resetForm();
+      resetAll();
       await load();
-    } catch {
-      show("No se pudo actualizar el grupo.", "error");
+    } catch (err) {
+      console.error("Error updating group:", err);
+      show(parseDRFError(err), "error");
     } finally {
       setSaving(false);
     }
   };
 
+  // ─── Ver alumnos del grupo ───────────────────────────────────────────────────
+
+  const handleViewAlumnos = async (grupo) => {
+    setAlumnosModal({
+      open: true,
+      grupo,
+      lista: [],
+      loading: true,
+    });
+    try {
+      // Cargar alumnos inscritos en este grupo
+      const res = await api.get(`/academico/alumnos/?grupo=${grupo.id}`);
+      const lista = extractList(res.data);
+      setAlumnosModal((prev) => ({ ...prev, lista, loading: false }));
+    } catch (err) {
+      console.error("Error cargando alumnos:", err);
+      show("Error al cargar alumnos del grupo.", "error");
+      setAlumnosModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  // ─── Eliminar grupo ──────────────────────────────────────────────────────────
+
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar este grupo?")) return;
+    if (!window.confirm("¿Eliminar este grupo? Se eliminarán también sus asignaciones.")) return;
     try {
       await api.delete(`/academico/grupos/${id}/`);
       show("Grupo eliminado.");
       await load();
-    } catch {
-      show("No se pudo eliminar el grupo.", "error");
+    } catch (err) {
+      show(parseDRFError(err), "error");
     }
   };
 
-  // Shared form fields JSX (used by both create and edit modals)
-  const renderFormFields = () => (
-    <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Semestre" required>
-          <select className={inputCls} value={form.semestre} onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, carrera: "", grupo_letra: "" }))}>
-            <option value="">Seleccionar</option>
-            {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}°</option>)}
-          </select>
-        </Field>
-        <Field label="Carrera" required>
-          <select className={inputCls} value={form.carrera} disabled={!form.semestre} onChange={(e) => setForm((c) => ({ ...c, carrera: e.target.value, grupo_letra: "" }))}>
-            <option value="">Seleccionar</option>
-            {CARRERAS_POR_SEMESTRE(form.semestre).map((car) => <option key={car.value} value={car.value}>{car.label}</option>)}
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Grupo" required>
-          <select className={inputCls} value={form.grupo_letra} disabled={!form.carrera} onChange={(e) => setForm((c) => ({ ...c, grupo_letra: e.target.value }))}>
-            <option value="">Seleccionar</option>
-            {gruposDisponibles.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </Field>
-        <Field label="Turno">
-          <select className={inputCls} value={form.turno} onChange={(e) => setForm((c) => ({ ...c, turno: e.target.value }))}>
-            <option value="Matutino">Matutino</option>
-            <option value="Vespertino">Vespertino</option>
-          </select>
-        </Field>
-      </div>
-      <Field label="Docente" required>
-        <select className={inputCls} value={form.docente_id} onChange={(e) => setForm((c) => ({ ...c, docente_id: e.target.value }))}>
-          <option value="">Seleccionar docente</option>
-          {docentes.map((d) => <option key={d.id} value={d.id}>{[d.first_name, d.last_name].filter(Boolean).join(" ") || d.username}</option>)}
-        </select>
-      </Field>
-      <Field label="Materia" required>
-        <select className={inputCls} value={form.materia_id} onChange={(e) => setForm((c) => ({ ...c, materia_id: e.target.value }))}>
-          <option value="">Seleccionar materia</option>
-          {materias.map((m) => <option key={m.id} value={m.id}>{m.clave} - {m.nombre}</option>)}
-        </select>
-      </Field>
-    </>
-  );
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <>
       <Toast toast={toast} />
       <SectionTitle
         title="Grupos"
-        subtitle="Crea grupos nuevos y consulta su asignacion."
+        subtitle="Crea grupos y gestiona su matriz académica completa."
         action={<Btn onClick={openCreate}>+ Nuevo grupo</Btn>}
       />
-      <Table cols={["Clave","Semestre","Carrera","Turno","Docente","Materia","Alumnos",""]} loading={loading} emptyText="Sin grupos registrados">
+
+      {/* ── Tabla de grupos ── */}
+      <Table
+        cols={["Clave", "Semestre", "Carrera", "Turno", "Materias asignadas", "Alumnos", ""]}
+        loading={loading}
+        emptyText="Sin grupos registrados"
+      >
         {grupos.map((grupo, idx) => {
-          const asignacion = getAsignacion(grupo.id);
-          const docente    = asignacion?.docente_detalle;
-          const materia    = asignacion?.materia_detalle;
+          const asigs = getAsignacionesPorGrupo(grupo.id);
           return (
             <TR key={`grupo-${grupo.id ?? idx}`} idx={idx}>
-              <TD><span className="font-mono text-sm font-semibold text-violet-200">{groupCode(grupo)}</span></TD>
+              <TD>
+                <span className="font-mono text-sm font-semibold text-violet-200">
+                  {groupCode(grupo)}
+                </span>
+              </TD>
               <TD><Pill>{grupo.semestre}°</Pill></TD>
-              <TD><span className="text-xs text-gray-300">{carreraLabels[grupo.carrera] ?? grupo.carrera}</span></TD>
+              <TD>
+                <span className="text-xs text-gray-300">
+                  {carreraLabels[grupo.carrera] ?? grupo.carrera}
+                </span>
+              </TD>
               <TD><span className="text-xs text-gray-400">{grupo.turno}</span></TD>
-              <TD><span className="text-xs text-gray-300">{docente ? `${docente.first_name} ${docente.last_name}`.trim() : "—"}</span></TD>
-              <TD><span className="font-mono text-xs text-gray-400">{materia?.clave ?? "—"}</span></TD>
-              <TD><Pill color="emerald">{grupo.total_alumnos ?? 0}</Pill></TD>
+              <TD>
+                <div className="flex flex-wrap gap-1.5">
+                  {asigs.length > 0 ? (
+                    asigs.slice(0, 3).map((a) => (
+                      <Pill key={a.id} color="violet">
+                        {a.materia_detalle?.clave ?? `#${a.materia}`}
+                      </Pill>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-500">Sin asignaciones</span>
+                  )}
+                  {asigs.length > 3 && (
+                    <Pill color="gray">+{asigs.length - 3}</Pill>
+                  )}
+                </div>
+              </TD>
+              <TD>
+                <div className="flex items-center gap-2">
+                  <Pill color="emerald">{grupo.total_alumnos ?? 0}</Pill>
+                  <Btn
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewAlumnos(grupo)}
+                    title="Ver lista de alumnos"
+                  >
+                    👁️
+                  </Btn>
+                </div>
+              </TD>
               <TD>
                 <div className="flex flex-wrap gap-2">
                   <Btn variant="ghost"  size="sm" onClick={() => openEditGroup(grupo)}>Editar</Btn>
@@ -777,87 +1478,356 @@ function GruposSection() {
         })}
       </Table>
 
-      {/* Create / Edit modal */}
-      {modalOpen ? (
+      {/* ══ Modal Crear / Editar ══ */}
+      {modalOpen && (
         <Modal
           title={editGroup ? "Editar grupo" : "Nuevo grupo"}
-          onClose={() => { setModalOpen(false); setEditGroup(null); resetForm(); }}
+          onClose={() => { setModalOpen(false); resetAll(); }}
         >
-          <form className="space-y-4" onSubmit={editGroup ? handleEdit : handleCreate}>
-            {renderFormFields()}
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-              <Btn variant="ghost" onClick={() => { setModalOpen(false); setEditGroup(null); resetForm(); }}>Cancelar</Btn>
-              <Btn variant="primary" type="submit" loading={saving}>
-                {editGroup ? "Guardar cambios" : "Crear grupo"}
-              </Btn>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
+          {/* Indicador de pasos */}
+          <div className="mb-5 flex items-center gap-3">
+            {["Datos del grupo", "Matriz académica"].map((label, i) => (
+              <React.Fragment key={label}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${
+                      step === i
+                        ? "bg-violet-500 text-white"
+                        : step > i
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-white/[0.06] text-gray-500"
+                    }`}
+                  >
+                    {step > i ? "✓" : i + 1}
+                  </div>
+                  <span
+                    className={`text-xs font-medium transition ${
+                      step === i ? "text-gray-100" : "text-gray-500"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+                {i < 1 && (
+                  <div
+                    className={`h-px flex-1 transition ${
+                      step > 0 ? "bg-violet-500/40" : "bg-white/[0.06]"
+                    }`}
+                  />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
 
-      {/* Details modal */}
-      {detailsGroup ? (
-        <Modal title={`Detalles ${groupCode(detailsGroup)}`} onClose={() => setDetailsGroup(null)}>
-          <div className="space-y-4">
+          {/* ── Paso 0: Datos básicos ── */}
+          {step === 0 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Semestre" required>
+                  <select
+                    className={inputCls}
+                    value={fase1.semestre}
+                    onChange={(e) =>
+                      setFase1((c) => ({
+                        ...c, semestre: e.target.value, carrera: "", grupo_letra: "",
+                      }))
+                    }
+                  >
+                    <option value="">Seleccionar</option>
+                    {[1,2,3,4,5,6].map((n) => (
+                      <option key={n} value={n}>{n}°</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Carrera" required>
+                  <select
+                    className={inputCls}
+                    value={fase1.carrera}
+                    disabled={!fase1.semestre}
+                    onChange={(e) =>
+                      setFase1((c) => ({ ...c, carrera: e.target.value, grupo_letra: "" }))
+                    }
+                  >
+                    <option value="">Seleccionar</option>
+                    {CARRERAS_POR_SEMESTRE(fase1.semestre).map((car) => (
+                      <option key={car.value} value={car.value}>{car.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Letra de grupo" required>
+                  <select
+                    className={inputCls}
+                    value={fase1.grupo_letra}
+                    disabled={!fase1.carrera}
+                    onChange={(e) =>
+                      setFase1((c) => ({ ...c, grupo_letra: e.target.value }))
+                    }
+                  >
+                    <option value="">Seleccionar</option>
+                    {editGroup && fase1.grupo_letra &&
+                     !letrasDisponibles.includes(fase1.grupo_letra) && (
+                      <option value={fase1.grupo_letra}>{fase1.grupo_letra} (actual)</option>
+                    )}
+                    {letrasDisponibles.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Turno">
+                  <select
+                    className={inputCls}
+                    value={fase1.turno}
+                    onChange={(e) => setFase1((c) => ({ ...c, turno: e.target.value }))}
+                  >
+                    <option value="Matutino">Matutino</option>
+                    <option value="Vespertino">Vespertino</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                <Btn variant="ghost" onClick={() => { setModalOpen(false); resetAll(); }}>
+                  Cancelar
+                </Btn>
+                <Btn variant="primary" onClick={goToFase2}>
+                  Continuar →
+                </Btn>
+              </div>
+            </div>
+          )}
+
+          {/* ── Paso 1: Matriz académica ── */}
+          {step === 1 && (
+            <div className="space-y-4">
+              {/* Resumen del grupo */}
+              <div
+                className="flex items-center gap-3 rounded-xl px-4 py-3"
+                style={{
+                  background: "rgba(139,92,246,0.08)",
+                  border: "1px solid rgba(139,92,246,0.18)",
+                }}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 font-mono text-lg font-bold text-violet-200">
+                  {fase1.semestre}{fase1.grupo_letra}
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-100">
+                    {carreraLabels[fase1.carrera] ?? fase1.carrera}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {fase1.semestre}° semestre · {fase1.turno}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla de asignaciones */}
+              <div>
+                <p className="mb-3 text-xs text-gray-500">
+                  Asigna un docente a cada materia. Las filas sin docente no crearán asignación.
+                </p>
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {asignForm.length === 0 ? (
+                    <div className="rounded-xl border border-white/5 px-4 py-8 text-center text-xs text-gray-500">
+                      No hay materias en el catálogo. Agrégalas primero en la sección de Materias.
+                    </div>
+                  ) : (
+                    asignForm.map((row) => (
+                      <div
+                        key={row.materia_id}
+                        className="grid grid-cols-[1fr_1.4fr] items-center gap-3 rounded-xl px-3 py-2.5 transition"
+                        style={{
+                          background: row.docente_id
+                            ? "rgba(139,92,246,0.06)"
+                            : "rgba(255,255,255,0.02)",
+                          border: row.docente_id
+                            ? "1px solid rgba(139,92,246,0.15)"
+                            : "1px solid rgba(255,255,255,0.05)",
+                        }}
+                      >
+                        {/* Materia */}
+                        <div className="min-w-0">
+                          <div className="font-mono text-xs font-semibold text-violet-300">
+                            {row.materia_clave}
+                          </div>
+                          <div className="truncate text-xs text-gray-400">
+                            {row.materia_nombre}
+                          </div>
+                        </div>
+                        {/* Select docente */}
+                        <select
+                          className={inputCls}
+                          value={row.docente_id ?? ""}
+                          onChange={(e) =>
+                            updateDocenteEnFila(row.materia_id, e.target.value)
+                          }
+                        >
+                          <option value="">— Sin asignar —</option>
+                          {docentes.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {[d.first_name, d.last_name].filter(Boolean).join(" ") ||
+                                d.username}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-between">
+                <Btn variant="ghost" onClick={() => setStep(0)}>← Atrás</Btn>
+                <Btn
+                  variant="primary"
+                  loading={saving}
+                  onClick={editGroup ? handleEdit : handleCreate}
+                >
+                  {editGroup ? "Guardar cambios" : "Crear grupo"}
+                </Btn>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* ══ Modal Detalles ══ */}
+      {detailsGroup && (
+        <Modal
+          title={`Detalles ${groupCode(detailsGroup)}`}
+          onClose={() => setDetailsGroup(null)}
+        >
+          <div className="space-y-5">
+            {/* Asignaciones del grupo */}
             <div>
-              <h4 className="text-sm font-semibold text-gray-100">
+              <h4 className="mb-3 text-sm font-semibold text-gray-100">
+                Matriz académica
+              </h4>
+              <div className="space-y-2">
+                {getAsignacionesPorGrupo(detailsGroup.id).length > 0 ? (
+                  getAsignacionesPorGrupo(detailsGroup.id).map((asig) => (
+                    <div
+                      key={asig.id}
+                      className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                      style={{
+                        background: "rgba(139,92,246,0.06)",
+                        border: "1px solid rgba(139,92,246,0.12)",
+                      }}
+                    >
+                      <div>
+                        <span className="font-mono text-xs font-semibold text-violet-300">
+                          {asig.materia_detalle?.clave ?? `#${asig.materia}`}
+                        </span>
+                        <span className="ml-2 text-xs text-gray-400">
+                          {asig.materia_detalle?.nombre}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-medium text-gray-200">
+                          {asig.docente_detalle
+                            ? `${asig.docente_detalle.first_name} ${asig.docente_detalle.last_name}`.trim()
+                            : "—"}
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {asig.docente_detalle?.email ?? ""}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500">Sin asignaciones registradas.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Alumnos */}
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-gray-100">
                 Alumnos ({alumnos.filter((a) => a.grupo === detailsGroup.id).length})
               </h4>
-              <div className="mt-3 max-h-80 overflow-auto space-y-3">
-                {alumnos.filter((a) => a.grupo === detailsGroup.id).map((al) => (
-                  <div key={al.id} className="flex items-center gap-3">
-                    <Avatar label={al.nombre_completo ?? String(al.user)} />
-                    <div>
-                      <div className="font-medium text-gray-100">{al.nombre_completo}</div>
-                      <div className="text-xs text-gray-500">{al.matricula || al.email || `ID ${al.id}`}</div>
+              <div className="max-h-60 space-y-2.5 overflow-auto">
+                {alumnos
+                  .filter((a) => a.grupo === detailsGroup.id)
+                  .map((al) => (
+                    <div key={al.id} className="flex items-center gap-3">
+                      <Avatar label={al.nombre_completo ?? String(al.user)} />
+                      <div>
+                        <div className="text-sm font-medium text-gray-100">
+                          {al.nombre_completo}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {al.matricula || al.email || `ID ${al.id}`}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {alumnos.filter((a) => a.grupo === detailsGroup.id).length === 0
-                  ? <div className="text-xs text-gray-500">Sin alumnos inscritos</div>
-                  : null}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <h4 className="text-xs font-semibold text-gray-200">Materia asignada</h4>
-                <div className="mt-2">
-                  {(() => {
-                    const asig = getAsignacion(detailsGroup.id);
-                    const mat  = asig?.materia_detalle;
-                    return mat ? (
-                      <div>
-                        <div className="font-medium text-gray-100">{mat.clave} · {mat.nombre}</div>
-                        <div className="text-xs text-gray-500">{mat.creditos ?? 0} créditos</div>
-                      </div>
-                    ) : <div className="text-xs text-gray-500">No hay materia asignada</div>;
-                  })()}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-gray-200">Docente</h4>
-                <div className="mt-2">
-                  {(() => {
-                    const asig = getAsignacion(detailsGroup.id);
-                    const doc  = asig?.docente_detalle;
-                    return doc ? (
-                      <div>
-                        <div className="font-medium text-gray-100">{[doc.first_name, doc.last_name].filter(Boolean).join(" ")}</div>
-                        <div className="text-xs text-gray-500">{doc.email || doc.username}</div>
-                      </div>
-                    ) : <div className="text-xs text-gray-500">No hay docente asignado</div>;
-                  })()}
-                </div>
+                  ))}
+                {alumnos.filter((a) => a.grupo === detailsGroup.id).length === 0 && (
+                  <div className="text-xs text-gray-500">Sin alumnos inscritos.</div>
+                )}
               </div>
             </div>
           </div>
         </Modal>
-      ) : null}
+      )}
+
+      
+
+      {/* ══ Modal Alumnos del Grupo ══ */}
+      {alumnosModal.open && (
+        <Modal
+          title={`Alumnos de ${groupCode(alumnosModal.grupo)}`}
+          onClose={() => setAlumnosModal({ open: false, grupo: null, lista: [], loading: false })}
+        >
+          {alumnosModal.loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-sm text-gray-400">Cargando alumnos...</div>
+            </div>
+          ) : alumnosModal.lista.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-2 text-left font-medium text-gray-300">Matrícula</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-300">Nombre</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-300">Correo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alumnosModal.lista.map((al) => (
+                    <tr key={al.id} className="border-b border-white/5 hover:bg-white/[0.02] transition">
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs text-gray-400">
+                          {al.matricula || `ID-${al.id}`}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar label={al.nombre_completo ?? String(al.user)} />
+                          <span className="text-gray-200">{al.nombre_completo || al.user || "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-gray-400">{al.email || "—"}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="text-sm font-medium text-gray-300 mb-2">No hay alumnos registrados</div>
+              <div className="text-xs text-gray-500">Este grupo aún no tiene estudiantes inscritos.</div>
+            </div>
+          )}
+        </Modal>
+      )}
     </>
   );
 }
-
-// ─── MateriasSection ───────────────────────────────────────────────────────────
+// ─── MateriasSection (MEJORADO) ────────────────────────────────────────────────
 
 function MateriasSection() {
   const [materias, setMaterias] = useState([]);
@@ -872,7 +1842,8 @@ function MateriasSection() {
     try {
       const res = await api.get("/academico/materias/");
       setMaterias(extractList(res.data));
-    } catch {
+    } catch (err) {
+      console.error("Error loading materias:", err);
       setMaterias([]);
     } finally {
       setLoading(false);
@@ -887,45 +1858,77 @@ function MateriasSection() {
   };
 
   const openEdit = (materia) => {
-    setForm({ nombre: materia.nombre ?? "", clave: materia.clave ?? "", creditos: materia.creditos ?? "" });
+    setForm({
+      nombre: materia.nombre ?? "",
+      clave: materia.clave ?? "",
+      creditos: String(materia.creditos ?? ""),
+    });
     setModal({ mode: "edit", id: materia.id });
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.nombre.trim() || !form.clave.trim()) {
-      show("Nombre y clave son obligatorios.", "error");
+    
+    // Validaciones
+    if (!form.nombre.trim()) {
+      show("El nombre de la materia es obligatorio.", "error");
       return;
     }
+    if (!form.clave.trim()) {
+      show("La clave de la materia es obligatoria.", "error");
+      return;
+    }
+    
+    // Validar creditos
+    const creditos = Number.parseInt(form.creditos, 10);
+    if (isNaN(creditos) || creditos < 0 || creditos > 20) {
+      show("Los créditos deben estar entre 0 y 20.", "error");
+      return;
+    }
+
     if (modal.mode === "edit" && !modal.id) {
       show("ID de materia no definido.", "error");
       return;
     }
+
     setSaving(true);
     try {
       const payload = normalizeMateriaPayload(form);
+      
       if (modal.mode === "create") {
         await api.post("/academico/materias/", payload);
+        show("Materia creada correctamente.");
       } else {
         await api.put(`/academico/materias/${modal.id}/`, payload);
+        show("Materia actualizada correctamente.");
       }
-      show("Materia guardada correctamente.");
+      
       setModal(null);
+      setForm({ nombre: "", clave: "", creditos: "" });
       await load();
-    } catch {
-      show("No se pudo guardar la materia.", "error");
+    } catch (err) {
+      console.error("Error saving materia:", err);
+      if (err.response?.data) {
+        const msg = Object.entries(err.response.data)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+          .join(" | ");
+        show(`Error: ${msg}`, "error");
+      } else {
+        show("No se pudo guardar la materia.", "error");
+      }
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar esta materia?")) return;
+    if (!window.confirm("¿Eliminar esta materia? Esta acción no se puede deshacer.")) return;
     try {
       await api.delete(`/academico/materias/${id}/`);
-      show("Materia eliminada.");
+      show("Materia eliminada correctamente.");
       await load();
-    } catch {
+    } catch (err) {
+      console.error("Error deleting materia:", err);
       show("No se pudo eliminar la materia.", "error");
     }
   };
@@ -954,18 +1957,39 @@ function MateriasSection() {
         <Modal title={modal.mode === "create" ? "Nueva materia" : "Editar materia"} onClose={() => setModal(null)}>
           <form className="space-y-4" onSubmit={handleSave}>
             <Field label="Nombre" required>
-              <input className={inputCls} value={form.nombre} placeholder="Ej. Matematicas I" onChange={(e) => setForm((c) => ({ ...c, nombre: e.target.value }))} />
+              <input
+                className={inputCls}
+                value={form.nombre}
+                placeholder="Ej. Matematicas I"
+                onChange={(e) => setForm((c) => ({ ...c, nombre: e.target.value }))}
+                disabled={saving}
+              />
             </Field>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Clave" required>
-                <input className={inputCls} value={form.clave} placeholder="MAT-101" onChange={(e) => setForm((c) => ({ ...c, clave: e.target.value }))} />
+                <input
+                  className={inputCls}
+                  value={form.clave}
+                  placeholder="MAT-101"
+                  onChange={(e) => setForm((c) => ({ ...c, clave: e.target.value }))}
+                  disabled={saving}
+                />
               </Field>
               <Field label="Creditos">
-                <input className={inputCls} type="number" min={0} max={20} value={form.creditos} placeholder="5" onChange={(e) => setForm((c) => ({ ...c, creditos: e.target.value }))} />
+                <input
+                  className={inputCls}
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={form.creditos}
+                  placeholder="5"
+                  onChange={(e) => setForm((c) => ({ ...c, creditos: e.target.value }))}
+                  disabled={saving}
+                />
               </Field>
             </div>
             <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-              <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
+              <Btn variant="ghost" onClick={() => setModal(null)} disabled={saving}>Cancelar</Btn>
               <Btn variant="primary" type="submit" loading={saving}>
                 {modal.mode === "create" ? "Registrar materia" : "Guardar cambios"}
               </Btn>

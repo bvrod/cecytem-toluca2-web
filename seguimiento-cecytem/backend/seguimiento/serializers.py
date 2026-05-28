@@ -27,6 +27,7 @@ class AsignacionDocenteSerializer(serializers.ModelSerializer):
     grupo_detalle = GrupoSimpleSerializer(source='grupo', read_only=True)
     nombre_docente = serializers.CharField(source='docente.get_full_name', read_only=True)
     nombre_materia = serializers.CharField(source='materia.nombre', read_only=True)
+    nombre_grupo = serializers.SerializerMethodField(read_only=True)
     detalle_grupo = serializers.CharField(source='grupo.__str__', read_only=True)
 
     class Meta:
@@ -35,9 +36,14 @@ class AsignacionDocenteSerializer(serializers.ModelSerializer):
             'id', 
             'docente', 'nombre_docente', 'docente_detalle',
             'materia', 'nombre_materia', 'materia_detalle',
-            'grupo', 'detalle_grupo', 'grupo_detalle',
+            'grupo', 'nombre_grupo', 'detalle_grupo', 'grupo_detalle',
             'fecha_asignacion'
         ]
+    
+    def get_nombre_grupo(self, obj):
+        """Retorna un nombre legible del grupo: ej. '202 Logística' o '401'"""
+        grupo = obj.grupo
+        return f"{grupo.semestre}° {grupo.grupo_letra} - {grupo.get_carrera_display()}"
 
 
 class ActividadSerializer(serializers.ModelSerializer):

@@ -31,6 +31,23 @@ class AsignacionDocenteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    # detail=False indica ruta de lista: /asignaciones/mis-asignaciones/
+    @action(detail=False, methods=['get'], url_path='mis-asignaciones')
+    def mis_asignaciones(self, request):
+        """Retorna las asignaciones del docente autenticado."""
+        docente = request.user
+        asignaciones = AsignacionDocente.objects.filter(docente=docente)
+        serializer = self.get_serializer(asignaciones, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='stats-globales')
+    def stats_globales(self, request):
+        """Estadísticas globales simples basadas en asignaciones."""
+        total_alumnos = AsignacionDocente.objects.aggregate(total=Count('grupo__alumnos'))['total'] or 0
+        porcentaje_general = 0
+        # Aquí se pueden expandir cálculos más complejos si es necesario
+        return Response({"total_alumnos": total_alumnos, "porcentaje_general": porcentaje_general})
+
 
 class ActividadViewSet(viewsets.ModelViewSet):
     queryset = Actividad.objects.all()

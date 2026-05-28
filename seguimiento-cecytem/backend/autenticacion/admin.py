@@ -1,3 +1,4 @@
 from django.contrib import admin
+from .models import Usuario  # Pon el nombre exacto de tu modelo de usuario
 
-# Register your models here.
+admin.site.register(Usuario)

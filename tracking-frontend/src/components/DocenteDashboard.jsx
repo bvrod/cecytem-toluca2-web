@@ -1,530 +1,806 @@
-import { useState, useEffect, useCallback } from "react";
-// En la línea 2 de tu DocenteDashboard.jsx, cámbialo a esto:
-import { Navbar } from './Navbar'; 
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Navbar } from './Navbar';
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
-// ─── RN15: bloqueo si han pasado más de 7 días del vencimiento ────────────────
+// ────────────────────────────────────────────────────────────────────────────
+// UTILIDADES Y FUNCIONES PURAS
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Determina si una actividad está bloqueada para edición
+ * (más de 7 días pasada la fecha de vencimiento)
+ */
 function isLocked(fechaVencimiento) {
   if (!fechaVencimiento) return false;
   const venc = new Date(fechaVencimiento);
   const now = new Date();
-  const diffMs = now - venc;
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  return diffDays > 7;
+  return (now - venc) / (1000 * 60 * 60 * 24) > 7;
 }
 
-function diasDesdeVencimiento(fechaVencimiento) {
-  if (!fechaVencimiento) return 0;
-  const venc = new Date(fechaVencimiento);
-  const now = new Date();
-  const diffMs = now - venc;
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-}
-
-// ─── Primitives ───────────────────────────────────────────────────────────────
-
-function LockBadge({ dias }) {
+/**
+ * Extrae el nombre real de la materia desde respuesta del backend
+ */
+function extractNombreMateria(asignacion) {
+  if (!asignacion) return "Materia";
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-amber-300 border border-amber-800/40"
-      style={{ background: "rgba(120,60,0,0.2)" }}>
-      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round"/>
-      </svg>
-      Bloqueado — {dias} días vencido (RN15)
-    </div>
+    asignacion.nombre_materia ||
+    asignacion.materia_nombre ||
+    asignacion.materia?.nombre ||
+    asignacion.materia?.clave ||
+    (typeof asignacion.materia === 'object' ? "Asignación Académica" : `Materia (ID: ${asignacion.materia})`)
   );
 }
 
-function StatusBadge({ cumplido }) {
-  if (cumplido === null || cumplido === undefined)
-    return <span className="text-xs text-gray-500 italic">Sin registrar</span>;
-  return cumplido ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-900/40 text-emerald-300 border border-emerald-700/40">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Cumplido
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800/60 text-gray-400 border border-gray-700/40">
-      <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />Pendiente
-    </span>
-  );
-}
-
-const inputClass = "w-full bg-gray-900/60 border border-purple-900/40 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-600/70 transition-all";
-
-// ─── Asignacion Card ──────────────────────────────────────────────────────────
-
-function AsignacionCard({ asignacion, selected, onSelect }) {
-  const locked = isLocked(asignacion.actividad_vencimiento);
+/**
+ * Extrae el nombre real del grupo
+ */
+function extractNombreGrupo(asignacion) {
+  if (!asignacion) return "Grupo";
   return (
-    <button
-      onClick={() => !locked && onSelect(asignacion)}
-      className={`w-full text-left rounded-2xl p-4 transition-all duration-200 ${
-        selected
-          ? "ring-2 ring-purple-500"
-          : "hover:bg-purple-900/10"
-      } ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-      style={{
-        background: selected ? "rgba(88,28,135,0.2)" : "rgba(88,28,135,0.07)",
-        border: `1px solid ${selected ? "rgba(88,28,135,0.6)" : "rgba(88,28,135,0.2)"}`,
-      }}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-200 text-sm truncate">{asignacion.materia_nombre}</div>
-          <div className="text-xs text-gray-500 mt-0.5">{asignacion.grupo_nombre} · {asignacion.periodo}</div>
-        </div>
-        {locked && (
-          <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round"/>
-          </svg>
-        )}
-      </div>
-      {asignacion.actividad_nombre && (
-        <div className="mt-2 text-xs text-purple-400 truncate">
-          📌 {asignacion.actividad_nombre}
-        </div>
-      )}
-      {asignacion.actividad_vencimiento && (
-        <div className={`text-xs mt-1 ${locked ? "text-amber-500" : "text-gray-600"}`}>
-          Vence: {new Date(asignacion.actividad_vencimiento).toLocaleDateString("es-MX")}
-          {locked && ` · ${diasDesdeVencimiento(asignacion.actividad_vencimiento)}d vencido`}
-        </div>
-      )}
-    </button>
+    asignacion.nombre_grupo ||
+    asignacion.detalle_grupo ||
+    asignacion.grupo_nombre ||
+    asignacion.grupo?.nombre ||
+    asignacion.grupo?.codigo ||
+    `Grupo: ${asignacion.grupo}`
   );
 }
 
-// ─── Evaluation Panel ─────────────────────────────────────────────────────────
+/**
+ * Extrae el nombre del aula/salón
+ */
+function extractAula(asignacion) {
+  if (!asignacion) return "Por asignar";
+  return asignacion.aula_nombre || asignacion.salon || asignacion.aula || "Por asignar";
+}
 
-function EvaluacionPanel({ asignacion, onSuccess }) {
+/**
+ * Normaliza respuestas del backend para garantizar arrays
+ */
+function normalizeArrayResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== 'object') return [];
+  
+  return (
+    data.asignaciones ||
+    data.results ||
+    data.data ||
+    (Array.isArray(data.asignacion) ? data.asignacion : [])
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// COMPONENTE PRINCIPAL: DOCENTE DASHBOARD
+// ────────────────────────────────────────────────────────────────────────────
+
+export default function DocenteDashboard() {
+  const { user } = useAuth();
+  
+  // Estado de datos
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [selectedAsignacion, setSelectedAsignacion] = useState(null);
+  const [actividades, setActividades] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
-  const [checks, setChecks] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const locked = isLocked(asignacion.actividad_vencimiento);
-  const diasVenc = diasDesdeVencimiento(asignacion.actividad_vencimiento);
+  
+  // Estado de UI
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [loadingDetalles, setLoadingDetalles] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState(null);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 1. CARGAR ASIGNACIONES DEL DOCENTE
+  // ──────────────────────────────────────────────────────────────────────────
+  
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoadingDashboard(true);
+      setError(null);
+      
+      const res = await api.get("/academico/docentes/dashboard");
+      const dataAsignaciones = normalizeArrayResponse(res.data);
+      
+      console.log("🔍 [DocenteDashboard] Respuesta del backend:", res.data);
+      
+      setAsignaciones(dataAsignaciones);
+      
+      // Si existe una asignación seleccionada, actualizarla
+      if (selectedAsignacion) {
+        const updated = dataAsignaciones.find(a => a.id === selectedAsignacion.id);
+        if (updated) {
+          setSelectedAsignacion(updated);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error al cargar dashboard:", err);
+      setError("No se pudieron cargar tus asignaciones. Intenta recargar la página.");
+    } finally {
+      setLoadingDashboard(false);
+    }
+  }, [selectedAsignacion]);
 
   useEffect(() => {
-    const loadAlumnos = async () => {
-      setLoading(true);
-      setSaved(false);
+    fetchDashboardData();
+  }, []);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 2. CARGAR DETALLES DE LA ASIGNACIÓN SELECCIONADA (ACTIVIDADES + ALUMNOS)
+  // ──────────────────────────────────────────────────────────────────────────
+  
+  useEffect(() => {
+    if (!selectedAsignacion?.id) {
+      setActividades([]);
+      setAlumnos([]);
+      return;
+    }
+
+    const fetchDetallesMateria = async () => {
       try {
-        const res = await api.get(`/evaluaciones/?asignacion=${asignacion.id}`);
-        const data = res.data.results ?? res.data;
-        setAlumnos(data);
-        // Initialize checks from existing records
-        const initialChecks = {};
-        data.forEach(a => { initialChecks[a.alumno_id] = a.cumplido ?? false; });
-        setChecks(initialChecks);
-      } catch { setAlumnos([]); }
-      finally { setLoading(false); }
+        setLoadingDetalles(true);
+        setError(null);
+        
+        // Peticiones paralelas
+        const [resActividades, resAlumnos] = await Promise.all([
+          api.get(`/seguimiento/actividades/?asignacion=${selectedAsignacion.id}`),
+          api.get(`/academico/alumnos/?asignacion=${selectedAsignacion.id}`)
+            .catch(err => {
+              console.warn("⚠️ Error al cargar alumnos, usando datos de respaldo:", err);
+              return { data: [] };
+            })
+        ]);
+
+        // Normalizar actividades
+        const listaActividades = normalizeArrayResponse(resActividades.data);
+        setActividades(listaActividades);
+        
+        // Normalizar alumnos (con respaldo en datos de asignación)
+        let listaAlumnos = normalizeArrayResponse(resAlumnos.data);
+        if (listaAlumnos.length === 0) {
+          listaAlumnos = selectedAsignacion.alumnos || 
+                         selectedAsignacion.grupo?.alumnos || 
+                         [];
+        }
+        setAlumnos(listaAlumnos);
+        
+        console.log("✅ [DetallesMateria] Actividades:", listaActividades);
+        console.log("✅ [DetallesMateria] Alumnos:", listaAlumnos);
+        
+      } catch (err) {
+        console.error("❌ Error al cargar detalles:", err);
+        setError("No se pudieron cargar los detalles de esta materia.");
+      } finally {
+        setLoadingDetalles(false);
+      }
     };
-    loadAlumnos();
-  }, [asignacion.id]);
 
-  const toggleAll = (val) => {
-    if (locked) return;
-    const next = {};
-    alumnos.forEach(a => { next[a.alumno_id] = val; });
-    setChecks(next);
-  };
+    fetchDetallesMateria();
+  }, [selectedAsignacion]);
 
-  const handleSave = async () => {
-    if (locked) return;
-    setSaving(true);
-    try {
-      // RN: send as array batch
-      const payload = alumnos.map(a => ({
-        alumno_id: a.alumno_id,
-        asignacion_id: asignacion.id,
-        actividad_id: asignacion.actividad_id,
-        cumplido: checks[a.alumno_id] ?? false,
-      }));
-      await api.post("/evaluaciones/batch/", { evaluaciones: payload });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-      onSuccess?.();
-    } catch { } finally { setSaving(false); }
-  };
+  // ──────────────────────────────────────────────────────────────────────────
+  // 3. FILTRADO DEFENSIVO DE LA BARRA DE BÚSQUEDA
+  // ──────────────────────────────────────────────────────────────────────────
+  
+  const filteredAsignaciones = useMemo(() => {
+    return asignaciones.filter(a => {
+      if (!a) return false;
+      
+      const query = String(searchQuery).toLowerCase();
+      
+      const textoMateria = String(extractNombreMateria(a)).toLowerCase();
+      const textoGrupo = String(extractNombreGrupo(a)).toLowerCase();
+      const textoAula = String(extractAula(a)).toLowerCase();
 
-  const totalCumplidos = Object.values(checks).filter(Boolean).length;
+      return (
+        textoMateria.includes(query) ||
+        textoGrupo.includes(query) ||
+        textoAula.includes(query)
+      );
+    });
+  }, [asignaciones, searchQuery]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // RENDER PRINCIPAL
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden flex flex-col h-full"
-      style={{
-        background: "rgba(88,28,135,0.07)",
-        border: "1px solid rgba(88,28,135,0.2)",
+    <div 
+      className="min-h-screen text-gray-100 flex flex-col" 
+      style={{ 
+        backgroundColor: "#06020a",
+        backgroundImage: "radial-gradient(circle at 80% 20%, rgba(88,28,135,0.08) 0%, transparent 50%)"
       }}
     >
-      {/* Panel header */}
-      <div className="px-5 py-4 border-b border-purple-900/30">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="font-bold text-gray-100">{asignacion.materia_nombre}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{asignacion.grupo_nombre} · {asignacion.periodo}</p>
-            {asignacion.actividad_nombre && (
-              <p className="text-xs text-purple-400 mt-1">📌 {asignacion.actividad_nombre}</p>
-            )}
-          </div>
-          {locked && <LockBadge dias={diasVenc} />}
-        </div>
+      <Navbar />
 
-        {/* Progress bar */}
-        {alumnos.length > 0 && (
-          <div className="mt-3">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Cumplimiento del grupo</span>
-              <span className="font-semibold text-gray-300">{totalCumplidos}/{alumnos.length}</span>
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-70px)] overflow-hidden">
+        
+        {/* ────── PANEL IZQUIERDO: SELECCIÓN DE MATERIAS (4 cols) ────── */}
+        <aside className="lg:col-span-4 flex flex-col gap-4 h-full overflow-y-auto pr-2 custom-scrollbar">
+          
+          {/* Encabezado y Buscador */}
+          <div className="flex flex-col gap-3 sticky top-0 z-10 bg-gradient-to-b from-[#06020a] via-[#06020a] to-transparent pb-2">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-gray-100 via-gray-300 to-purple-300 bg-clip-text text-transparent">
+                Bienvenido, {user?.nombre || user?.username || "Docente"}
+              </h1>
+              <p className="text-xs text-gray-500">
+                {loadingDashboard ? "Cargando..." : `${asignaciones.length} ${asignaciones.length === 1 ? "asignación" : "asignaciones"} activa${asignaciones.length !== 1 ? "s" : ""}`}
+              </p>
             </div>
-            <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: alumnos.length ? `${(totalCumplidos / alumnos.length) * 100}%` : "0%",
-                  background: "linear-gradient(90deg, #581c87, #9333ea)",
-                }}
+
+            {/* Buscador */}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="text-purple-400 text-xs">🔍</span>
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar materia, grupo o aula..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl pl-8 pr-4 py-2.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
               />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Toolbar */}
-      {!locked && alumnos.length > 0 && (
-        <div className="px-5 py-2.5 flex items-center gap-2 border-b border-purple-900/20"
-          style={{ background: "rgba(59,7,100,0.2)" }}>
-          <span className="text-xs text-gray-500 mr-1">Selección rápida:</span>
-          <button onClick={() => toggleAll(true)}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium text-purple-300 hover:bg-purple-900/30 transition-colors border border-purple-800/40">
-            ✓ Todos
-          </button>
-          <button onClick={() => toggleAll(false)}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-400 hover:bg-gray-800/40 transition-colors border border-gray-700/40">
-            ✕ Ninguno
-          </button>
-        </div>
-      )}
+          {/* Contenedor de Tarjetas */}
+          {loadingDashboard ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center py-12">
+                <div className="animate-spin mb-3 text-purple-400 text-2xl">⚙️</div>
+                <p className="text-xs text-gray-500">Cargando tus clases del CECyTEM...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center py-12 p-4 border border-red-900/20 rounded-xl bg-red-950/5">
+                <p className="text-xs text-red-400">⚠️ {error}</p>
+              </div>
+            </div>
+          ) : filteredAsignaciones.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center py-12 p-4 border border-dashed border-purple-950/40 rounded-xl">
+                <p className="text-xs text-gray-600 italic">
+                  {searchQuery ? "Ninguna clase coincide con tu búsqueda" : "Ninguna asignación disponible"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {filteredAsignaciones.map((asignacion) => (
+                <ClassroomCard
+                  key={asignacion.id}
+                  asignacion={asignacion}
+                  isSelected={selectedAsignacion?.id === asignacion.id}
+                  onClick={() => setSelectedAsignacion(asignacion)}
+                  actividadesCount={asignacion.actividades_count || 0}
+                />
+              ))}
+            </div>
+          )}
+        </aside>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-500">
-            <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mr-2" />
-            Cargando alumnos...
-          </div>
-        ) : alumnos.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-gray-600 text-sm">
-            Sin alumnos en este grupo
-          </div>
-        ) : (
-          <div className="divide-y divide-purple-900/15">
-            {alumnos.map((alumno, idx) => {
-              const checked = checks[alumno.alumno_id] ?? false;
-              return (
-                <label
-                  key={alumno.alumno_id}
-                  className={`flex items-center gap-4 px-5 py-3.5 transition-all duration-150 ${
-                    locked
-                      ? "opacity-60 cursor-not-allowed"
-                      : "cursor-pointer hover:bg-purple-900/10"
-                  } ${checked && !locked ? "bg-emerald-900/5" : ""}`}
+        {/* ────── PANEL DERECHO: ESPACIO DE TRABAJO DINÁMICO (8 cols) ────── */}
+        <section className="lg:col-span-8 bg-purple-950/5 border border-purple-900/10 rounded-2xl p-6 flex flex-col h-full overflow-y-auto custom-scrollbar">
+          
+          {selectedAsignacion ? (
+            <div className="flex flex-col gap-6 h-full">
+              
+              {/* ──── CABECERA DEL GRUPO SELECCIONADO ──── */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-950/40 pb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-900/30">
+                      Clase Seleccionada
+                    </span>
+                    <span className="text-[10px] font-mono text-gray-500">
+                      ID: {selectedAsignacion.id}
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-black text-gray-100 leading-tight">
+                    {extractNombreMateria(selectedAsignacion)}
+                  </h2>
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                    <span>
+                      👥 Grupo: <strong className="text-purple-300 font-semibold">{extractNombreGrupo(selectedAsignacion)}</strong>
+                    </span>
+                    <span>
+                      📍 Aula: <strong className="text-purple-300 font-semibold">{extractAula(selectedAsignacion)}</strong>
+                    </span>
+                    <span>
+                      {selectedAsignacion.total_alumnos || alumnos.length || 0} alumnos
+                    </span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-800 via-purple-700 to-purple-600 hover:from-purple-700 hover:via-purple-600 hover:to-purple-500 text-white font-bold text-xs rounded-xl transition-all duration-200 shadow-lg shadow-purple-950/40 flex items-center justify-center gap-2 h-10 whitespace-nowrap active:scale-95"
                 >
-                  {/* Index */}
-                  <span className="text-xs text-gray-700 font-mono w-5 flex-shrink-0">{idx + 1}</span>
+                  🚀 Nueva Actividad
+                </button>
+              </div>
 
-                  {/* Checkbox */}
-                  <div className="flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      disabled={locked}
-                      checked={checked}
-                      onChange={e => !locked && setChecks(prev => ({ ...prev, [alumno.alumno_id]: e.target.checked }))}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-150 ${
-                        checked
-                          ? "border-emerald-500 bg-emerald-900/50"
-                          : "border-gray-700 bg-gray-900/50"
-                      }`}
-                    >
-                      {checked && (
-                        <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+              {/* ──── CONTENIDO DIVIDIDO: ACTIVIDADES Y ALUMNOS ──── */}
+              {loadingDetalles ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="animate-spin mb-2 text-purple-400 text-xl">⚙️</div>
+                    <p className="text-xs text-gray-500">Cargando detalles...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
+                  
+                  {/* ──── COLUMNA A: HISTORIAL DE ACTIVIDADES ──── */}
+                  <div className="flex flex-col gap-3 h-full min-h-0">
+                    <div className="flex items-center justify-between sticky top-0 z-5 pb-2 bg-gradient-to-b from-purple-950/5 to-transparent">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                        <span>📋 Planeaciones</span>
+                      </h3>
+                      <span className="bg-purple-900/30 text-purple-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold">
+                        {actividades.length}
+                      </span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2.5 custom-scrollbar">
+                      {actividades.length === 0 ? (
+                        <EmptyState 
+                          icon="📚"
+                          title="Sin planeaciones"
+                          message="Crea la primera actividad para este grupo usando el botón de arriba."
+                        />
+                      ) : (
+                        actividades.map((act) => (
+                          <ActivityCard key={act.id} actividad={act} />
+                        ))
                       )}
                     </div>
                   </div>
 
-                  {/* Avatar + Name */}
-                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-purple-900/40 flex items-center justify-center text-xs font-bold text-purple-300 flex-shrink-0">
-                      {alumno.nombre_completo?.split(" ").slice(0, 2).map(n => n[0]).join("") ?? "A"}
+                  {/* ──── COLUMNA B: LISTADO DE ALUMNOS ──── */}
+                  <div className="flex flex-col gap-3 h-full min-h-0">
+                    <div className="flex items-center justify-between sticky top-0 z-5 pb-2 bg-gradient-to-b from-purple-950/5 to-transparent">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                        <span>👥 Alumnos Matriculados</span>
+                      </h3>
+                      <span className="bg-purple-900/30 text-purple-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold">
+                        {alumnos.length}
+                      </span>
                     </div>
-                    <span className="text-sm text-gray-200 truncate">{alumno.nombre_completo}</span>
-                    <span className="text-xs text-gray-600 font-mono ml-auto">{alumno.matricula}</span>
+
+                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-1.5 custom-scrollbar">
+                      {alumnos.length === 0 ? (
+                        <EmptyState 
+                          icon="📋"
+                          title="Sin alumnos"
+                          message="No se encontraron alumnos matriculados en Control Escolar."
+                        />
+                      ) : (
+                        alumnos.map((alu, index) => (
+                          <StudentRow key={alu.id || index} alumno={alu} />
+                        ))
+                      )}
+                    </div>
                   </div>
 
-                  {/* Current status */}
-                  <StatusBadge cumplido={alumno.cumplido} />
-                </label>
-              );
-            })}
-          </div>
-        )}
+                </div>
+              )}
+
+            </div>
+          ) : (
+            // Empty State cuando no hay clase seleccionada
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+              <div className="mb-4 text-5xl animate-bounce">🏫</div>
+              <h3 className="text-base font-black text-gray-300 mb-2">Panel de Control del Docente</h3>
+              <p className="text-xs text-gray-500 max-w-sm leading-relaxed">
+                Selecciona una de tus materias asignadas en la barra lateral para gestionar planeaciones, ver el listado de alumnos e ingresar actividades.
+              </p>
+              {asignaciones.length === 0 && (
+                <div className="mt-6 p-4 border border-dashed border-purple-950/30 rounded-lg bg-purple-950/5">
+                  <p className="text-[11px] text-gray-600 italic">
+                    Parece que no tienes asignaciones aún. Contacta a Dirección.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* ────── MODAL DE NUEVA ACTIVIDAD ────── */}
+      {showModal && selectedAsignacion && (
+        <ModalNuevaActividad
+          asignacion={selectedAsignacion}
+          nombreMateria={extractNombreMateria(selectedAsignacion)}
+          onClose={() => setShowModal(false)}
+          onCreated={() => {
+            setShowModal(false);
+            // Recargar actividades del grupo
+            if (selectedAsignacion.id) {
+              fetchDashboardData();
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// COMPONENTE: TARJETA DE CLASE (ESTILO GOOGLE CLASSROOM)
+// ────────────────────────────────────────────────────────────────────────────
+
+function ClassroomCard({ asignacion, isSelected, onClick, actividadesCount }) {
+  const nombreMateria = extractNombreMateria(asignacion);
+  const nombreGrupo = extractNombreGrupo(asignacion);
+  const aula = extractAula(asignacion);
+  const totalAlumnos = asignacion.total_alumnos || 0;
+  const tieneActividades = actividadesCount > 0;
+
+  return (
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClick();
+        }
+      }}
+      className={`group cursor-pointer rounded-xl overflow-hidden transition-all duration-300 flex flex-col border backdrop-blur-sm ${
+        isSelected 
+          ? "ring-2 ring-purple-500 border-purple-500/30 shadow-lg shadow-purple-950/50 bg-gradient-to-br from-purple-950/40 to-purple-900/20" 
+          : "border-purple-900/20 hover:border-purple-800/40 bg-purple-950/10 hover:bg-purple-950/15"
+      }`}
+    >
+      {/* Encabezado: Materia y Grupo */}
+      <div className="p-3.5 bg-gradient-to-r from-purple-900/30 via-purple-950/20 to-transparent border-b border-purple-950/40">
+        <h3 
+          className="font-black text-gray-200 text-xs tracking-tight truncate pr-4" 
+          title={nombreMateria}
+        >
+          {nombreMateria}
+        </h3>
+        <p className="text-[11px] text-purple-400 mt-1 font-semibold">
+          Gr. {nombreGrupo}
+        </p>
       </div>
 
-      {/* Footer / Save button */}
-      {!locked && alumnos.length > 0 && (
-        <div className="px-5 py-4 border-t border-purple-900/30 flex items-center justify-between"
-          style={{ background: "rgba(59,7,100,0.15)" }}>
-          <span className="text-xs text-gray-500">
-            {totalCumplidos} de {alumnos.length} marcados
+      {/* Cuerpo: Info de Aula y Alumnos */}
+      <div className="p-3.5 flex flex-col justify-between flex-1 gap-2.5 bg-black/10 text-[11px]">
+        <div className="flex items-center justify-between text-gray-400">
+          <span>📍 {aula}</span>
+          <span className="text-purple-400 font-mono font-medium">{totalAlumnos} 👥</span>
+        </div>
+
+        {/* Indicador de Actividades */}
+        <div className="pt-2.5 border-t border-purple-950/20 flex items-center justify-between">
+          {tieneActividades ? (
+            <span className="text-[10px] text-green-400/80 font-medium">
+              ✓ Activa ({actividadesCount})
+            </span>
+          ) : (
+            <span className="text-[10px] text-amber-500/80 italic font-medium">
+              ⚠️ Requiere planeación
+            </span>
+          )}
+          <span className="text-gray-600 text-xs group-hover:translate-x-1 transition-transform duration-200">→</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// COMPONENTE: TARJETA DE ACTIVIDAD
+// ────────────────────────────────────────────────────────────────────────────
+
+function ActivityCard({ actividad }) {
+  const isBlocked = isLocked(actividad.fecha_limite);
+  const diasVencimiento = actividad.fecha_limite 
+    ? Math.ceil((new Date(actividad.fecha_limite) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  return (
+    <div className="p-3 bg-purple-950/10 border border-purple-900/20 rounded-lg hover:border-purple-800/40 hover:bg-purple-950/15 transition-all group">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h4 className="text-xs font-bold text-gray-200 line-clamp-2 flex-1">
+          📌 {actividad.titulo}
+        </h4>
+        <span className="text-[9px] px-1.5 py-0.5 bg-purple-900/40 text-purple-300 rounded font-mono shrink-0 whitespace-nowrap">
+          S{actividad.semana}
+        </span>
+      </div>
+
+      {actividad.descripcion && (
+        <p className="text-[11px] text-gray-400 line-clamp-2 mb-2">
+          {actividad.descripcion}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between text-[10px] text-gray-500">
+        <span>
+          📅 {new Date(actividad.fecha_limite || "").toLocaleDateString('es-MX', {
+            month: 'short',
+            day: 'numeric'
+          })}
+        </span>
+        {diasVencimiento !== null && (
+          <span className={`font-semibold ${
+            isBlocked 
+              ? "text-red-400" 
+              : diasVencimiento <= 3 
+              ? "text-amber-400" 
+              : "text-green-400"
+          }`}>
+            {isBlocked ? "🔒 Bloqueada" : diasVencimiento <= 0 ? "⏰ Hoy" : `${diasVencimiento}d`}
           </span>
-          <div className="flex items-center gap-3">
-            {saved && (
-              <span className="text-xs text-emerald-400 flex items-center gap-1">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Guardado
-              </span>
-            )}
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// COMPONENTE: FILA DE ALUMNO
+// ────────────────────────────────────────────────────────────────────────────
+
+function StudentRow({ alumno }) {
+  const nombreCompleto = 
+    alumno.nombre_completo || 
+    alumno.alumno_nombre || 
+    `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() ||
+    "Alumno sin nombre";
+  
+  const matricula = alumno.matricula || alumno.id || "Sin matrícula";
+
+  return (
+    <div className="p-2.5 bg-black/20 border border-purple-950/20 rounded-lg hover:bg-purple-950/10 hover:border-purple-900/40 transition-all group">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-300 font-medium truncate flex-1">
+          {nombreCompleto}
+        </span>
+        <span className="text-[10px] font-mono text-gray-500 shrink-0 group-hover:text-purple-400 transition-colors">
+          {matricula}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// COMPONENTE: ESTADO VACÍO REUTILIZABLE
+// ────────────────────────────────────────────────────────────────────────────
+
+function EmptyState({ icon, title, message }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-purple-950/20 rounded-lg bg-purple-950/5">
+      <div className="text-2xl mb-2">{icon}</div>
+      <h4 className="text-xs font-bold text-gray-400 mb-1">{title}</h4>
+      <p className="text-[11px] text-gray-500 leading-relaxed max-w-[150px]">
+        {message}
+      </p>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// COMPONENTE MODAL: NUEVA ACTIVIDAD
+// ────────────────────────────────────────────────────────────────────────────
+
+function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) {
+  const [formData, setFormData] = useState({
+    titulo: "",
+    descripcion: "",
+    semana: "1",
+    fecha_limite: ""
+  });
+  const [enviando, setEnviando] = useState(false);
+  const [errorLocal, setErrorLocal] = useState(null);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setErrorLocal(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorLocal(null);
+
+    // Validaciones
+    if (!formData.titulo.trim()) {
+      setErrorLocal("El título de la actividad es obligatorio.");
+      return;
+    }
+    if (!formData.fecha_limite) {
+      setErrorLocal("Debes especificar una fecha límite.");
+      return;
+    }
+
+    setEnviando(true);
+
+    try {
+      // Extraer el mes desde la fecha seleccionada
+      const fechaSeleccionada = new Date(formData.fecha_limite + "T00:00:00");
+      const numeroMes = fechaSeleccionada.getMonth() + 1;
+
+      // CRÍTICO: Enviar tipos de datos correctos
+      // El backend espera:
+      // - semana: Integer (ej: 3)
+      // - mes: Integer (ej: 5)
+      // - asignacion: Integer ID
+      const payload = {
+        asignacion: typeof asignacion === 'object' ? asignacion.id : asignacion,
+        titulo: formData.titulo.trim(),
+        descripcion: formData.descripcion.trim() || "",
+        semana: parseInt(formData.semana, 10),
+        mes: numeroMes,
+        fecha_limite: formData.fecha_limite
+      };
+
+      console.log("📤 [ModalNuevaActividad] Enviando payload:", payload);
+
+      await api.post("/seguimiento/actividades/", payload);
+
+      console.log("✅ [ModalNuevaActividad] Actividad creada exitosamente");
+      onCreated();
+
+    } catch (err) {
+      console.error("❌ [ModalNuevaActividad] Error al crear actividad:", err);
+      
+      // Manejo de errores del backend
+      let mensajeError = "No se pudo guardar la actividad. Intenta nuevamente.";
+      
+      if (err.response?.data) {
+        const datos = err.response.data;
+        
+        if (typeof datos === 'object') {
+          const errores = Object.entries(datos)
+            .map(([campo, mensajes]) => {
+              const msg = Array.isArray(mensajes) ? mensajes.join(", ") : mensajes;
+              return `${campo}: ${msg}`;
+            })
+            .join("\n");
+          mensajeError = errores || mensajeError;
+        } else {
+          mensajeError = String(datos);
+        }
+      }
+
+      setErrorLocal(mensajeError);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div 
+        className="w-full max-w-md rounded-2xl border border-purple-900/40 p-6 flex flex-col gap-4 shadow-2xl" 
+        style={{ background: "#0c0618" }}
+      >
+        {/* Encabezado del Modal */}
+        <div className="flex items-center justify-between border-b border-purple-950/40 pb-3">
+          <div className="flex-1">
+            <h3 className="text-sm font-black text-gray-200">Nueva Actividad</h3>
+            <p className="text-[11px] text-purple-400 truncate mt-1">
+              Materia: {nombreMateria}
+            </p>
+          </div>
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="text-gray-500 hover:text-gray-300 font-mono text-lg transition-colors ml-4 flex-shrink-0"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Mensajes de Error */}
+        {errorLocal && (
+          <div className="p-3 bg-red-950/20 border border-red-900/30 rounded-lg">
+            <p className="text-xs text-red-400 whitespace-pre-wrap">{errorLocal}</p>
+          </div>
+        )}
+
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Campo: Título */}
+          <div>
+            <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
+              Título de la Actividad *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Ej. Práctica 1: Modelado de Datos"
+              value={formData.titulo}
+              onChange={(e) => handleInputChange('titulo', e.target.value)}
+              className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
+            />
+          </div>
+
+          {/* Campo: Descripción */}
+          <div>
+            <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
+              Instrucciones o Criterios
+            </label>
+            <textarea
+              rows="3"
+              placeholder="Describe qué deben hacer los alumnos, criterios de evaluación, etc..."
+              value={formData.descripcion}
+              onChange={(e) => handleInputChange('descripcion', e.target.value)}
+              className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all resize-none"
+            />
+          </div>
+
+          {/* Campos: Semana y Fecha */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
+                Semana *
+              </label>
+              <select
+                value={formData.semana}
+                onChange={(e) => handleInputChange('semana', e.target.value)}
+                className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
+                style={{ colorScheme: 'dark' }}
+              >
+                {[1, 2, 3, 4, 5].map(s => (
+                  <option key={s} value={s} className="bg-[#0c0618]">
+                    Semana {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
+                Fecha Límite *
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.fecha_limite}
+                onChange={(e) => handleInputChange('fecha_limite', e.target.value)}
+                className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="pt-2 flex items-center justify-end gap-3 border-t border-purple-950/20">
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-95 disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #581c87, #7c3aed)" }}
+              type="button"
+              onClick={onClose}
+              disabled={enviando}
+              className="px-4 py-2 text-gray-400 hover:text-gray-300 text-xs font-bold transition-colors disabled:opacity-50"
             >
-              {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-              {saving ? "Guardando..." : "💾 Guardar evaluación en lote"}
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={enviando}
+              className="px-5 py-2 bg-gradient-to-r from-purple-800 to-purple-600 hover:from-purple-700 hover:to-purple-500 disabled:from-purple-900 disabled:to-purple-900 text-white font-black text-xs rounded-xl shadow-lg shadow-purple-950/40 transition-all duration-200 disabled:opacity-60 flex items-center gap-2"
+            >
+              {enviando ? (
+                <>
+                  <span className="animate-spin">⚙️</span>
+                  Publicando...
+                </>
+              ) : (
+                <>
+                  🚀 Publicar
+                </>
+              )}
             </button>
           </div>
-        </div>
-      )}
-
-      {locked && (
-        <div className="px-5 py-4 border-t border-amber-900/30 flex items-center gap-3"
-          style={{ background: "rgba(120,60,0,0.1)" }}>
-          <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <p className="text-xs text-amber-400">
-            <strong>Regla RN15 activada:</strong> Han pasado <strong>{diasVenc} días</strong> desde el vencimiento de esta actividad. El registro de evaluaciones está bloqueado.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── NAV ITEMS ────────────────────────────────────────────────────────────────
-
-const NAV_ITEMS = [
-  { id: "evaluacion", label: "Evaluación", icon: "✏️" },
-  { id: "resumen", label: "Mi Resumen", icon: "📊" },
-];
-
-// ─── Resumen Section ──────────────────────────────────────────────────────────
-
-function ResumenSection({ asignaciones }) {
-  return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-100">Mi Resumen Docente</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Panorama general de mis asignaciones y actividades</p>
+        </form>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {asignaciones.map(a => {
-          const locked = isLocked(a.actividad_vencimiento);
-          const dias = diasDesdeVencimiento(a.actividad_vencimiento);
-          return (
-            <div
-              key={a.id}
-              className="rounded-2xl p-5"
-              style={{
-                background: "rgba(88,28,135,0.08)",
-                border: `1px solid ${locked ? "rgba(180,120,0,0.25)" : "rgba(88,28,135,0.2)"}`,
-              }}
-            >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div>
-                  <div className="font-semibold text-gray-200">{a.materia_nombre}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{a.grupo_nombre}</div>
-                </div>
-                {locked ? (
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                  </svg>
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
-                )}
-              </div>
-
-              {a.actividad_nombre && (
-                <div className="text-xs text-purple-400 mb-2 truncate">📌 {a.actividad_nombre}</div>
-              )}
-
-              {a.actividad_vencimiento && (
-                <div className={`text-xs ${locked ? "text-amber-500" : "text-gray-600"}`}>
-                  {locked
-                    ? `⚠ Venció hace ${dias} día${dias !== 1 ? "s" : ""}`
-                    : `Vence: ${new Date(a.actividad_vencimiento).toLocaleDateString("es-MX")}`}
-                </div>
-              )}
-
-              {a.porcentaje_cumplimiento !== undefined && (
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Cumplimiento</span>
-                    <span className="font-semibold text-gray-300">{a.porcentaje_cumplimiento}%</span>
-                  </div>
-                  <div className="h-1 rounded-full bg-gray-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${a.porcentaje_cumplimiento}%`,
-                        background: "linear-gradient(90deg, #581c87, #9333ea)",
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {asignaciones.length === 0 && (
-          <div className="col-span-full text-center py-16 text-gray-600 text-sm">
-            Sin asignaciones registradas
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main DocenteDashboard ────────────────────────────────────────────────────
-
-export default function DocenteDashboard() {
-  const { user } = useAuth();
-  const [section, setSection] = useState("evaluacion");
-  const [asignaciones, setAsignaciones] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/asignaciones/mis-asignaciones/");
-      const data = res.data.results ?? res.data;
-      setAsignaciones(data);
-      if (data.length > 0 && !selected) setSelected(data[0]);
-    } catch { setAsignaciones([]); }
-    finally { setLoading(false); }
-  }, []); // eslint-disable-line
-
-  useEffect(() => { load(); }, [load]);
-
-  const filtered = asignaciones.filter(a =>
-    a.materia_nombre?.toLowerCase().includes(search.toLowerCase()) ||
-    a.grupo_nombre?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="min-h-screen" style={{ background: "#0a0514" }}>
-      <Navbar activeSection={section} setActiveSection={setSection} navItems={NAV_ITEMS} />
-
-      <main className="pt-16 h-screen flex flex-col">
-        {/* Header */}
-        <div className="px-6 md:px-10 py-5 flex-shrink-0"
-          style={{ borderBottom: "1px solid rgba(88,28,135,0.15)" }}>
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-100">
-                Bienvenido, {user?.nombre_completo?.split(" ")[0]}
-              </h1>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {asignaciones.length} asignación{asignaciones.length !== 1 ? "es" : ""} activa{asignaciones.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {section === "resumen" ? (
-          <div className="flex-1 overflow-y-auto px-6 md:px-10 py-8">
-            <div className="max-w-7xl mx-auto">
-              <ResumenSection asignaciones={asignaciones} />
-            </div>
-          </div>
-        ) : (
-          /* Evaluacion: two-panel layout */
-          <div className="flex-1 overflow-hidden flex">
-            <div className="max-w-7xl w-full mx-auto flex flex-1 overflow-hidden px-6 md:px-10 py-6 gap-5">
-
-              {/* Left: assignment list */}
-              <div className="w-72 xl:w-80 flex-shrink-0 flex flex-col gap-3 overflow-hidden">
-                <div className="flex-shrink-0">
-                  <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Mis Asignaciones</h2>
-                  <div className="relative">
-                    <input
-                      className="w-full bg-gray-900/60 border border-purple-900/30 rounded-xl px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-600/50 transition-all pl-8"
-                      placeholder="Buscar materia o grupo..."
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                    />
-                    <svg viewBox="0 0 24 24" className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                  {loading ? (
-                    Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="rounded-2xl p-4 animate-pulse" style={{ background: "rgba(88,28,135,0.08)", border: "1px solid rgba(88,28,135,0.15)" }}>
-                        <div className="h-3.5 bg-purple-900/40 rounded w-3/4 mb-2" />
-                        <div className="h-2.5 bg-gray-800/60 rounded w-1/2" />
-                      </div>
-                    ))
-                  ) : filtered.map(a => (
-                    <AsignacionCard
-                      key={a.id}
-                      asignacion={a}
-                      selected={selected?.id === a.id}
-                      onSelect={setSelected}
-                    />
-                  ))}
-                  {!loading && filtered.length === 0 && (
-                    <p className="text-center text-gray-600 text-sm py-8">Sin resultados</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: evaluation panel */}
-              <div className="flex-1 overflow-hidden">
-                {selected ? (
-                  <EvaluacionPanel asignacion={selected} onSuccess={load} />
-                ) : (
-                  <div
-                    className="h-full rounded-2xl flex items-center justify-center"
-                    style={{ border: "1px dashed rgba(88,28,135,0.3)" }}
-                  >
-                    <div className="text-center">
-                      <div className="text-4xl mb-3">📋</div>
-                      <p className="text-gray-500 text-sm">Selecciona una asignación para comenzar a evaluar</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
     </div>
   );
 }
