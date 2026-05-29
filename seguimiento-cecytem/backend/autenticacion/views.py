@@ -23,8 +23,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         rol_filtro = self.request.query_params.get('rol', None)
         
         if rol_filtro == 'DOCENTE':
-            # Filtro flexible para que tus maestros viejos y nuevos aparezcan juntos
-            return queryset.filter(is_superuser=False).exclude(username__contains='alumno')
+            # Solo usuarios con is_staff=True (docentes verificados)
+            return queryset.filter(is_staff=True, is_superuser=False)
         elif rol_filtro == 'ADMIN':
             return queryset.filter(is_superuser=True)
         elif rol_filtro == 'ALUMNO':

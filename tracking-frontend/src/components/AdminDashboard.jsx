@@ -1,30 +1,76 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import CecytoLogo from '../imagenes/cecytem-logo.png'; 
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Design Tokens (Login-coherent palette) ────────────────────────────────────
 
-const C = {
-  bg: "#07030f",
-  surface: "rgba(15,7,28,0.9)",
-  border: "rgba(99,40,180,0.22)",
-  borderStrong: "rgba(139,92,246,0.35)",
+const T = {
+  bg:            "#082030",
+  bgDeep:        "#051220",
+  surface:       "rgba(5,18,32,0.72)",
+  surfaceHover:  "rgba(5,18,32,0.88)",
+  border:        "rgba(6,182,212,0.18)",
+  borderStrong:  "rgba(6,182,212,0.32)",
+  borderGreen:   "rgba(29,185,84,0.30)",
+  accent:        "#1db954",
+  accentHover:   "#159b45",
+  accentGlow:    "rgba(29,185,84,0.18)",
+  textPrimary:   "#e5e7eb",
+  textSecondary: "#9aa5b7",
+  textMuted:     "#617082",
+  cyan:          "#06b6d4",
+  cyanDim:       "rgba(6,182,212,0.12)",
+  danger:        "rgba(239,68,68,0.12)",
+  dangerBorder:  "rgba(239,68,68,0.25)",
+  dangerText:    "#fca5a5",
+  radius:        "20px",
+  radiusSm:      "12px",
+  radiusXs:      "8px",
+  shadow:        "0 25px 80px rgba(2,10,20,0.55)",
+  shadowSm:      "0 8px 30px rgba(2,10,20,0.35)",
+  glass:         "backdrop-filter:blur(20px)",
+  fontBody:      "'DM Sans', 'Inter', sans-serif",
+  fontHeading:   "'Syne', 'DM Sans', sans-serif",
 };
 
-const inputCls =
-  "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-gray-100 placeholder:text-gray-500 transition focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400/40";
+// ─── Background dots pattern (from login) ─────────────────────────────────────
+
+const BG_DOTS = {
+  backgroundImage: `radial-gradient(circle at 20% 20%, rgba(6,182,212,0.07) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(29,185,84,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(6,182,212,0.04) 0%, transparent 70%)`,
+};
+
+// ─── Shared input style ────────────────────────────────────────────────────────
+
+const inputStyle = {
+  width: "100%",
+  borderRadius: T.radiusXs,
+  border: `1px solid ${T.border}`,
+  background: "rgba(5,18,32,0.55)",
+  padding: "10px 14px",
+  fontSize: "13px",
+  color: T.textPrimary,
+  outline: "none",
+  transition: "border-color 0.2s",
+  backdropFilter: "blur(8px)",
+  fontFamily: T.fontBody,
+};
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 const carreraLabels = {
-  LOGISTICA: "Logistica",
-  CIENCIA_DATOS: "Ciencia de Datos",
-  ANIMACION_DIGITAL: "Animacion Digital",
+  LOGISTICA:        "Logistica",
+  CIENCIA_DATOS:    "Ciencia de Datos",
+  ANIMACION_DIGITAL:"Animacion Digital",
 };
 
 const SECTIONS = [
   { id: "alumnos",  label: "Alumnos",  desc: "Consulta y grupos",  icon: "A" },
   { id: "docentes", label: "Docentes", desc: "Plantilla activa",   icon: "D" },
-  { id: "grupos",   label: "Grupos",   desc: "Oferta academica",   icon: "G" },
-  { id: "materias", label: "Materias", desc: "Catalogo base",      icon: "M" },
+  { id: "grupos",   label: "Grupos",   desc: "Oferta académica",   icon: "G" },
+  { id: "materias", label: "Materias", desc: "Catálogo base",      icon: "M" },
 ];
 
 // ─── Pure helpers ──────────────────────────────────────────────────────────────
@@ -55,22 +101,29 @@ const groupLabel = (grupo) => {
 const CARRERAS_POR_SEMESTRE = (semestre) => {
   const n = Number.parseInt(semestre, 10);
   const base = [
-    { value: "LOGISTICA",     label: "Tecnico en Logistica" },
-    { value: "CIENCIA_DATOS", label: "Tecnico en Ciencia de Datos" },
+    { value: "LOGISTICA",     label: "Técnico en Logística" },
+    { value: "CIENCIA_DATOS", label: "Técnico en Ciencia de Datos" },
   ];
   if (n === 4 || n === 6) {
-    return [...base, { value: "ANIMACION_DIGITAL", label: "Tecnico en Animacion Digital" }];
+    return [...base, { value: "ANIMACION_DIGITAL", label: "Técnico en Animación Digital" }];
   }
   return base;
 };
 
 // ─── UI Primitives ─────────────────────────────────────────────────────────────
 
-function Card({ children, className = "" }) {
+function Card({ children, style = {}, onClick }) {
   return (
     <div
-      className={`rounded-2xl ${className}`}
-      style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: "0 18px 40px rgba(0,0,0,0.25)" }}
+      onClick={onClick}
+      style={{
+        borderRadius: T.radius,
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        boxShadow: T.shadow,
+        backdropFilter: "blur(20px)",
+        ...style,
+      }}
     >
       {children}
     </div>
@@ -78,29 +131,76 @@ function Card({ children, className = "" }) {
 }
 
 function Btn({ children, onClick, variant = "primary", type = "button", size = "md", loading = false, disabled = false }) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-50";
-  const sizes   = { sm: "px-3 py-1.5 text-xs", md: "px-4 py-2.5 text-sm" };
+  const base = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    borderRadius: T.radiusSm,
+    fontWeight: 600,
+    cursor: disabled || loading ? "not-allowed" : "pointer",
+    opacity: disabled || loading ? 0.5 : 1,
+    transition: "all 0.2s",
+    fontFamily: T.fontBody,
+    border: "none",
+    outline: "none",
+  };
+  const sizes = {
+    sm: { padding: "6px 12px", fontSize: "12px" },
+    md: { padding: "10px 18px", fontSize: "13px" },
+  };
   const variants = {
-    primary: "bg-gradient-to-r from-violet-700 to-violet-500 text-white hover:brightness-110",
-    ghost:   "border border-white/10 bg-white/[0.03] text-gray-200 hover:bg-white/[0.06]",
-    danger:  "border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20",
+    primary: {
+      background: `linear-gradient(135deg, ${T.accent} 0%, ${T.accentHover} 100%)`,
+      color: "#fff",
+      boxShadow: `0 4px 20px ${T.accentGlow}`,
+    },
+    ghost: {
+      background: T.cyanDim,
+      border: `1px solid ${T.border}`,
+      color: T.textPrimary,
+    },
+    danger: {
+      background: T.danger,
+      border: `1px solid ${T.dangerBorder}`,
+      color: T.dangerText,
+    },
   };
   return (
-    <button type={type} onClick={onClick} disabled={disabled || loading} className={`${base} ${sizes[size]} ${variants[variant]}`}>
-      {loading ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : null}
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      style={{ ...base, ...sizes[size], ...variants[variant] }}
+    >
+      {loading ? (
+        <span
+          style={{
+            width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)",
+            borderTopColor: "#fff", borderRadius: "50%",
+            display: "inline-block", animation: "spin 0.7s linear infinite",
+          }}
+        />
+      ) : null}
       {children}
     </button>
   );
 }
 
-function Pill({ children, color = "violet" }) {
+function Pill({ children, color = "cyan" }) {
   const colors = {
-    violet:  "border-violet-500/20 bg-violet-500/10 text-violet-200",
-    gray:    "border-white/10 bg-white/[0.04] text-gray-300",
-    emerald: "border-emerald-500/20 bg-emerald-500/10 text-emerald-200",
+    cyan:    { background: T.cyanDim,   border: `1px solid ${T.border}`,       color: T.cyan },
+    green:   { background: T.accentGlow, border: `1px solid ${T.borderGreen}`, color: T.accent },
+    gray:    { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: T.textSecondary },
   };
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${colors[color]}`}>
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center",
+        borderRadius: 100, padding: "3px 9px",
+        fontSize: 11, fontWeight: 600, ...colors[color],
+      }}
+    >
       {children}
     </span>
   );
@@ -109,7 +209,17 @@ function Pill({ children, color = "violet" }) {
 function Avatar({ label = "?" }) {
   const initials = String(label || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
   return (
-    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-xs font-bold text-violet-200">
+    <span
+      style={{
+        display: "flex", width: 36, height: 36, flexShrink: 0,
+        alignItems: "center", justifyContent: "center",
+        borderRadius: T.radiusXs,
+        background: "linear-gradient(135deg, rgba(6,182,212,0.18) 0%, rgba(29,185,84,0.12) 100%)",
+        border: `1px solid ${T.border}`,
+        fontSize: 12, fontWeight: 700, color: T.cyan,
+        fontFamily: T.fontBody,
+      }}
+    >
       {initials || "?"}
     </span>
   );
@@ -117,41 +227,85 @@ function Avatar({ label = "?" }) {
 
 function SectionTitle({ title, subtitle, action }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div style={{ marginBottom: 24, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
       <div>
-        <h2 className="text-lg font-bold text-gray-100">{title}</h2>
-        {subtitle ? <p className="mt-1 text-xs text-gray-500">{subtitle}</p> : null}
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>{title}</h2>
+        {subtitle ? <p style={{ margin: "4px 0 0", fontSize: 12, color: T.textMuted, fontFamily: T.fontBody }}>{subtitle}</p> : null}
       </div>
-      {action ? <div className="flex flex-wrap gap-2">{action}</div> : null}
+      {action ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{action}</div> : null}
     </div>
   );
 }
 
-function StatCard({ label, value, icon }) {
+function StatCard({ label, value, icon, active, onClick }) {
   return (
-    <Card className="p-4 transition hover:border-violet-400/30">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 text-sm font-bold text-violet-200">
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        all: "unset",
+        display: "block",
+        cursor: "pointer",
+        borderRadius: T.radius,
+        background: active
+          ? "linear-gradient(135deg, rgba(29,185,84,0.15) 0%, rgba(6,182,212,0.10) 100%)"
+          : T.surface,
+        border: `1px solid ${active ? T.borderGreen : T.border}`,
+        boxShadow: active ? `0 0 30px ${T.accentGlow}` : T.shadowSm,
+        backdropFilter: "blur(20px)",
+        padding: 16,
+        transition: "all 0.2s",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          style={{
+            width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: T.radiusSm,
+            background: active
+              ? "linear-gradient(135deg, rgba(29,185,84,0.25) 0%, rgba(6,182,212,0.15) 100%)"
+              : T.cyanDim,
+            border: `1px solid ${active ? T.borderGreen : T.border}`,
+            fontSize: 14, fontWeight: 700,
+            color: active ? T.accent : T.cyan,
+            fontFamily: T.fontHeading,
+          }}
+        >
           {icon}
         </div>
         <div>
-          <div className="text-2xl font-bold text-gray-100">{value ?? "—"}</div>
-          <div className="text-xs text-gray-500">{label}</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: T.textPrimary, lineHeight: 1.2, fontFamily: T.fontHeading }}>
+            {value ?? "—"}
+          </div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2, fontFamily: T.fontBody }}>{label}</div>
         </div>
       </div>
-    </Card>
+    </button>
   );
 }
+
+// ─── Table ──────────────────────────────────────────────────────────────────────
 
 function Table({ cols, children, loading, emptyText = "Sin registros" }) {
   const hasRows = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
-    <div className="overflow-x-auto rounded-2xl" style={{ border: `1px solid ${C.border}`, background: C.surface }}>
-      <table className="min-w-[680px] w-full text-xs sm:text-sm">
+    <div style={{ overflowX: "auto", borderRadius: T.radius, border: `1px solid ${T.border}`, background: T.surface, backdropFilter: "blur(20px)", boxShadow: T.shadowSm }}>
+      <table style={{ minWidth: 680, width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
-          <tr className="border-b border-white/5 bg-violet-500/10">
+          <tr style={{ background: "rgba(6,182,212,0.06)", borderBottom: `1px solid ${T.border}` }}>
             {cols.map((col) => (
-              <th key={col} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-200 sm:px-5 sm:text-xs">
+              <th
+                key={col}
+                style={{
+                  padding: "12px 16px", textAlign: "left",
+                  fontSize: 10, fontWeight: 700,
+                  letterSpacing: "0.18em", textTransform: "uppercase",
+                  color: T.cyan, whiteSpace: "nowrap",
+                  fontFamily: T.fontBody,
+                }}
+              >
                 {col}
               </th>
             ))}
@@ -160,18 +314,18 @@ function Table({ cols, children, loading, emptyText = "Sin registros" }) {
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={cols.length} className="px-5 py-14 text-center">
-                <div className="inline-flex items-center gap-2 text-xs text-gray-500">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+              <td colSpan={cols.length} style={{ padding: "48px 20px", textAlign: "center" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: T.textMuted }}>
+                  <span style={{ width: 16, height: 16, border: `2px solid ${T.cyan}`, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
                   Cargando datos...
                 </div>
               </td>
             </tr>
-          ) : hasRows ? (
-            children
-          ) : (
+          ) : hasRows ? children : (
             <tr>
-              <td colSpan={cols.length} className="px-5 py-14 text-center text-xs text-gray-500">{emptyText}</td>
+              <td colSpan={cols.length} style={{ padding: "48px 20px", textAlign: "center", fontSize: 12, color: T.textMuted }}>
+                {emptyText}
+              </td>
             </tr>
           )}
         </tbody>
@@ -182,27 +336,62 @@ function Table({ cols, children, loading, emptyText = "Sin registros" }) {
 
 function TR({ children, idx }) {
   return (
-    <tr className="border-t border-white/5 transition hover:bg-violet-500/5" style={{ background: idx % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent" }}>
+    <tr
+      style={{
+        borderTop: `1px solid rgba(6,182,212,0.07)`,
+        background: idx % 2 === 0 ? "rgba(6,182,212,0.025)" : "transparent",
+        transition: "background 0.15s",
+      }}
+    >
       {children}
     </tr>
   );
 }
 
 function TD({ children }) {
-  return <td className="px-4 py-3 align-top text-gray-300 sm:px-5 sm:py-3.5">{children}</td>;
+  return (
+    <td style={{ padding: "12px 16px", verticalAlign: "top", color: T.textSecondary, fontFamily: T.fontBody }}>
+      {children}
+    </td>
+  );
 }
+
+// ─── Modal ─────────────────────────────────────────────────────────────────────
 
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-label="Cerrar modal" />
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Cerrar"
+        style={{ position: "absolute", inset: 0, background: "rgba(2,8,16,0.75)", backdropFilter: "blur(6px)", border: "none", cursor: "pointer" }}
+      />
       <div
-        className="relative z-10 max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl p-5 sm:p-6"
-        style={{ background: "rgba(10,3,22,0.98)", border: `1px solid ${C.borderStrong}`, boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
+        style={{
+          position: "relative", zIndex: 10,
+          maxHeight: "90vh", width: "100%", maxWidth: 560,
+          overflowY: "auto", borderRadius: T.radius,
+          padding: 24,
+          background: "rgba(4,13,24,0.97)",
+          border: `1px solid ${T.borderStrong}`,
+          boxShadow: T.shadow,
+          backdropFilter: "blur(24px)",
+          ...BG_DOTS,
+        }}
       >
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <h3 className="text-base font-bold text-gray-100">{title}</h3>
-          <button type="button" className="rounded-lg border border-white/10 bg-white/[0.03] p-2 text-gray-300 hover:bg-white/[0.08]" onClick={onClose} aria-label="Cerrar">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              borderRadius: T.radiusXs, border: `1px solid ${T.border}`,
+              background: T.cyanDim, padding: "6px 10px",
+              color: T.textSecondary, cursor: "pointer", fontSize: 13,
+            }}
+          >
             ✕
           </button>
         </div>
@@ -214,14 +403,48 @@ function Modal({ title, children, onClose }) {
 
 function Field({ label, required = false, children }) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-        {label}{required ? <span className="ml-1 text-red-300">*</span> : null}
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted, fontFamily: T.fontBody }}>
+        {label}{required ? <span style={{ color: "#fca5a5", marginLeft: 4 }}>*</span> : null}
       </label>
       {children}
     </div>
   );
 }
+
+// ─── StyledInput / StyledSelect ────────────────────────────────────────────────
+
+function StyledInput({ value, onChange, placeholder, type = "text", maxLength, disabled }) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      disabled={disabled}
+      style={inputStyle}
+    />
+  );
+}
+
+function StyledSelect({ value, onChange, children, disabled }) {
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      style={{
+        ...inputStyle,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {children}
+    </select>
+  );
+}
+
+// ─── Toast ──────────────────────────────────────────────────────────────────────
 
 function useToast() {
   const [toast, setToast] = useState(null);
@@ -236,46 +459,93 @@ function useToast() {
 function Toast({ toast }) {
   if (!toast) return null;
   const palette = {
-    success: "border-emerald-500/30 bg-emerald-500/15 text-emerald-100",
-    error:   "border-red-500/30 bg-red-500/15 text-red-100",
+    success: { background: "rgba(29,185,84,0.12)", border: `1px solid ${T.borderGreen}`, color: "#6ee7a0" },
+    error:   { background: T.danger, border: `1px solid ${T.dangerBorder}`, color: T.dangerText },
   };
   return (
-    <div className={`fixed bottom-5 right-5 z-[60] rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur ${palette[toast.type]}`}>
+    <div
+      style={{
+        position: "fixed", bottom: 20, right: 20, zIndex: 60,
+        borderRadius: T.radiusSm, padding: "12px 16px",
+        fontSize: 13, boxShadow: T.shadow, backdropFilter: "blur(16px)",
+        fontFamily: T.fontBody, ...palette[toast.type],
+      }}
+    >
       {toast.msg}
     </div>
   );
 }
 
-// ─── Sidebar ───────────────────────────────────────────────────────────────────
-
 function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
   return (
     <>
-      <button
-        type="button"
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden ${mobileOpen ? "block" : "hidden"}`}
-        onClick={onClose}
-        aria-label="Cerrar menu lateral"
-      />
+      {mobileOpen && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar menú"
+          style={{
+            position: "fixed", inset: 0, zIndex: 40,
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+            border: "none", cursor: "pointer",
+          }}
+        />
+      )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[86vw] flex-col border-r border-white/10 bg-[#080312]/95 backdrop-blur-xl transition-transform duration-200 lg:w-72 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        style={{
+          position: "fixed", top: 0, bottom: 0, left: 0,
+          zIndex: 50, width: 272,
+          display: "flex", flexDirection: "column",
+          background: "rgba(4,13,24,0.96)",
+          borderRight: `1px solid ${T.border}`,
+          backdropFilter: "blur(24px)",
+          transform: mobileOpen ? "translateX(0)" : undefined,
+          transition: "transform 0.2s",
+          ...BG_DOTS,
+        }}
       >
-        <div className="flex items-center justify-between border-b border-white/5 px-5 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-700 to-violet-500 text-sm font-bold text-white">C</div>
+        {/* Logo */}
+        <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 40,
+                height: 45,
+                borderRadius: T.radiusSm,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                boxShadow: `0 4px 20px ${T.accentGlow}`,
+                background: "rgba(255,255,255,0.05)" // Fondo leve por si el logo tiene transparencia
+              }}
+            >
+              <img
+                src={CecytoLogo}
+                alt="Logo CECyTEM"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
             <div>
-              <div className="text-sm font-bold text-gray-100">CECyTEM</div>
-              <div className="text-[11px] text-gray-500">Panel administrativo</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>CECyTEM</div>
+              <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Panel administrativo</div>
             </div>
           </div>
-          <button type="button" className="rounded-xl border border-white/10 bg-white/[0.03] p-2 text-gray-300 lg:hidden" onClick={onClose} aria-label="Cerrar panel">
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: T.cyanDim, border: `1px solid ${T.border}`, borderRadius: T.radiusXs, padding: "6px 8px", color: T.textSecondary, cursor: "pointer", fontSize: 13 }}
+          >
             ✕
           </button>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
+        {/* Nav */}
+        <nav style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
           {SECTIONS.map((section) => {
             const isActive = section.id === active;
             return (
@@ -283,51 +553,73 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
                 key={section.id}
                 type="button"
                 onClick={() => { onSelect(section.id); onClose(); }}
-                className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
-                  isActive ? "border-violet-400/30 bg-violet-500/15" : "border-transparent bg-transparent hover:border-white/10 hover:bg-white/[0.03]"
-                }`}
+                style={{
+                  all: "unset",
+                  display: "block",
+                  width: "100%", boxSizing: "border-box",
+                  borderRadius: T.radiusSm,
+                  padding: "12px",
+                  marginBottom: 4,
+                  cursor: "pointer",
+                  border: `1px solid ${isActive ? T.borderGreen : "transparent"}`,
+                  background: isActive
+                    ? "linear-gradient(135deg, rgba(29,185,84,0.12) 0%, rgba(6,182,212,0.08) 100%)"
+                    : "transparent",
+                  transition: "all 0.18s",
+                }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] text-sm font-bold text-violet-200">{section.icon}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className={`truncate text-sm font-semibold ${isActive ? "text-violet-100" : "text-gray-200"}`}>{section.label}</div>
-                    <div className="truncate text-[11px] text-gray-500">{section.desc}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{
+                      width: 38, height: 38, borderRadius: T.radiusXs,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: isActive ? "rgba(29,185,84,0.18)" : "rgba(6,182,212,0.08)",
+                      border: `1px solid ${isActive ? T.borderGreen : T.border}`,
+                      fontSize: 13, fontWeight: 700,
+                      color: isActive ? T.accent : T.cyan,
+                      fontFamily: T.fontHeading,
+                    }}
+                  >
+                    {section.icon}
                   </div>
-                  <span className="text-xs font-mono text-gray-500">{stats[section.id] ?? "—"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#d1fae5" : T.textPrimary, fontFamily: T.fontBody }}>
+                      {section.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>{section.desc}</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontFamily: "monospace", color: isActive ? T.accent : T.textMuted }}>
+                    {stats[section.id] ?? "—"}
+                  </span>
                 </div>
               </button>
             );
           })}
         </nav>
 
-        <div className="border-t border-white/5 px-5 py-4">
-          <div className="text-xs font-semibold text-gray-200">{user?.first_name || user?.username}</div>
-          <div className="text-[11px] text-gray-500">Administrador</div>
+        {/* Footer */}
+        <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, fontFamily: T.fontBody }}>{user?.first_name || user?.username}</div>
+          <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Administrador</div>
         </div>
       </aside>
     </>
   );
 }
 
-// ─── AlumnosSection ────────────────────────────────────────────────────────────
+// ─── AlumnosSection ─────────────────────────────────────────────────────────────
 
 function AlumnosSection() {
   const [alumnos, setAlumnos]           = useState([]);
   const [grupos,  setGrupos]            = useState([]);
   const [loading, setLoading]           = useState(true);
-  const [modal,   setModal]              = useState(null);
+  const [modal,   setModal]             = useState(null);
   const [form,    setForm]              = useState({ grupo: "", semestre: "", turno: "" });
   const [saving,  setSaving]            = useState(false);
   const [alumnoModalOpen, setAlumnoModalOpen] = useState(false);
   const [formAlumno, setFormAlumno]     = useState({
-    firstName: "",
-    lastName: "",
-    numeroControl: "",
-    curp: "",
-    carrera: "",
-    semestre: "",
-    grupo: "",
-    turno: "Matutino",
+    firstName: "", lastName: "", numeroControl: "", curp: "",
+    carrera: "", semestre: "", grupo: "", turno: "Matutino",
   });
   const { toast, show } = useToast();
 
@@ -357,174 +649,96 @@ function AlumnosSection() {
       semestre: grupo?.semestre ? String(grupo.semestre) : "",
       turno:    grupo?.turno ?? "",
     });
-    setModal({
-      id:        alumno.id,
-      userId:    alumno.user,
-      matricula: alumno.matricula ?? "",
-      nombre:    alumno.nombre_completo ?? "",
-      email:     alumno.email ?? "",
-    });
+    setModal({ id: alumno.id, userId: alumno.user, matricula: alumno.matricula ?? "", nombre: alumno.nombre_completo ?? "", email: alumno.email ?? "" });
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!modal?.userId || !form.grupo) {
-      show("Selecciona un grupo valido para continuar.", "error");
-      return;
-    }
+    if (!modal?.userId || !form.grupo) { show("Selecciona un grupo válido.", "error"); return; }
     setSaving(true);
     try {
-      await api.put(`/academico/alumnos/${modal.id}/`, {
-        user:  modal.userId,
-        grupo: Number.parseInt(form.grupo, 10),
-      });
+      await api.put(`/academico/alumnos/${modal.id}/`, { user: modal.userId, grupo: Number.parseInt(form.grupo, 10) });
       show("Alumno actualizado correctamente.");
       setModal(null);
       await load();
-    } catch {
-      show("No se pudo actualizar el alumno.", "error");
-    } finally {
-      setSaving(false);
-    }
+    } catch { show("No se pudo actualizar el alumno.", "error"); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("¿Eliminar este alumno?")) return;
-    try {
-      await api.delete(`/academico/alumnos/${id}/`);
-      show("Alumno eliminado.");
-      await load();
-    } catch {
-      show("No se pudo eliminar el alumno.", "error");
-    }
+    try { await api.delete(`/academico/alumnos/${id}/`); show("Alumno eliminado."); await load(); }
+    catch { show("No se pudo eliminar el alumno.", "error"); }
   };
 
-// ─── Crear nuevo alumno ──────────────────────────────────────────────────────
-
-const handleSaveAlumno = async (e) => {
-    e.preventDefault();
-
-    // Validar campos requeridos
-    if (
-      !formAlumno.firstName.trim() ||
-      !formAlumno.lastName.trim() ||
-      !formAlumno.numeroControl.trim() ||
-      !formAlumno.curp.trim() ||
-      !formAlumno.carrera ||
-      !formAlumno.semestre ||
-      !formAlumno.grupo
-    ) {
-      show("Por favor completa todos los campos requeridos.", "error");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      // 1️⃣ PASO CORREGIDO: Apuntamos al endpoint real en la app de autenticación
-      const userResponse = await api.post("/auth/usuarios/", {
-        username:     formAlumno.numeroControl.trim(),
-        first_name:   formAlumno.firstName.trim(),
-        last_name:    formAlumno.lastName.trim(),
-        email:        `${formAlumno.numeroControl.trim()}@cecytem.edu.mx`,
-        password:     formAlumno.curp.trim(),
-        rol:          "ALUMNO",
-      });
-
-      // Extraemos el UUID que Django generó para el usuario base
-      const userUuid = userResponse.data.id; 
-
-      if (!userUuid) {
-        throw new Error("El servidor creó el usuario pero no devolvió un ID (UUID) válido.");
-      }
-
-      // 2️⃣ PASO: Creamos el perfil del alumno en la app académica ligándole el UUID
-      await api.post("/academico/alumnos/", {
-        user:         userUuid, 
-        curp:         formAlumno.curp.trim(),
-        carrera:      formAlumno.carrera,
-        semestre:     Number.parseInt(formAlumno.semestre, 10),
-        grupo:        Number.parseInt(formAlumno.grupo, 10),
-        turno:        formAlumno.turno,
-      });
-
-      show(`Alumno ${formAlumno.firstName} ${formAlumno.lastName} creado e inscrito exitosamente.`);
-      setAlumnoModalOpen(false);
-      setFormAlumno({
-        firstName: "",
-        lastName: "",
-        numeroControl: "",
-        curp: "",
-        carrera: "",
-        semestre: "",
-        grupo: "",
-        turno: "Matutino",
-      });
-      await load();
-
-    } catch (err) {
-      console.error("--- ERROR EN EL PROCESO DE REGISTRO ---");
-      if (err.response) {
-        console.log("STATUS CODE:", err.response.status);
-        console.dir(err.response.data);
-        alert("DJANGO RECHAZÓ LA OPERACIÓN POR:\n" + JSON.stringify(err.response.data, null, 2));
-      } else {
-        console.log("Error general:", err.message);
-        alert("Ocurrió un error: " + err.message);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-  // Filtrar grupos por carrera, semestre y turno para el formulario de alta
   const gruposFiltrados = grupos.filter((g) => {
     if (!g) return false;
-
-    // 1. Normalizar Carrera: Elimina acentos, espacios y guiones bajos
-    const carreraFormulario = (formAlumno.carrera || "").replace(/_/g, "").replace(/\s+/g, "").trim().toUpperCase();
-    const carreraBackend = (g.carrera || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/_/g, "").replace(/\s+/g, "").trim().toUpperCase();
-    
-    // Soporte para coincidencias parciales (ej. LOGISTICA o CIENCIADATOS)
-    const carreraMatch = !formAlumno.carrera || carreraBackend.includes(carreraFormulario) || carreraFormulario.includes(carreraBackend);
-
-    // 2. Normalizar Semestre: Comparación numérica limpia
+    const carreraF = (formAlumno.carrera || "").replace(/_/g,"").replace(/\s+/g,"").trim().toUpperCase();
+    const carreraB = (g.carrera || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/_/g,"").replace(/\s+/g,"").trim().toUpperCase();
+    const carreraMatch = !formAlumno.carrera || carreraB.includes(carreraF) || carreraF.includes(carreraB);
     const semestreMatch = !formAlumno.semestre || Number(g.semestre) === Number(formAlumno.semestre);
-
-    // 3. Normalizar Turno: Comparación en minúsculas sin espacios
-    const turnoMatch = !formAlumno.turno || String(g.turno || "").trim().toLowerCase() === String(formAlumno.turno).trim().toLowerCase();
-
+    const turnoMatch = !formAlumno.turno || String(g.turno||"").trim().toLowerCase() === String(formAlumno.turno).trim().toLowerCase();
     return carreraMatch && semestreMatch && turnoMatch;
   });
+
+  const handleSaveAlumno = async (e) => {
+    e.preventDefault();
+    if (!formAlumno.firstName.trim() || !formAlumno.lastName.trim() || !formAlumno.numeroControl.trim() || !formAlumno.curp.trim() || !formAlumno.carrera || !formAlumno.semestre || !formAlumno.grupo) {
+      show("Por favor completa todos los campos requeridos.", "error"); return;
+    }
+    setSaving(true);
+    try {
+      const userResponse = await api.post("/auth/usuarios/", {
+        username: formAlumno.numeroControl.trim(), first_name: formAlumno.firstName.trim(),
+        last_name: formAlumno.lastName.trim(), email: `${formAlumno.numeroControl.trim()}@cecytem.edu.mx`,
+        password: formAlumno.curp.trim(), rol: "ALUMNO",
+      });
+      const userUuid = userResponse.data.id;
+      if (!userUuid) throw new Error("El servidor no devolvió un ID válido.");
+      await api.post("/academico/alumnos/", {
+        user: userUuid, curp: formAlumno.curp.trim(), carrera: formAlumno.carrera,
+        semestre: Number.parseInt(formAlumno.semestre, 10), grupo: Number.parseInt(formAlumno.grupo, 10), turno: formAlumno.turno,
+      });
+      show(`Alumno ${formAlumno.firstName} ${formAlumno.lastName} creado e inscrito exitosamente.`);
+      setAlumnoModalOpen(false);
+      setFormAlumno({ firstName: "", lastName: "", numeroControl: "", curp: "", carrera: "", semestre: "", grupo: "", turno: "Matutino" });
+      await load();
+    } catch (err) {
+      if (err.response) alert("DJANGO RECHAZÓ:\n" + JSON.stringify(err.response.data, null, 2));
+      else alert("Error: " + err.message);
+    } finally { setSaving(false); }
+  };
 
   return (
     <>
       <Toast toast={toast} />
-      <div className="mb-6 flex items-center justify-between">
-        <SectionTitle title="Alumnos" subtitle="Consulta el padron y reasigna grupos." />
-        <Btn variant="primary" onClick={() => setAlumnoModalOpen(true)}>+ Nuevo Alumno</Btn>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 24 }}>
+        <SectionTitle title="Alumnos" subtitle="Consulta el padrón y reasigna grupos." />
+        <Btn onClick={() => setAlumnoModalOpen(true)}>+ Nuevo alumno</Btn>
       </div>
 
-      <Table cols={["Matricula", "Nombre", "Correo", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
+      <Table cols={["Matrícula", "Nombre", "Correo", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
         {alumnos.map((alumno, idx) => {
           const grupo = grupos.find((g) => g.id === alumno.grupo);
           return (
             <TR key={alumno.id} idx={idx}>
-              <TD><span className="font-mono text-xs text-violet-200">{alumno.matricula ?? "—"}</span></TD>
+              <TD><span style={{ fontFamily: "monospace", fontSize: 12, color: T.cyan }}>{alumno.matricula ?? "—"}</span></TD>
               <TD>
-                <div className="flex items-center gap-3">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Avatar label={alumno.nombre_completo ?? ""} />
                   <div>
-                    <div className="font-medium text-gray-100">{alumno.nombre_completo}</div>
-                    <div className="text-xs text-gray-500">{alumno.user ? `Usuario #${alumno.user}` : "Sin usuario"}</div>
+                    <div style={{ fontWeight: 600, color: T.textPrimary, fontSize: 13 }}>{alumno.nombre_completo}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>{alumno.user ? `Usuario #${alumno.user}` : "Sin usuario"}</div>
                   </div>
                 </div>
               </TD>
-              <TD><span className="text-xs text-gray-400">{alumno.email || "—"}</span></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{alumno.email || "—"}</span></TD>
               <TD><Pill>{groupLabel(grupo)}</Pill></TD>
-              <TD><span className="text-xs text-gray-400">{grupo?.semestre ? `${grupo.semestre}°` : "—"}</span></TD>
-              <TD><span className="text-xs text-gray-400">{grupo?.turno ?? "—"}</span></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{grupo?.semestre ? `${grupo.semestre}°` : "—"}</span></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{grupo?.turno ?? "—"}</span></TD>
               <TD>
-                <div className="flex flex-wrap gap-2">
-                  <Btn variant="ghost"  size="sm" onClick={() => openEdit(alumno)}>Editar grupo</Btn>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Btn variant="ghost" size="sm" onClick={() => openEdit(alumno)}>Editar grupo</Btn>
                   <Btn variant="danger" size="sm" onClick={() => handleDelete(alumno.id)}>Eliminar</Btn>
                 </div>
               </TD>
@@ -533,165 +747,109 @@ const handleSaveAlumno = async (e) => {
         })}
       </Table>
 
-      {/* ─── MODAL: ACTUALIZAR GRUPO DE ALUMNO EXISTENTE ─── */}
       {modal ? (
         <Modal title="Actualizar alumno" onClose={() => setModal(null)}>
-          <form className="space-y-4" onSubmit={handleSave}>
-            <Card className="p-4">
-              <div className="flex items-start gap-3">
+          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSave}>
+            <Card style={{ padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <Avatar label={modal.nombre} />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-gray-100">{modal.nombre}</div>
-                  <div className="truncate text-xs text-gray-500">{modal.matricula || "Sin matricula"} · {modal.email || "Sin correo"}</div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{modal.nombre}</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>{modal.matricula || "Sin matrícula"} · {modal.email || "Sin correo"}</div>
                 </div>
               </div>
             </Card>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Semestre">
-                <select className={inputCls} value={form.semestre} onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, grupo: "" }))}>
+                <StyledSelect value={form.semestre} onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, grupo: "" }))}>
                   <option value="">Todos</option>
                   {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}°</option>)}
-                </select>
+                </StyledSelect>
               </Field>
               <Field label="Turno">
-                <select className={inputCls} value={form.turno} onChange={(e) => setForm((c) => ({ ...c, turno: e.target.value, grupo: "" }))}>
+                <StyledSelect value={form.turno} onChange={(e) => setForm((c) => ({ ...c, turno: e.target.value, grupo: "" }))}>
                   <option value="">Todos</option>
                   <option value="Matutino">Matutino</option>
                   <option value="Vespertino">Vespertino</option>
-                </select>
+                </StyledSelect>
               </Field>
             </div>
             <Field label="Grupo" required>
-              <select className={inputCls} value={form.grupo} onChange={(e) => setForm((c) => ({ ...c, grupo: e.target.value }))}>
+              <StyledSelect value={form.grupo} onChange={(e) => setForm((c) => ({ ...c, grupo: e.target.value }))}>
                 <option value="">Seleccionar grupo</option>
-                {filteredGrupos.map((g) => (
-                  <option key={g.id} value={g.id}>{groupLabel(g)} ({g.turno})</option>
-                ))}
-              </select>
+                {filteredGrupos.map((g) => <option key={g.id} value={g.id}>{groupLabel(g)} ({g.turno})</option>)}
+              </StyledSelect>
             </Field>
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn variant="primary" type="submit" loading={saving}>Guardar cambios</Btn>
+              <Btn type="submit" loading={saving}>Guardar cambios</Btn>
             </div>
           </form>
         </Modal>
       ) : null}
 
-      {/* ─── MODAL: REGISTRAR NUEVO ALUMNO ─── */}
       {alumnoModalOpen ? (
-        <Modal title="Registrar Nuevo Alumno" onClose={() => setAlumnoModalOpen(false)}>
-          <form className="space-y-4" onSubmit={handleSaveAlumno}>
-            
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Modal title="Registrar nuevo alumno" onClose={() => setAlumnoModalOpen(false)}>
+          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSaveAlumno}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Nombre(s)" required>
-                <input
-                  type="text"
-                  className={inputCls}
-                  placeholder="Ej. Luis Rodrigo"
-                  value={formAlumno.firstName}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, firstName: e.target.value }))}
-                />
+                <StyledInput value={formAlumno.firstName} onChange={(e) => setFormAlumno(c => ({ ...c, firstName: e.target.value }))} placeholder="Ej. Luis Rodrigo" />
               </Field>
               <Field label="Apellidos" required>
-                <input
-                  type="text"
-                  className={inputCls}
-                  placeholder="Ej. Briseño"
-                  value={formAlumno.lastName}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, lastName: e.target.value }))}
-                />
+                <StyledInput value={formAlumno.lastName} onChange={(e) => setFormAlumno(c => ({ ...c, lastName: e.target.value }))} placeholder="Ej. Briseño" />
               </Field>
             </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Número de Control (Usuario)" required>
-                <input
-                  type="text"
-                  className={`${inputCls} font-mono`}
-                  placeholder="Ej. 231502..."
-                  value={formAlumno.numeroControl}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, numeroControl: e.target.value }))}
-                />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Número de control" required>
+                <StyledInput value={formAlumno.numeroControl} onChange={(e) => setFormAlumno(c => ({ ...c, numeroControl: e.target.value }))} placeholder="231502..." />
               </Field>
-              <Field label="CURP (Contraseña)" required>
-                <input
-                  type="text"
-                  className={`${inputCls} font-mono uppercase`}
-                  placeholder="18 caracteres"
-                  maxLength={18}
-                  value={formAlumno.curp}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, curp: e.target.value }))}
-                />
+              <Field label="CURP (contraseña)" required>
+                <StyledInput value={formAlumno.curp} onChange={(e) => setFormAlumno(c => ({ ...c, curp: e.target.value }))} placeholder="18 caracteres" maxLength={18} />
               </Field>
             </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Carrera" required>
-                <select
-                  className={inputCls}
-                  value={formAlumno.carrera}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, carrera: e.target.value, grupo: "" }))}
-                >
+                <StyledSelect value={formAlumno.carrera} onChange={(e) => setFormAlumno(c => ({ ...c, carrera: e.target.value, grupo: "" }))}>
                   <option value="">Seleccionar carrera</option>
                   <option value="LOGISTICA">Técnico en Logística</option>
                   <option value="CIENCIA_DATOS">Técnico en Ciencia de Datos</option>
-                </select>
+                </StyledSelect>
               </Field>
               <Field label="Semestre" required>
-                <select
-                  className={inputCls}
-                  value={formAlumno.semestre}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, semestre: e.target.value, grupo: "" }))}
-                >
+                <StyledSelect value={formAlumno.semestre} onChange={(e) => setFormAlumno(c => ({ ...c, semestre: e.target.value, grupo: "" }))}>
                   <option value="">Seleccionar semestre</option>
-                  {[1, 2, 3, 4, 5, 6].map(n => (
-                    <option key={n} value={n}>{n}° Semestre</option>
-                  ))}
-                </select>
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}° Semestre</option>)}
+                </StyledSelect>
               </Field>
             </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Turno" required>
-                <select
-                  className={inputCls}
-                  value={formAlumno.turno}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, turno: e.target.value, grupo: "" }))}
-                >
+                <StyledSelect value={formAlumno.turno} onChange={(e) => setFormAlumno(c => ({ ...c, turno: e.target.value, grupo: "" }))}>
                   <option value="Matutino">Matutino</option>
                   <option value="Vespertino">Vespertino</option>
-                </select>
+                </StyledSelect>
               </Field>
-              <Field label="Grupo Destino" required>
-                <select
-                  className={inputCls}
-                  value={formAlumno.grupo}
-                  onChange={(e) => setFormAlumno(c => ({ ...c, grupo: e.target.value }))}
-                >
+              <Field label="Grupo destino" required>
+                <StyledSelect value={formAlumno.grupo} onChange={(e) => setFormAlumno(c => ({ ...c, grupo: e.target.value }))}>
                   {!formAlumno.carrera || !formAlumno.semestre ? (
-                    <option value="">Por favor selecciona Carrera y Semestre primero</option>
+                    <option value="">Selecciona carrera y semestre primero</option>
                   ) : gruposFiltrados.length === 0 ? (
-                    <option value="">No hay grupos que coincidan ({formAlumno.turno})</option>
+                    <option value="">Sin grupos disponibles ({formAlumno.turno})</option>
                   ) : (
                     <option value="">Seleccionar grupo ({gruposFiltrados.length} disponible/s)</option>
                   )}
-                  
                   {gruposFiltrados.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.semestre}0{g.grupo_letra || "2"} - {carreraLabels[g.carrera] || g.carrera} ({g.turno})
-                    </option>
+                    <option key={g.id} value={g.id}>{g.semestre}0{g.grupo_letra || "2"} - {carreraLabels[g.carrera] || g.carrera} ({g.turno})</option>
                   ))}
-                </select>
+                </StyledSelect>
               </Field>
             </div>
-
-            <div className="rounded-lg bg-violet-950/40 p-3 border border-violet-800/30 text-xs text-violet-300">
-              💡 <strong>Credenciales automáticas:</strong> El alumno iniciará sesión con su <strong>Número de Control</strong> y su contraseña será su <strong>CURP</strong>. Se autogenerará su correo institucional.
+            <div style={{ borderRadius: T.radiusXs, padding: 12, background: T.accentGlow, border: `1px solid ${T.borderGreen}`, fontSize: 12, color: "#d1fae5" }}>
+              💡 <strong>Credenciales automáticas:</strong> El alumno iniciará sesión con su <strong>Número de Control</strong> y su contraseña será su <strong>CURP</strong>.
             </div>
-
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
               <Btn variant="ghost" onClick={() => setAlumnoModalOpen(false)}>Cancelar</Btn>
-              <Btn variant="primary" type="submit" loading={saving}>Crear e Inscribir Alumno</Btn>
+              <Btn type="submit" loading={saving}>Crear e inscribir alumno</Btn>
             </div>
           </form>
         </Modal>
@@ -700,7 +858,7 @@ const handleSaveAlumno = async (e) => {
   );
 }
 
-// ─── DocentesSection (CON CREACIÓN DE USUARIOS DOCENTES) ───────────────────────
+// ─── DocentesSection ────────────────────────────────────────────────────────────
 
 function DocentesSection() {
   const [docentes,     setDocentes]     = useState([]);
@@ -708,164 +866,89 @@ function DocentesSection() {
   const [grupos,       setGrupos]       = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
   const [loading,      setLoading]      = useState(true);
-  const [modal,        setModal]        = useState(null); // Modos: "add_materia", "register_docente"
+  const [modal,        setModal]        = useState(null);
   const [detailsModal, setDetailsModal] = useState(null);
   const [saving,       setSaving]       = useState(false);
-  
-  // Estado para el formulario de asignación
-  const [form, setForm] = useState({ materia_id: "", grupo_id: "" });
-  
-  // 💡 NUEVO: Estado para el formulario de registro de docentes
-  const [formDocente, setFormDocente] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    claveServidor: ""
-  });
-
+  const [form,         setForm]         = useState({ materia_id: "", grupo_id: "" });
+  const [formDocente,  setFormDocente]  = useState({ firstName: "", lastName: "", email: "", claveServidor: "" });
   const { toast, show } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [docentesResult, materiasResult, gruposResult, asignacionesResult] = await Promise.allSettled([
-        api.get("/auth/usuarios/?rol=DOCENTE"),
-        api.get("/academico/materias/"),
-        api.get("/academico/grupos/"),
-        api.get("/seguimiento/asignaciones/"),
+      const [d, m, g, a] = await Promise.allSettled([
+        api.get("/auth/usuarios/?rol=DOCENTE"), api.get("/academico/materias/"),
+        api.get("/academico/grupos/"), api.get("/seguimiento/asignaciones/"),
       ]);
-      setDocentes(docentesResult.status === "fulfilled" ? extractList(docentesResult.value.data) : []);
-      setMaterias(materiasResult.status === "fulfilled" ? extractList(materiasResult.value.data) : []);
-      setGrupos(gruposResult.status === "fulfilled" ? extractList(gruposResult.value.data) : []);
-      setAsignaciones(asignacionesResult.status === "fulfilled" ? extractList(asignacionesResult.value.data) : []);
-    } finally {
-      setLoading(false);
-    }
+      setDocentes(d.status === "fulfilled" ? extractList(d.value.data) : []);
+      setMaterias(m.status === "fulfilled" ? extractList(m.value.data) : []);
+      setGrupos(g.status   === "fulfilled" ? extractList(g.value.data) : []);
+      setAsignaciones(a.status === "fulfilled" ? extractList(a.value.data) : []);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const getAssignments = (docenteId) => asignaciones.filter((a) => a.docente === docenteId);
 
-  const openDetails = (docente) => {
-    const assignments = getAssignments(docente.id);
-    setDetailsModal({ docente, assignments });
-  };
-
+  const openDetails = (docente) => setDetailsModal({ docente, assignments: getAssignments(docente.id) });
   const openAddMateria = (docente) => {
-    setModal({
-      mode: "add_materia",
-      docenteId: docente.id,
-      docenteName: `${docente.first_name ?? ""} ${docente.last_name ?? ""}`.trim() || docente.username,
-    });
+    setModal({ mode: "add_materia", docenteId: docente.id, docenteName: `${docente.first_name ?? ""} ${docente.last_name ?? ""}`.trim() || docente.username });
     setForm({ materia_id: "", grupo_id: "" });
   };
+  const openRegisterDocente = () => { setModal({ mode: "register_docente" }); setFormDocente({ firstName: "", lastName: "", email: "", claveServidor: "" }); };
 
-  // 💡 NUEVO: Abrir modal de registro de docente limpio
-  const openRegisterDocente = () => {
-    setModal({ mode: "register_docente" });
-    setFormDocente({ firstName: "", lastName: "", email: "", claveServidor: "" });
-  };
-
-  // 💡 NUEVO: Función para enviar el registro del maestro a Django
   const handleCreateDocente = async (e) => {
     e.preventDefault();
-    
     if (!formDocente.firstName.trim() || !formDocente.lastName.trim() || !formDocente.email.trim() || !formDocente.claveServidor.trim()) {
-      show("Por favor completa todos los campos del docente.", "error");
-      return;
+      show("Completa todos los campos del docente.", "error"); return;
     }
-
     setSaving(true);
     try {
-      // Petición a tu endpoint de autenticación configurado previamente
       await api.post("/auth/usuarios/", {
-        username:   formDocente.email.trim(),          // 🔐 Su usuario de acceso será su correo
-        email:      formDocente.email.trim(),
-        first_name: formDocente.firstName.trim(),
-        last_name:  formDocente.lastName.trim(),
-        password:   formDocente.claveServidor.trim(),  // 🔐 Su contraseña será su Clave de Servidor Público
-        rol:        "DOCENTE",                         // Flag para lógica de negocio o serializador
+        username: formDocente.email.trim(), email: formDocente.email.trim(),
+        first_name: formDocente.firstName.trim(), last_name: formDocente.lastName.trim(),
+        password: formDocente.claveServidor.trim(), rol: "DOCENTE",
       });
-
-      show(`Docente ${formDocente.firstName} creado con éxito de forma sincronizada.`);
-      setModal(null);
-      await load(); // Recargar tabla
+      show(`Docente ${formDocente.firstName} creado con éxito.`);
+      setModal(null); await load();
     } catch (err) {
-      console.error("--- ERROR AL REGISTRAR DOCENTE ---", err);
-      if (err.response) {
-        alert("DJANGO RECHAZÓ EL REGISTRO POR:\n" + JSON.stringify(err.response.data, null, 2));
-      } else {
-        show("No se pudo registrar al docente. Error de conexión.", "error");
-      }
-    } finally {
-      setSaving(false);
-    }
+      if (err.response) alert("DJANGO RECHAZÓ:\n" + JSON.stringify(err.response.data, null, 2));
+      else show("No se pudo registrar al docente.", "error");
+    } finally { setSaving(false); }
   };
 
   const handleAddMateria = async (e) => {
     e.preventDefault();
-    if (!form.materia_id || !form.grupo_id) {
-      show("Selecciona la materia y el grupo destino.", "error");
-      return;
-    }
+    if (!form.materia_id || !form.grupo_id) { show("Selecciona materia y grupo.", "error"); return; }
     setSaving(true);
     try {
-      const existingAsig = asignaciones.find(
-        (a) => a.docente === modal.docenteId && 
-               a.materia === Number.parseInt(form.materia_id, 10) &&
-               a.grupo === Number.parseInt(form.grupo_id, 10)
-      );
-      if (existingAsig) {
-        show("Este docente ya tiene asignada esta materia en el grupo seleccionado.", "error");
-        setSaving(false);
-        return;
-      }
-      await api.post("/seguimiento/asignaciones/", {
-        docente: modal.docenteId,
-        materia: Number.parseInt(form.materia_id, 10),
-        grupo:   Number.parseInt(form.grupo_id, 10),
-      });
-      show("Materia y grupo asignados al docente correctamente.");
-      setModal(null);
-      setForm({ materia_id: "", grupo_id: "" });
-      await load();
+      const existing = asignaciones.find((a) => a.docente === modal.docenteId && a.materia === Number.parseInt(form.materia_id, 10) && a.grupo === Number.parseInt(form.grupo_id, 10));
+      if (existing) { show("Ya tiene esta materia asignada en ese grupo.", "error"); setSaving(false); return; }
+      await api.post("/seguimiento/asignaciones/", { docente: modal.docenteId, materia: Number.parseInt(form.materia_id, 10), grupo: Number.parseInt(form.grupo_id, 10) });
+      show("Materia y grupo asignados correctamente.");
+      setModal(null); await load();
     } catch (err) {
-      if (err.response) {
-        alert("DJANGO RECHAZÓ LA ASIGNACIÓN POR:\n" + JSON.stringify(err.response.data, null, 2));
-      } else {
-        show("No se pudo asignar la materia. Error de conexión.", "error");
-      }
-    } finally {
-      setSaving(false);
-    }
+      if (err.response) alert("DJANGO RECHAZÓ:\n" + JSON.stringify(err.response.data, null, 2));
+      else show("No se pudo asignar la materia.", "error");
+    } finally { setSaving(false); }
   };
 
   const handleRemoveMateria = async (asignacionId) => {
-    if (!window.confirm("¿Remover esta asignación de materia?")) return;
-    try {
-      await api.delete(`/seguimiento/asignaciones/${asignacionId}/`);
-      show("Materia removida del docente.");
-      await load();
-      if (detailsModal) {
-        const docenteUpdated = docentes.find((d) => d.id === detailsModal.docente.id);
-        if (docenteUpdated) openDetails(docenteUpdated);
-      }
-    } catch {
-      show("No se pudo remover la materia.", "error");
-    }
+    if (!window.confirm("¿Remover esta asignación?")) return;
+    try { await api.delete(`/seguimiento/asignaciones/${asignacionId}/`); show("Materia removida."); await load(); }
+    catch { show("No se pudo remover la materia.", "error"); }
   };
 
   return (
     <>
       <Toast toast={toast} />
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 24 }}>
         <SectionTitle title="Docentes" subtitle="Listado sincronizado con usuarios y asignaciones activas." />
-        {/* 💡 NUEVO: Botón para detonar el modal de registro */}
-        <Btn variant="primary" onClick={openRegisterDocente}>+ Registrar Docente</Btn>
+        <Btn onClick={openRegisterDocente}>+ Registrar docente</Btn>
       </div>
 
-      <Table cols={["Nombre", "Correo", "Usuario (Correo)", "Materias", "Grupos", ""]} loading={loading} emptyText="Sin docentes registrados">
+      <Table cols={["Nombre", "Correo", "Usuario", "Materias", "Grupos", ""]} loading={loading} emptyText="Sin docentes registrados">
         {docentes.map((docente, idx) => {
           const assignments = getAssignments(docente.id);
           const subjectIds  = [...new Set(assignments.map((a) => a.materia))];
@@ -873,42 +956,34 @@ function DocentesSection() {
           return (
             <TR key={docente.id} idx={idx}>
               <TD>
-                <div className="flex items-center gap-3">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Avatar label={`${docente.first_name ?? ""} ${docente.last_name ?? ""}`} />
                   <div>
-                    <div className="font-medium text-gray-100">
-                      {[docente.first_name, docente.last_name].filter(Boolean).join(" ") || docente.username}
-                    </div>
-                    <div className="text-xs text-gray-500">ID #{docente.id}</div>
+                    <div style={{ fontWeight: 600, color: T.textPrimary, fontSize: 13 }}>{[docente.first_name, docente.last_name].filter(Boolean).join(" ") || docente.username}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>ID #{docente.id}</div>
                   </div>
                 </div>
               </TD>
-              <TD><span className="text-xs text-gray-400">{docente.email || "—"}</span></TD>
-              <TD><span className="font-mono text-xs text-violet-200">{docente.username}</span></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{docente.email || "—"}</span></TD>
+              <TD><span style={{ fontFamily: "monospace", fontSize: 12, color: T.cyan }}>{docente.username}</span></TD>
               <TD>
-                <div className="flex flex-wrap gap-1.5">
-                  {subjectIds.length > 0 ? (
-                    subjectIds.slice(0, 3).map((sid) => {
-                      const mat = materias.find((m) => m.id === sid);
-                      return <Pill key={sid}>{mat?.clave ?? `#${sid}`}</Pill>;
-                    })
-                  ) : <span className="text-xs text-gray-500">Sin materias</span>}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {subjectIds.length > 0
+                    ? subjectIds.slice(0, 3).map((sid) => { const mat = materias.find((m) => m.id === sid); return <Pill key={sid}>{mat?.clave ?? `#${sid}`}</Pill>; })
+                    : <span style={{ fontSize: 12, color: T.textMuted }}>Sin materias</span>}
                   {subjectIds.length > 3 ? <Pill color="gray">+{subjectIds.length - 3}</Pill> : null}
                 </div>
               </TD>
               <TD>
-                <div className="flex flex-wrap gap-1.5">
-                  {groupIds.length > 0 ? (
-                    groupIds.slice(0, 3).map((gid) => {
-                      const asig = assignments.find((a) => a.grupo === gid);
-                      return <Pill color="gray" key={gid}>{groupCode(asig?.grupo_detalle)}</Pill>;
-                    })
-                  ) : <span className="text-xs text-gray-500">Sin grupos</span>}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {groupIds.length > 0
+                    ? groupIds.slice(0, 3).map((gid) => { const asig = assignments.find((a) => a.grupo === gid); return <Pill color="gray" key={gid}>{groupCode(asig?.grupo_detalle)}</Pill>; })
+                    : <span style={{ fontSize: 12, color: T.textMuted }}>Sin grupos</span>}
                   {groupIds.length > 3 ? <Pill color="gray">+{groupIds.length - 3}</Pill> : null}
                 </div>
               </TD>
               <TD>
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Btn variant="ghost" size="sm" onClick={() => openDetails(docente)}>Detalles</Btn>
                   <Btn variant="ghost" size="sm" onClick={() => openAddMateria(docente)}>+ Materia</Btn>
                 </div>
@@ -918,156 +993,93 @@ function DocentesSection() {
         })}
       </Table>
 
-      {/* Modal Detalles */}
-      {detailsModal ? (
+      {detailsModal && (
         <Modal title={`Detalles: ${detailsModal.docente.first_name ?? ""} ${detailsModal.docente.last_name ?? ""}`} onClose={() => setDetailsModal(null)}>
-          <div className="space-y-4">
-            <Card className="p-4">
-              <div className="flex items-start gap-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <Card style={{ padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <Avatar label={`${detailsModal.docente.first_name ?? ""} ${detailsModal.docente.last_name ?? ""}`} />
                 <div>
-                  <div className="text-sm font-semibold text-gray-100">
-                    {detailsModal.docente.first_name} {detailsModal.docente.last_name}
-                  </div>
-                  <div className="text-xs text-gray-500">{detailsModal.docente.email || "Sin correo"}</div>
-                  <div className="text-xs text-gray-500">Usuario: {detailsModal.docente.username}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{detailsModal.docente.first_name} {detailsModal.docente.last_name}</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>{detailsModal.docente.email || "Sin correo"}</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>Usuario: {detailsModal.docente.username}</div>
                 </div>
               </div>
             </Card>
-
             <div>
-              <h4 className="text-sm font-semibold text-gray-100 mb-3">Materias asignadas</h4>
-              <div className="space-y-2 max-h-96 overflow-auto">
-                {detailsModal.assignments.length > 0 ? (
-                  detailsModal.assignments.map((asig) => (
-                    <div key={asig.id} className="flex items-center justify-between p-3 rounded-lg bg-violet-500/5 border border-violet-500/10">
-                      <div>
-                        <div className="font-medium text-gray-100 text-sm">{asig.materia_detalle?.clave}</div>
-                        <div className="text-xs text-gray-500">{asig.materia_detalle?.nombre}</div>
-                        {asig.grupo_detalle && (
-                          <div className="text-xs text-gray-400 mt-1">Grupo: {groupCode(asig.grupo_detalle)}</div>
-                        )}
-                      </div>
-                      <Btn variant="danger" size="sm" onClick={() => handleRemoveMateria(asig.id)}>Remover</Btn>
+              <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Materias asignadas</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto" }}>
+                {detailsModal.assignments.length > 0 ? detailsModal.assignments.map((asig) => (
+                  <div key={asig.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, borderRadius: T.radiusXs, background: T.cyanDim, border: `1px solid ${T.border}` }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: T.cyan, fontSize: 13, fontFamily: "monospace" }}>{asig.materia_detalle?.clave}</div>
+                      <div style={{ fontSize: 12, color: T.textSecondary }}>{asig.materia_detalle?.nombre}</div>
+                      {asig.grupo_detalle && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>Grupo: {groupCode(asig.grupo_detalle)}</div>}
                     </div>
-                  ))
-                ) : (
-                  <div className="text-xs text-gray-500">Sin materias asignadas</div>
-                )}
+                    <Btn variant="danger" size="sm" onClick={() => handleRemoveMateria(asig.id)}>Remover</Btn>
+                  </div>
+                )) : <div style={{ fontSize: 12, color: T.textMuted }}>Sin materias asignadas</div>}
               </div>
             </div>
           </div>
         </Modal>
-      ) : null}
+      )}
 
-      {/* Modal Agregar Materia */}
-      {modal?.mode === "add_materia" ? (
+      {modal?.mode === "add_materia" && (
         <Modal title={`Asignar materia a ${modal.docenteName}`} onClose={() => setModal(null)}>
-          <form className="space-y-4" onSubmit={handleAddMateria}>
+          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleAddMateria}>
             <Field label="Materia" required>
-              <select className={inputCls} value={form.materia_id} onChange={(e) => setForm((c) => ({ ...c, materia_id: e.target.value }))}>
+              <StyledSelect value={form.materia_id} onChange={(e) => setForm((c) => ({ ...c, materia_id: e.target.value }))}>
                 <option value="">Seleccionar materia</option>
                 {materias.map((m) => <option key={m.id} value={m.id}>{m.clave} - {m.nombre}</option>)}
-              </select>
+              </StyledSelect>
             </Field>
-
-            <Field label="Grupo Destino" required>
-              <select className={inputCls} value={form.grupo_id} onChange={(e) => setForm((c) => ({ ...c, grupo_id: e.target.value }))}>
-                <option value="">Seleccionar grupo académico</option>
-                {grupos.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.semestre}°{g.nombre} - {g.carrera} ({g.turno})
-                  </option>
-                ))}
-              </select>
+            <Field label="Grupo destino" required>
+              <StyledSelect value={form.grupo_id} onChange={(e) => setForm((c) => ({ ...c, grupo_id: e.target.value }))}>
+                <option value="">Seleccionar grupo</option>
+                {grupos.map((g) => <option key={g.id} value={g.id}>{g.semestre}°{g.nombre} - {g.carrera} ({g.turno})</option>)}
+              </StyledSelect>
             </Field>
-
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn variant="primary" type="submit" loading={saving}>Asignar materia</Btn>
+              <Btn type="submit" loading={saving}>Asignar materia</Btn>
             </div>
           </form>
         </Modal>
-      ) : null}
+      )}
 
-      {/* 💡 NUEVO MODAL: Formulario de Registro para Docentes */}
-      {modal?.mode === "register_docente" ? (
-        <Modal title="Registrar Nuevo Docente Institucional" onClose={() => setModal(null)}>
-          <form className="space-y-4" onSubmit={handleCreateDocente}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Nombre(s) *" required>
-                <input
-                  type="text"
-                  className={inputCls}
-                  placeholder="Ej. Arturo"
-                  value={formDocente.firstName}
-                  onChange={(e) => setFormDocente({ ...formDocente, firstName: e.target.value })}
-                />
+      {modal?.mode === "register_docente" && (
+        <Modal title="Registrar nuevo docente institucional" onClose={() => setModal(null)}>
+          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleCreateDocente}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Nombre(s)" required>
+                <StyledInput value={formDocente.firstName} onChange={(e) => setFormDocente({ ...formDocente, firstName: e.target.value })} placeholder="Ej. Arturo" />
               </Field>
-              <Field label="Apellidos *" required>
-                <input
-                  type="text"
-                  className={inputCls}
-                  placeholder="Ej. López"
-                  value={formDocente.lastName}
-                  onChange={(e) => setFormDocente({ ...formDocente, lastName: e.target.value })}
-                />
+              <Field label="Apellidos" required>
+                <StyledInput value={formDocente.lastName} onChange={(e) => setFormDocente({ ...formDocente, lastName: e.target.value })} placeholder="Ej. López" />
               </Field>
             </div>
-
-            <Field label="Correo Institucional (Usuario de Acceso) *" required>
-              <input
-                type="email"
-                className={inputCls}
-                placeholder="ejemplo@cecytem.edu.mx"
-                value={formDocente.email}
-                onChange={(e) => setFormDocente({ ...formDocente, email: e.target.value })}
-              />
+            <Field label="Correo institucional (usuario de acceso)" required>
+              <StyledInput type="email" value={formDocente.email} onChange={(e) => setFormDocente({ ...formDocente, email: e.target.value })} placeholder="ejemplo@cecytem.edu.mx" />
             </Field>
-
-            <Field label="Clave de Servidor Público (Contraseña Inicial) *" required>
-              <input
-                type="text"
-                className={inputCls}
-                placeholder="Clave impresa en el gafete institucional"
-                value={formDocente.claveServidor}
-                onChange={(e) => setFormDocente({ ...formDocente, claveServidor: e.target.value })}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Nota: Las credenciales se vincularán para que use el correo completo como inicio de sesión.
-              </p>
+            <Field label="Clave de servidor público (contraseña inicial)" required>
+              <StyledInput value={formDocente.claveServidor} onChange={(e) => setFormDocente({ ...formDocente, claveServidor: e.target.value })} placeholder="Clave impresa en gafete institucional" />
+              <p style={{ margin: 0, fontSize: 11, color: T.textMuted }}>Las credenciales se vincularán para que use el correo completo como inicio de sesión.</p>
             </Field>
-
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <Btn variant="ghost" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn variant="primary" type="submit" loading={saving}>Crear Docente</Btn>
+              <Btn type="submit" loading={saving}>Crear docente</Btn>
             </div>
           </form>
         </Modal>
-      ) : null}
+      )}
     </>
   );
 }
 
-// ─── GruposSection ─────────────────────────────────────────────────────────────
+// ─── GruposSection ──────────────────────────────────────────────────────────────
 
-// ─── GruposSection (REDISEÑADO) ────────────────────────────────────────────────
-// Reemplaza la función GruposSection completa en AdminDashboard.jsx
-
-// Helpers necesarios (ya existen en AdminDashboard.jsx, no duplicar):
-// extractList, groupCode, groupLabel, carreraLabels, CARRERAS_POR_SEMESTRE
-// Card, Btn, Pill, Avatar, Modal, Field, Table, TR, TD, SectionTitle, Toast,
-// useToast, inputCls, C
-
-// Mapa de materias por semestre y carrera.
-// Ajusta los IDs y nombres según tu base de datos real.
-// Esta función filtra del catálogo de materias por semestre/carrera si tu API
-// ya las devuelve filtradas; de lo contrario usa el catálogo completo.
-const getMateriasPorSemestreCarrera = (todasMaterias, semestre, carrera) => {
-  // Si tu API no filtra por semestre/carrera, devuelve todas.
-  // Puedes agregar lógica de filtrado aquí cuando tu backend lo soporte.
-  return todasMaterias;
-};
+const getMateriasPorSemestreCarrera = (todasMaterias) => todasMaterias;
 
 function GruposSection() {
   const [grupos,       setGrupos]       = React.useState([]);
@@ -1077,35 +1089,20 @@ function GruposSection() {
   const [alumnos,      setAlumnos]      = React.useState([]);
   const [loading,      setLoading]      = React.useState(true);
   const [saving,       setSaving]       = React.useState(false);
-
-  // Modal state
-  const [modalOpen,     setModalOpen]     = React.useState(false);
-  const [editGroup,     setEditGroup]     = React.useState(null); // null = crear, obj = editar
-  const [detailsGroup,  setDetailsGroup]  = React.useState(null);
-  const [alumnosModal,  setAlumnosModal]  = React.useState({ open: false, grupo: null, lista: [], loading: false });
-
-  // Fase 1: datos básicos del grupo
-  const [fase1, setFase1] = React.useState({
-    semestre: "", carrera: "", grupo_letra: "", turno: "Matutino",
-  });
-
-  // Fase 2: array de { materia_id, docente_id } — una fila por materia
-  const [asignForm, setAsignForm] = React.useState([]);
-
-  // Paso activo del modal (0 = fase1, 1 = fase2)
-  const [step, setStep] = React.useState(0);
-
+  const [modalOpen,    setModalOpen]    = React.useState(false);
+  const [editGroup,    setEditGroup]    = React.useState(null);
+  const [detailsGroup, setDetailsGroup] = React.useState(null);
+  const [alumnosModal, setAlumnosModal] = React.useState({ open: false, grupo: null, lista: [], loading: false });
+  const [fase1,        setFase1]        = React.useState({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino" });
+  const [asignForm,    setAsignForm]    = React.useState([]);
+  const [step,         setStep]         = React.useState(0);
   const { toast, show } = useToast();
-
-  // ─── Carga de datos ─────────────────────────────────────────────────────────
 
   const load = React.useCallback(async () => {
     setLoading(true);
     const [gr, doc, mat, asig, al] = await Promise.allSettled([
-      api.get("/academico/grupos/"),
-      api.get("/auth/usuarios/?rol=DOCENTE"),
-      api.get("/academico/materias/"),
-      api.get("/seguimiento/asignaciones/"),
+      api.get("/academico/grupos/"), api.get("/auth/usuarios/?rol=DOCENTE"),
+      api.get("/academico/materias/"), api.get("/seguimiento/asignaciones/"),
       api.get("/academico/alumnos/"),
     ]);
     setGrupos(gr.status         === "fulfilled" ? extractList(gr.value.data)   : []);
@@ -1118,356 +1115,121 @@ function GruposSection() {
 
   React.useEffect(() => { load(); }, [load]);
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-
-  const getAsignacion = (grupoId) => asignaciones.find((a) => a.grupo === grupoId);
-
-  const getAsignacionesPorGrupo = (grupoId) =>
-    asignaciones.filter((a) => a.grupo === grupoId);
+  const getAsignacionesPorGrupo = (grupoId) => asignaciones.filter((a) => a.grupo === grupoId);
 
   const usedGroupLetras = grupos
-    .filter(
-      (g) =>
-        g.semestre === Number.parseInt(fase1.semestre, 10) &&
-        g.carrera  === fase1.carrera &&
-        // Al editar, excluir la letra actual del grupo que estamos editando
-        (!editGroup || g.id !== editGroup.grupoId)
-    )
+    .filter((g) => g.semestre === Number.parseInt(fase1.semestre, 10) && g.carrera === fase1.carrera && (!editGroup || g.id !== editGroup.grupoId))
     .map((g) => String(g.grupo_letra));
+  const letrasDisponibles = !fase1.semestre || !fase1.carrera ? [] : ["1","2","3","4"].filter((l) => !usedGroupLetras.includes(l));
 
-  const letrasDisponibles = !fase1.semestre || !fase1.carrera
-    ? []
-    : ["1", "2", "3", "4"].filter((l) => !usedGroupLetras.includes(l));
-
-  const materiasFiltradas = getMateriasPorSemestreCarrera(
-    materias, fase1.semestre, fase1.carrera
-  );
-
-  // ─── Reset / Open modals ────────────────────────────────────────────────────
-
-  const resetAll = () => {
-    setFase1({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino" });
-    setAsignForm([]);
-    setStep(0);
-    setEditGroup(null);
-  };
-
-  const openCreate = () => {
-    resetAll();
-    setModalOpen(true);
-  };
-
+  const resetAll = () => { setFase1({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino" }); setAsignForm([]); setStep(0); setEditGroup(null); };
+  const openCreate = () => { resetAll(); setModalOpen(true); };
   const openEditGroup = (grupo) => {
     const asigs = getAsignacionesPorGrupo(grupo.id);
-
-    setFase1({
-      semestre:    String(grupo.semestre || ""),
-      carrera:     grupo.carrera || "",
-      grupo_letra: String(grupo.grupo_letra || ""),
-      turno:       grupo.turno || "Matutino",
-    });
-
-    // Precarga la fase 2 con las asignaciones existentes
+    setFase1({ semestre: String(grupo.semestre || ""), carrera: grupo.carrera || "", grupo_letra: String(grupo.grupo_letra || ""), turno: grupo.turno || "Matutino" });
     const rows = materias.map((mat) => {
       const asig = asigs.find((a) => a.materia === mat.id);
-      return {
-        materia_id:   mat.id,
-        materia_clave: mat.clave,
-        materia_nombre: mat.nombre,
-        docente_id:   asig?.docente ? String(asig.docente) : "",
-        asig_id:      asig?.id ?? null, // Para UPDATE
-      };
+      return { materia_id: mat.id, materia_clave: mat.clave, materia_nombre: mat.nombre, docente_id: asig?.docente ? String(asig.docente) : "", asig_id: asig?.id ?? null };
     });
-
-    setAsignForm(rows);
-    setEditGroup({ grupoId: grupo.id });
-    setStep(0);
-    setModalOpen(true);
+    setAsignForm(rows); setEditGroup({ grupoId: grupo.id }); setStep(0); setModalOpen(true);
   };
-
-  // Cuando avanza de Fase 1 → Fase 2, construye/actualiza filas
   const goToFase2 = () => {
-    if (!fase1.semestre || !fase1.carrera || !fase1.grupo_letra) {
-      show("Completa semestre, carrera y grupo antes de continuar.", "error");
-      return;
-    }
-
-    // Si estamos editando, las filas ya vienen precargadas; solo actualizamos
-    // la lista si la carrera/semestre cambió
-    const currentMats = getMateriasPorSemestreCarrera(
-      materias, fase1.semestre, fase1.carrera
-    );
-
-    setAsignForm((prev) =>
-      currentMats.map((mat) => {
-        const existing = prev.find((r) => r.materia_id === mat.id);
-        return existing ?? {
-          materia_id:     mat.id,
-          materia_clave:  mat.clave,
-          materia_nombre: mat.nombre,
-          docente_id:     "",
-          asig_id:        null,
-        };
-      })
-    );
-
+    if (!fase1.semestre || !fase1.carrera || !fase1.grupo_letra) { show("Completa semestre, carrera y grupo antes de continuar.", "error"); return; }
+    const currentMats = getMateriasPorSemestreCarrera(materias);
+    setAsignForm((prev) => currentMats.map((mat) => {
+      const existing = prev.find((r) => r.materia_id === mat.id);
+      return existing ?? { materia_id: mat.id, materia_clave: mat.clave, materia_nombre: mat.nombre, docente_id: "", asig_id: null };
+    }));
     setStep(1);
   };
-
-  const updateDocenteEnFila = (materiaId, docenteId) => {
-    setAsignForm((prev) =>
-      prev.map((row) =>
-        row.materia_id === materiaId ? { ...row, docente_id: docenteId } : row
-      )
-    );
-  };
-
-  // ─── Parseo de errores DRF ───────────────────────────────────────────────────
-
+  const updateDocenteEnFila = (materiaId, docenteId) => setAsignForm((prev) => prev.map((row) => row.materia_id === materiaId ? { ...row, docente_id: docenteId } : row));
   const parseDRFError = (err) => {
-    if (!err.response?.data) return "Error desconocido al guardar.";
+    if (!err.response?.data) return "Error desconocido.";
     const data = err.response.data;
     if (typeof data === "string") return data;
-    if (Array.isArray(data))     return data.join(" | ");
-    return Object.entries(data)
-      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-      .join(" | ");
+    if (Array.isArray(data)) return data.join(" | ");
+    return Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | ");
   };
-
-  // ─── Crear grupo ─────────────────────────────────────────────────────────────
 
   const handleCreate = async () => {
     setSaving(true);
     try {
-      // 1. Crear el grupo
-      const grupoRes = await api.post("/academico/grupos/", {
-        semestre:    Number.parseInt(fase1.semestre, 10),
-        carrera:     fase1.carrera,
-        grupo_letra: String(fase1.grupo_letra),
-        turno:       fase1.turno,
-      });
+      const grupoRes = await api.post("/academico/grupos/", { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const grupoId = grupoRes.data.id;
-
-      // 2. Limpiar y validar asignaciones: filter out empty/invalid docente_id
-      const asignacionesValidas = asignForm.filter((r) => {
-        // Validar que docente_id sea una cadena no-vacía y convertible a número
-        if (!r.docente_id || typeof r.docente_id !== "string" || r.docente_id.trim() === "") {
-          return false;
-        }
-        const docenteNum = Number.parseInt(r.docente_id, 10);
-        return !isNaN(docenteNum) && docenteNum > 0;
-      });
-
-      // 3. Crear las asignaciones válidas
-      if (asignacionesValidas.length > 0) {
-        const resultados = await Promise.allSettled(
-          asignacionesValidas.map((row) =>
-            api.post("/seguimiento/asignaciones/", {
-              docente: Number.parseInt(row.docente_id, 10),
-              materia: row.materia_id,
-              grupo:   grupoId,
-            })
-          )
-        );
-
-        // Revisar si hubo fallos individuales
-        const fallos = resultados.filter((r) => r.status === "rejected");
-        if (fallos.length > 0) {
-          console.error("Fallos al crear asignaciones:", fallos);
-          show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron. Verifica en Editar.`, "error");
-        } else {
-          show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado con ${asignacionesValidas.length} asignación(es).`);
-        }
-      } else {
-        show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado sin asignaciones.`);
-      }
-
-      setModalOpen(false);
-      resetAll();
-      await load();
-    } catch (err) {
-      console.error("Error creating group:", err);
-      show(parseDRFError(err), "error");
-    } finally {
-      setSaving(false);
-    }
+      const validas = asignForm.filter((r) => r.docente_id && r.docente_id.trim() !== "" && !isNaN(Number.parseInt(r.docente_id, 10)) && Number.parseInt(r.docente_id, 10) > 0);
+      if (validas.length > 0) {
+        const results = await Promise.allSettled(validas.map((row) => api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: grupoId })));
+        const fallos = results.filter((r) => r.status === "rejected");
+        if (fallos.length > 0) show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron.`, "error");
+        else show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado con ${validas.length} asignación(es).`);
+      } else { show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado sin asignaciones.`); }
+      setModalOpen(false); resetAll(); await load();
+    } catch (err) { show(parseDRFError(err), "error"); }
+    finally { setSaving(false); }
   };
-
-  // ─── Editar grupo ────────────────────────────────────────────────────────────
 
   const handleEdit = async () => {
     if (!editGroup?.grupoId) return;
     setSaving(true);
     try {
-      // 1. Actualizar datos básicos del grupo
-      await api.put(`/academico/grupos/${editGroup.grupoId}/`, {
-        semestre:    Number.parseInt(fase1.semestre, 10),
-        carrera:     fase1.carrera,
-        grupo_letra: String(fase1.grupo_letra),
-        turno:       fase1.turno,
-      });
-
-      // 2. Gestionar asignaciones: UPDATE las existentes, CREATE las nuevas, DELETE las removidas
+      await api.put(`/academico/grupos/${editGroup.grupoId}/`, { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const asignActuales = getAsignacionesPorGrupo(editGroup.grupoId);
-
-      // Limpiar y validar asignaciones
-      const asignacionesValidas = asignForm.filter((r) => {
-        if (!r.docente_id || typeof r.docente_id !== "string" || r.docente_id.trim() === "") {
-          return false;
-        }
-        const docenteNum = Number.parseInt(r.docente_id, 10);
-        return !isNaN(docenteNum) && docenteNum > 0;
+      const ops = asignForm.map(async (row) => {
+        const existing = asignActuales.find((a) => a.materia === row.materia_id);
+        const esValida = row.docente_id && row.docente_id.trim() !== "" && !isNaN(Number.parseInt(row.docente_id, 10));
+        if (existing && esValida) { if (Number(existing.docente) !== Number.parseInt(row.docente_id, 10)) await api.patch(`/seguimiento/asignaciones/${existing.id}/`, { docente: Number.parseInt(row.docente_id, 10) }); }
+        else if (existing && !esValida) { await api.delete(`/seguimiento/asignaciones/${existing.id}/`); }
+        else if (!existing && esValida) { await api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: editGroup.grupoId }); }
       });
-
-      const operaciones = asignForm.map(async (row) => {
-        const asigExistente = asignActuales.find((a) => a.materia === row.materia_id);
-        const esValida =
-          row.docente_id &&
-          typeof row.docente_id === "string" &&
-          row.docente_id.trim() !== "" &&
-          !isNaN(Number.parseInt(row.docente_id, 10));
-
-        if (asigExistente && esValida) {
-          // Actualizar si el docente cambió
-          const docenteActual = Number.parseInt(row.docente_id, 10);
-          if (Number(asigExistente.docente) !== docenteActual) {
-            await api.patch(`/seguimiento/asignaciones/${asigExistente.id}/`, {
-              docente: docenteActual,
-            });
-          }
-        } else if (asigExistente && !esValida) {
-          // Eliminar si se removió el docente
-          await api.delete(`/seguimiento/asignaciones/${asigExistente.id}/`);
-        } else if (!asigExistente && esValida) {
-          // Crear nueva asignación
-          await api.post("/seguimiento/asignaciones/", {
-            docente: Number.parseInt(row.docente_id, 10),
-            materia: row.materia_id,
-            grupo:   editGroup.grupoId,
-          });
-        }
-        // Si no había y sigue sin docente: no hacer nada
-      });
-
-      const resultados = await Promise.allSettled(operaciones);
-      const fallos = resultados.filter((r) => r.status === "rejected");
-
-      if (fallos.length > 0) {
-        console.error("Fallos al actualizar asignaciones:", fallos);
-        show(`Grupo actualizado, pero ${fallos.length} cambio(s) en asignaciones fallaron.`, "error");
-      } else {
-        show("Grupo actualizado correctamente.");
-      }
-
-      setModalOpen(false);
-      resetAll();
-      await load();
-    } catch (err) {
-      console.error("Error updating group:", err);
-      show(parseDRFError(err), "error");
-    } finally {
-      setSaving(false);
-    }
+      const results = await Promise.allSettled(ops);
+      const fallos = results.filter((r) => r.status === "rejected");
+      if (fallos.length > 0) show(`Grupo actualizado, pero ${fallos.length} cambio(s) fallaron.`, "error");
+      else show("Grupo actualizado correctamente.");
+      setModalOpen(false); resetAll(); await load();
+    } catch (err) { show(parseDRFError(err), "error"); }
+    finally { setSaving(false); }
   };
-
-  // ─── Ver alumnos del grupo ───────────────────────────────────────────────────
 
   const handleViewAlumnos = async (grupo) => {
-    setAlumnosModal({
-      open: true,
-      grupo,
-      lista: [],
-      loading: true,
-    });
-    try {
-      // Cargar alumnos inscritos en este grupo
-      const res = await api.get(`/academico/alumnos/?grupo=${grupo.id}`);
-      const lista = extractList(res.data);
-      setAlumnosModal((prev) => ({ ...prev, lista, loading: false }));
-    } catch (err) {
-      console.error("Error cargando alumnos:", err);
-      show("Error al cargar alumnos del grupo.", "error");
-      setAlumnosModal((prev) => ({ ...prev, loading: false }));
-    }
+    setAlumnosModal({ open: true, grupo, lista: [], loading: true });
+    try { const res = await api.get(`/academico/alumnos/?grupo=${grupo.id}`); setAlumnosModal((prev) => ({ ...prev, lista: extractList(res.data), loading: false })); }
+    catch { show("Error al cargar alumnos.", "error"); setAlumnosModal((prev) => ({ ...prev, loading: false })); }
   };
-
-  // ─── Eliminar grupo ──────────────────────────────────────────────────────────
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar este grupo? Se eliminarán también sus asignaciones.")) return;
-    try {
-      await api.delete(`/academico/grupos/${id}/`);
-      show("Grupo eliminado.");
-      await load();
-    } catch (err) {
-      show(parseDRFError(err), "error");
-    }
+    if (!window.confirm("¿Eliminar este grupo y sus asignaciones?")) return;
+    try { await api.delete(`/academico/grupos/${id}/`); show("Grupo eliminado."); await load(); }
+    catch (err) { show(parseDRFError(err), "error"); }
   };
-
-  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <>
       <Toast toast={toast} />
-      <SectionTitle
-        title="Grupos"
-        subtitle="Crea grupos y gestiona su matriz académica completa."
-        action={<Btn onClick={openCreate}>+ Nuevo grupo</Btn>}
-      />
+      <SectionTitle title="Grupos" subtitle="Crea grupos y gestiona su matriz académica completa." action={<Btn onClick={openCreate}>+ Nuevo grupo</Btn>} />
 
-      {/* ── Tabla de grupos ── */}
-      <Table
-        cols={["Clave", "Semestre", "Carrera", "Turno", "Materias asignadas", "Alumnos", ""]}
-        loading={loading}
-        emptyText="Sin grupos registrados"
-      >
+      <Table cols={["Clave", "Semestre", "Carrera", "Turno", "Materias asignadas", "Alumnos", ""]} loading={loading} emptyText="Sin grupos registrados">
         {grupos.map((grupo, idx) => {
           const asigs = getAsignacionesPorGrupo(grupo.id);
           return (
             <TR key={`grupo-${grupo.id ?? idx}`} idx={idx}>
-              <TD>
-                <span className="font-mono text-sm font-semibold text-violet-200">
-                  {groupCode(grupo)}
-                </span>
-              </TD>
+              <TD><span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: T.cyan }}>{groupCode(grupo)}</span></TD>
               <TD><Pill>{grupo.semestre}°</Pill></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{carreraLabels[grupo.carrera] ?? grupo.carrera}</span></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{grupo.turno}</span></TD>
               <TD>
-                <span className="text-xs text-gray-300">
-                  {carreraLabels[grupo.carrera] ?? grupo.carrera}
-                </span>
-              </TD>
-              <TD><span className="text-xs text-gray-400">{grupo.turno}</span></TD>
-              <TD>
-                <div className="flex flex-wrap gap-1.5">
-                  {asigs.length > 0 ? (
-                    asigs.slice(0, 3).map((a) => (
-                      <Pill key={a.id} color="violet">
-                        {a.materia_detalle?.clave ?? `#${a.materia}`}
-                      </Pill>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-500">Sin asignaciones</span>
-                  )}
-                  {asigs.length > 3 && (
-                    <Pill color="gray">+{asigs.length - 3}</Pill>
-                  )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {asigs.length > 0 ? asigs.slice(0, 3).map((a) => <Pill key={a.id}>{a.materia_detalle?.clave ?? `#${a.materia}`}</Pill>) : <span style={{ fontSize: 12, color: T.textMuted }}>Sin asignaciones</span>}
+                  {asigs.length > 3 && <Pill color="gray">+{asigs.length - 3}</Pill>}
                 </div>
               </TD>
               <TD>
-                <div className="flex items-center gap-2">
-                  <Pill color="emerald">{grupo.total_alumnos ?? 0}</Pill>
-                  <Btn
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleViewAlumnos(grupo)}
-                    title="Ver lista de alumnos"
-                  >
-                    👁️
-                  </Btn>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Pill color="green">{grupo.total_alumnos ?? 0}</Pill>
+                  <Btn variant="ghost" size="sm" onClick={() => handleViewAlumnos(grupo)}>👁️</Btn>
                 </div>
               </TD>
               <TD>
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Btn variant="ghost"  size="sm" onClick={() => openEditGroup(grupo)}>Editar</Btn>
                   <Btn variant="ghost"  size="sm" onClick={() => setDetailsGroup(grupo)}>Detalles</Btn>
                   <Btn variant="danger" size="sm" onClick={() => handleDelete(grupo.id)}>Eliminar</Btn>
@@ -1478,348 +1240,181 @@ function GruposSection() {
         })}
       </Table>
 
-      {/* ══ Modal Crear / Editar ══ */}
       {modalOpen && (
-        <Modal
-          title={editGroup ? "Editar grupo" : "Nuevo grupo"}
-          onClose={() => { setModalOpen(false); resetAll(); }}
-        >
-          {/* Indicador de pasos */}
-          <div className="mb-5 flex items-center gap-3">
+        <Modal title={editGroup ? "Editar grupo" : "Nuevo grupo"} onClose={() => { setModalOpen(false); resetAll(); }}>
+          {/* Steps */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
             {["Datos del grupo", "Matriz académica"].map((label, i) => (
               <React.Fragment key={label}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${
-                      step === i
-                        ? "bg-violet-500 text-white"
-                        : step > i
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-white/[0.06] text-gray-500"
-                    }`}
-                  >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700, transition: "all 0.2s",
+                    background: step === i ? T.accent : step > i ? "rgba(29,185,84,0.18)" : T.cyanDim,
+                    color: step === i ? "#fff" : step > i ? T.accent : T.textMuted,
+                    border: `1px solid ${step === i ? T.accent : step > i ? T.borderGreen : T.border}`,
+                  }}>
                     {step > i ? "✓" : i + 1}
                   </div>
-                  <span
-                    className={`text-xs font-medium transition ${
-                      step === i ? "text-gray-100" : "text-gray-500"
-                    }`}
-                  >
-                    {label}
-                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: step === i ? T.textPrimary : T.textMuted, fontFamily: T.fontBody }}>{label}</span>
                 </div>
-                {i < 1 && (
-                  <div
-                    className={`h-px flex-1 transition ${
-                      step > 0 ? "bg-violet-500/40" : "bg-white/[0.06]"
-                    }`}
-                  />
-                )}
+                {i < 1 && <div style={{ flex: 1, height: 1, background: step > 0 ? T.borderGreen : T.border }} />}
               </React.Fragment>
             ))}
           </div>
 
-          {/* ── Paso 0: Datos básicos ── */}
           {step === 0 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <Field label="Semestre" required>
-                  <select
-                    className={inputCls}
-                    value={fase1.semestre}
-                    onChange={(e) =>
-                      setFase1((c) => ({
-                        ...c, semestre: e.target.value, carrera: "", grupo_letra: "",
-                      }))
-                    }
-                  >
+                  <StyledSelect value={fase1.semestre} onChange={(e) => setFase1((c) => ({ ...c, semestre: e.target.value, carrera: "", grupo_letra: "" }))}>
                     <option value="">Seleccionar</option>
-                    {[1,2,3,4,5,6].map((n) => (
-                      <option key={n} value={n}>{n}°</option>
-                    ))}
-                  </select>
+                    {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}°</option>)}
+                  </StyledSelect>
                 </Field>
                 <Field label="Carrera" required>
-                  <select
-                    className={inputCls}
-                    value={fase1.carrera}
-                    disabled={!fase1.semestre}
-                    onChange={(e) =>
-                      setFase1((c) => ({ ...c, carrera: e.target.value, grupo_letra: "" }))
-                    }
-                  >
+                  <StyledSelect value={fase1.carrera} disabled={!fase1.semestre} onChange={(e) => setFase1((c) => ({ ...c, carrera: e.target.value, grupo_letra: "" }))}>
                     <option value="">Seleccionar</option>
-                    {CARRERAS_POR_SEMESTRE(fase1.semestre).map((car) => (
-                      <option key={car.value} value={car.value}>{car.label}</option>
-                    ))}
-                  </select>
+                    {CARRERAS_POR_SEMESTRE(fase1.semestre).map((car) => <option key={car.value} value={car.value}>{car.label}</option>)}
+                  </StyledSelect>
                 </Field>
               </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <Field label="Letra de grupo" required>
-                  <select
-                    className={inputCls}
-                    value={fase1.grupo_letra}
-                    disabled={!fase1.carrera}
-                    onChange={(e) =>
-                      setFase1((c) => ({ ...c, grupo_letra: e.target.value }))
-                    }
-                  >
+                  <StyledSelect value={fase1.grupo_letra} disabled={!fase1.carrera} onChange={(e) => setFase1((c) => ({ ...c, grupo_letra: e.target.value }))}>
                     <option value="">Seleccionar</option>
-                    {editGroup && fase1.grupo_letra &&
-                     !letrasDisponibles.includes(fase1.grupo_letra) && (
-                      <option value={fase1.grupo_letra}>{fase1.grupo_letra} (actual)</option>
-                    )}
-                    {letrasDisponibles.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
+                    {editGroup && fase1.grupo_letra && !letrasDisponibles.includes(fase1.grupo_letra) && <option value={fase1.grupo_letra}>{fase1.grupo_letra} (actual)</option>}
+                    {letrasDisponibles.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </StyledSelect>
                 </Field>
                 <Field label="Turno">
-                  <select
-                    className={inputCls}
-                    value={fase1.turno}
-                    onChange={(e) => setFase1((c) => ({ ...c, turno: e.target.value }))}
-                  >
+                  <StyledSelect value={fase1.turno} onChange={(e) => setFase1((c) => ({ ...c, turno: e.target.value }))}>
                     <option value="Matutino">Matutino</option>
                     <option value="Vespertino">Vespertino</option>
-                  </select>
+                  </StyledSelect>
                 </Field>
               </div>
-
-              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                <Btn variant="ghost" onClick={() => { setModalOpen(false); resetAll(); }}>
-                  Cancelar
-                </Btn>
-                <Btn variant="primary" onClick={goToFase2}>
-                  Continuar →
-                </Btn>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <Btn variant="ghost" onClick={() => { setModalOpen(false); resetAll(); }}>Cancelar</Btn>
+                <Btn onClick={goToFase2}>Continuar →</Btn>
               </div>
             </div>
           )}
 
-          {/* ── Paso 1: Matriz académica ── */}
           {step === 1 && (
-            <div className="space-y-4">
-              {/* Resumen del grupo */}
-              <div
-                className="flex items-center gap-3 rounded-xl px-4 py-3"
-                style={{
-                  background: "rgba(139,92,246,0.08)",
-                  border: "1px solid rgba(139,92,246,0.18)",
-                }}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 font-mono text-lg font-bold text-violet-200">
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, borderRadius: T.radiusSm, background: T.cyanDim, border: `1px solid ${T.border}` }}>
+                <div style={{ width: 40, height: 40, borderRadius: T.radiusXs, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(29,185,84,0.15)", border: `1px solid ${T.borderGreen}`, fontFamily: "monospace", fontSize: 16, fontWeight: 700, color: T.accent }}>
                   {fase1.semestre}{fase1.grupo_letra}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-100">
-                    {carreraLabels[fase1.carrera] ?? fase1.carrera}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {fase1.semestre}° semestre · {fase1.turno}
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{carreraLabels[fase1.carrera] ?? fase1.carrera}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{fase1.semestre}° semestre · {fase1.turno}</div>
                 </div>
               </div>
-
-              {/* Tabla de asignaciones */}
-              <div>
-                <p className="mb-3 text-xs text-gray-500">
-                  Asigna un docente a cada materia. Las filas sin docente no crearán asignación.
-                </p>
-                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                  {asignForm.length === 0 ? (
-                    <div className="rounded-xl border border-white/5 px-4 py-8 text-center text-xs text-gray-500">
-                      No hay materias en el catálogo. Agrégalas primero en la sección de Materias.
+              <p style={{ margin: 0, fontSize: 12, color: T.textMuted }}>Asigna un docente a cada materia. Las filas sin docente no crearán asignación.</p>
+              <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                {asignForm.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "32px 16px", fontSize: 12, color: T.textMuted, border: `1px solid ${T.border}`, borderRadius: T.radiusXs }}>
+                    No hay materias en el catálogo. Agrégalas primero.
+                  </div>
+                ) : asignForm.map((row) => (
+                  <div key={row.materia_id} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: T.radiusXs, background: row.docente_id ? "rgba(29,185,84,0.05)" : "rgba(6,182,212,0.03)", border: `1px solid ${row.docente_id ? T.borderGreen : T.border}`, transition: "all 0.15s" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{row.materia_clave}</div>
+                      <div style={{ fontSize: 11, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.materia_nombre}</div>
                     </div>
-                  ) : (
-                    asignForm.map((row) => (
-                      <div
-                        key={row.materia_id}
-                        className="grid grid-cols-[1fr_1.4fr] items-center gap-3 rounded-xl px-3 py-2.5 transition"
-                        style={{
-                          background: row.docente_id
-                            ? "rgba(139,92,246,0.06)"
-                            : "rgba(255,255,255,0.02)",
-                          border: row.docente_id
-                            ? "1px solid rgba(139,92,246,0.15)"
-                            : "1px solid rgba(255,255,255,0.05)",
-                        }}
-                      >
-                        {/* Materia */}
-                        <div className="min-w-0">
-                          <div className="font-mono text-xs font-semibold text-violet-300">
-                            {row.materia_clave}
-                          </div>
-                          <div className="truncate text-xs text-gray-400">
-                            {row.materia_nombre}
-                          </div>
-                        </div>
-                        {/* Select docente */}
-                        <select
-                          className={inputCls}
-                          value={row.docente_id ?? ""}
-                          onChange={(e) =>
-                            updateDocenteEnFila(row.materia_id, e.target.value)
-                          }
-                        >
-                          <option value="">— Sin asignar —</option>
-                          {docentes.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {[d.first_name, d.last_name].filter(Boolean).join(" ") ||
-                                d.username}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))
-                  )}
-                </div>
+                    <StyledSelect value={row.docente_id ?? ""} onChange={(e) => updateDocenteEnFila(row.materia_id, e.target.value)}>
+                      <option value="">— Sin asignar —</option>
+                      {docentes.map((d) => <option key={d.id} value={d.id}>{[d.first_name, d.last_name].filter(Boolean).join(" ") || d.username}</option>)}
+                    </StyledSelect>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-between">
+              <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
                 <Btn variant="ghost" onClick={() => setStep(0)}>← Atrás</Btn>
-                <Btn
-                  variant="primary"
-                  loading={saving}
-                  onClick={editGroup ? handleEdit : handleCreate}
-                >
-                  {editGroup ? "Guardar cambios" : "Crear grupo"}
-                </Btn>
+                <Btn loading={saving} onClick={editGroup ? handleEdit : handleCreate}>{editGroup ? "Guardar cambios" : "Crear grupo"}</Btn>
               </div>
             </div>
           )}
         </Modal>
       )}
 
-      {/* ══ Modal Detalles ══ */}
       {detailsGroup && (
-        <Modal
-          title={`Detalles ${groupCode(detailsGroup)}`}
-          onClose={() => setDetailsGroup(null)}
-        >
-          <div className="space-y-5">
-            {/* Asignaciones del grupo */}
+        <Modal title={`Detalles ${groupCode(detailsGroup)}`} onClose={() => setDetailsGroup(null)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div>
-              <h4 className="mb-3 text-sm font-semibold text-gray-100">
-                Matriz académica
-              </h4>
-              <div className="space-y-2">
-                {getAsignacionesPorGrupo(detailsGroup.id).length > 0 ? (
-                  getAsignacionesPorGrupo(detailsGroup.id).map((asig) => (
-                    <div
-                      key={asig.id}
-                      className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                      style={{
-                        background: "rgba(139,92,246,0.06)",
-                        border: "1px solid rgba(139,92,246,0.12)",
-                      }}
-                    >
-                      <div>
-                        <span className="font-mono text-xs font-semibold text-violet-300">
-                          {asig.materia_detalle?.clave ?? `#${asig.materia}`}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-400">
-                          {asig.materia_detalle?.nombre}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs font-medium text-gray-200">
-                          {asig.docente_detalle
-                            ? `${asig.docente_detalle.first_name} ${asig.docente_detalle.last_name}`.trim()
-                            : "—"}
-                        </div>
-                        <div className="text-[11px] text-gray-500">
-                          {asig.docente_detalle?.email ?? ""}
-                        </div>
-                      </div>
+              <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Matriz académica</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {getAsignacionesPorGrupo(detailsGroup.id).length > 0 ? getAsignacionesPorGrupo(detailsGroup.id).map((asig) => (
+                  <div key={asig.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, borderRadius: T.radiusXs, background: T.cyanDim, border: `1px solid ${T.border}` }}>
+                    <div>
+                      <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{asig.materia_detalle?.clave ?? `#${asig.materia}`}</span>
+                      <span style={{ marginLeft: 8, fontSize: 12, color: T.textSecondary }}>{asig.materia_detalle?.nombre}</span>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-xs text-gray-500">Sin asignaciones registradas.</div>
-                )}
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{asig.docente_detalle ? `${asig.docente_detalle.first_name} ${asig.docente_detalle.last_name}`.trim() : "—"}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted }}>{asig.docente_detalle?.email ?? ""}</div>
+                    </div>
+                  </div>
+                )) : <div style={{ fontSize: 12, color: T.textMuted }}>Sin asignaciones registradas.</div>}
               </div>
             </div>
-
-            {/* Alumnos */}
             <div>
-              <h4 className="mb-3 text-sm font-semibold text-gray-100">
+              <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>
                 Alumnos ({alumnos.filter((a) => a.grupo === detailsGroup.id).length})
               </h4>
-              <div className="max-h-60 space-y-2.5 overflow-auto">
-                {alumnos
-                  .filter((a) => a.grupo === detailsGroup.id)
-                  .map((al) => (
-                    <div key={al.id} className="flex items-center gap-3">
-                      <Avatar label={al.nombre_completo ?? String(al.user)} />
-                      <div>
-                        <div className="text-sm font-medium text-gray-100">
-                          {al.nombre_completo}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {al.matricula || al.email || `ID ${al.id}`}
-                        </div>
-                      </div>
+              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                {alumnos.filter((a) => a.grupo === detailsGroup.id).map((al) => (
+                  <div key={al.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Avatar label={al.nombre_completo ?? String(al.user)} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{al.nombre_completo}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted }}>{al.matricula || al.email || `ID ${al.id}`}</div>
                     </div>
-                  ))}
-                {alumnos.filter((a) => a.grupo === detailsGroup.id).length === 0 && (
-                  <div className="text-xs text-gray-500">Sin alumnos inscritos.</div>
-                )}
+                  </div>
+                ))}
+                {alumnos.filter((a) => a.grupo === detailsGroup.id).length === 0 && <div style={{ fontSize: 12, color: T.textMuted }}>Sin alumnos inscritos.</div>}
               </div>
             </div>
           </div>
         </Modal>
       )}
 
-      
-
-      {/* ══ Modal Alumnos del Grupo ══ */}
       {alumnosModal.open && (
-        <Modal
-          title={`Alumnos de ${groupCode(alumnosModal.grupo)}`}
-          onClose={() => setAlumnosModal({ open: false, grupo: null, lista: [], loading: false })}
-        >
+        <Modal title={`Alumnos de ${groupCode(alumnosModal.grupo)}`} onClose={() => setAlumnosModal({ open: false, grupo: null, lista: [], loading: false })}>
           {alumnosModal.loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-sm text-gray-400">Cargando alumnos...</div>
+            <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}>
+              <span style={{ fontSize: 13, color: T.textMuted }}>Cargando alumnos...</span>
             </div>
           ) : alumnosModal.lista.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="px-4 py-2 text-left font-medium text-gray-300">Matrícula</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-300">Nombre</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-300">Correo</th>
+                  <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                    {["Matrícula", "Nombre", "Correo"].map((h) => <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.cyan, letterSpacing: "0.12em", textTransform: "uppercase" }}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {alumnosModal.lista.map((al) => (
-                    <tr key={al.id} className="border-b border-white/5 hover:bg-white/[0.02] transition">
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-gray-400">
-                          {al.matricula || `ID-${al.id}`}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                    <tr key={al.id} style={{ borderBottom: `1px solid rgba(6,182,212,0.07)` }}>
+                      <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 12, color: T.textMuted }}>{al.matricula || `ID-${al.id}`}</td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <Avatar label={al.nombre_completo ?? String(al.user)} />
-                          <span className="text-gray-200">{al.nombre_completo || al.user || "—"}</span>
+                          <span style={{ color: T.textPrimary }}>{al.nombre_completo || al.user || "—"}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-gray-400">{al.email || "—"}</span>
-                      </td>
+                      <td style={{ padding: "10px 12px", fontSize: 12, color: T.textSecondary }}>{al.email || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="text-sm font-medium text-gray-300 mb-2">No hay alumnos registrados</div>
-              <div className="text-xs text-gray-500">Este grupo aún no tiene estudiantes inscritos.</div>
+            <div style={{ textAlign: "center", padding: "32px 0" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: T.textSecondary, marginBottom: 4 }}>No hay alumnos registrados</div>
+              <div style={{ fontSize: 12, color: T.textMuted }}>Este grupo aún no tiene estudiantes inscritos.</div>
             </div>
           )}
         </Modal>
@@ -1827,7 +1422,8 @@ function GruposSection() {
     </>
   );
 }
-// ─── MateriasSection (MEJORADO) ────────────────────────────────────────────────
+
+// ─── MateriasSection ────────────────────────────────────────────────────────────
 
 function MateriasSection() {
   const [materias, setMaterias] = useState([]);
@@ -1839,112 +1435,52 @@ function MateriasSection() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await api.get("/academico/materias/");
-      setMaterias(extractList(res.data));
-    } catch (err) {
-      console.error("Error loading materias:", err);
-      setMaterias([]);
-    } finally {
-      setLoading(false);
-    }
+    try { const res = await api.get("/academico/materias/"); setMaterias(extractList(res.data)); }
+    catch { setMaterias([]); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = () => {
-    setForm({ nombre: "", clave: "", creditos: "" });
-    setModal({ mode: "create" });
-  };
-
-  const openEdit = (materia) => {
-    setForm({
-      nombre: materia.nombre ?? "",
-      clave: materia.clave ?? "",
-      creditos: String(materia.creditos ?? ""),
-    });
-    setModal({ mode: "edit", id: materia.id });
-  };
+  const openCreate = () => { setForm({ nombre: "", clave: "", creditos: "" }); setModal({ mode: "create" }); };
+  const openEdit = (m) => { setForm({ nombre: m.nombre ?? "", clave: m.clave ?? "", creditos: String(m.creditos ?? "") }); setModal({ mode: "edit", id: m.id }); };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    
-    // Validaciones
-    if (!form.nombre.trim()) {
-      show("El nombre de la materia es obligatorio.", "error");
-      return;
-    }
-    if (!form.clave.trim()) {
-      show("La clave de la materia es obligatoria.", "error");
-      return;
-    }
-    
-    // Validar creditos
+    if (!form.nombre.trim()) { show("El nombre es obligatorio.", "error"); return; }
+    if (!form.clave.trim())  { show("La clave es obligatoria.", "error"); return; }
     const creditos = Number.parseInt(form.creditos, 10);
-    if (isNaN(creditos) || creditos < 0 || creditos > 20) {
-      show("Los créditos deben estar entre 0 y 20.", "error");
-      return;
-    }
-
-    if (modal.mode === "edit" && !modal.id) {
-      show("ID de materia no definido.", "error");
-      return;
-    }
-
+    if (isNaN(creditos) || creditos < 0 || creditos > 20) { show("Los créditos deben estar entre 0 y 20.", "error"); return; }
     setSaving(true);
     try {
       const payload = normalizeMateriaPayload(form);
-      
-      if (modal.mode === "create") {
-        await api.post("/academico/materias/", payload);
-        show("Materia creada correctamente.");
-      } else {
-        await api.put(`/academico/materias/${modal.id}/`, payload);
-        show("Materia actualizada correctamente.");
-      }
-      
-      setModal(null);
-      setForm({ nombre: "", clave: "", creditos: "" });
-      await load();
+      if (modal.mode === "create") { await api.post("/academico/materias/", payload); show("Materia creada correctamente."); }
+      else { await api.put(`/academico/materias/${modal.id}/`, payload); show("Materia actualizada correctamente."); }
+      setModal(null); await load();
     } catch (err) {
-      console.error("Error saving materia:", err);
-      if (err.response?.data) {
-        const msg = Object.entries(err.response.data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" | ");
-        show(`Error: ${msg}`, "error");
-      } else {
-        show("No se pudo guardar la materia.", "error");
-      }
-    } finally {
-      setSaving(false);
-    }
+      if (err.response?.data) { const msg = Object.entries(err.response.data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | "); show(`Error: ${msg}`, "error"); }
+      else show("No se pudo guardar la materia.", "error");
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("¿Eliminar esta materia? Esta acción no se puede deshacer.")) return;
-    try {
-      await api.delete(`/academico/materias/${id}/`);
-      show("Materia eliminada correctamente.");
-      await load();
-    } catch (err) {
-      console.error("Error deleting materia:", err);
-      show("No se pudo eliminar la materia.", "error");
-    }
+    try { await api.delete(`/academico/materias/${id}/`); show("Materia eliminada."); await load(); }
+    catch { show("No se pudo eliminar la materia.", "error"); }
   };
 
   return (
     <>
       <Toast toast={toast} />
-      <SectionTitle title="Materias" subtitle="Catalogo de materias." action={<Btn onClick={openCreate}>+ Nueva materia</Btn>} />
-      <Table cols={["Clave", "Nombre", "Creditos", ""]} loading={loading} emptyText="Sin materias registradas">
+      <SectionTitle title="Materias" subtitle="Catálogo de materias." action={<Btn onClick={openCreate}>+ Nueva materia</Btn>} />
+      <Table cols={["Clave", "Nombre", "Créditos", ""]} loading={loading} emptyText="Sin materias registradas">
         {materias.map((materia, idx) => (
           <TR key={materia.id} idx={idx}>
-            <TD><span className="font-mono text-xs font-semibold text-violet-200">{materia.clave}</span></TD>
-            <TD><span className="text-sm font-medium text-gray-100">{materia.nombre}</span></TD>
-            <TD><Pill color="gray">{materia.creditos ?? 0} creditos</Pill></TD>
+            <TD><span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{materia.clave}</span></TD>
+            <TD><span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{materia.nombre}</span></TD>
+            <TD><Pill color="gray">{materia.creditos ?? 0} créditos</Pill></TD>
             <TD>
-              <div className="flex flex-wrap gap-2">
+              <div style={{ display: "flex", gap: 8 }}>
                 <Btn variant="ghost"  size="sm" onClick={() => openEdit(materia)}>Editar</Btn>
                 <Btn variant="danger" size="sm" onClick={() => handleDelete(materia.id)}>Eliminar</Btn>
               </div>
@@ -1955,44 +1491,21 @@ function MateriasSection() {
 
       {modal ? (
         <Modal title={modal.mode === "create" ? "Nueva materia" : "Editar materia"} onClose={() => setModal(null)}>
-          <form className="space-y-4" onSubmit={handleSave}>
+          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSave}>
             <Field label="Nombre" required>
-              <input
-                className={inputCls}
-                value={form.nombre}
-                placeholder="Ej. Matematicas I"
-                onChange={(e) => setForm((c) => ({ ...c, nombre: e.target.value }))}
-                disabled={saving}
-              />
+              <StyledInput value={form.nombre} onChange={(e) => setForm((c) => ({ ...c, nombre: e.target.value }))} placeholder="Ej. Matemáticas I" disabled={saving} />
             </Field>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Clave" required>
-                <input
-                  className={inputCls}
-                  value={form.clave}
-                  placeholder="MAT-101"
-                  onChange={(e) => setForm((c) => ({ ...c, clave: e.target.value }))}
-                  disabled={saving}
-                />
+                <StyledInput value={form.clave} onChange={(e) => setForm((c) => ({ ...c, clave: e.target.value }))} placeholder="MAT-101" disabled={saving} />
               </Field>
-              <Field label="Creditos">
-                <input
-                  className={inputCls}
-                  type="number"
-                  min={0}
-                  max={20}
-                  value={form.creditos}
-                  placeholder="5"
-                  onChange={(e) => setForm((c) => ({ ...c, creditos: e.target.value }))}
-                  disabled={saving}
-                />
+              <Field label="Créditos">
+                <StyledInput type="number" value={form.creditos} onChange={(e) => setForm((c) => ({ ...c, creditos: e.target.value }))} placeholder="5" disabled={saving} />
               </Field>
             </div>
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <Btn variant="ghost" onClick={() => setModal(null)} disabled={saving}>Cancelar</Btn>
-              <Btn variant="primary" type="submit" loading={saving}>
-                {modal.mode === "create" ? "Registrar materia" : "Guardar cambios"}
-              </Btn>
+              <Btn type="submit" loading={saving}>{modal.mode === "create" ? "Registrar materia" : "Guardar cambios"}</Btn>
             </div>
           </form>
         </Modal>
@@ -2001,20 +1514,20 @@ function MateriasSection() {
   );
 }
 
-// ─── DashboardLoader ───────────────────────────────────────────────────────────
+// ─── DashboardLoader ────────────────────────────────────────────────────────────
 
 function DashboardLoader() {
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ background: C.bg }}>
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
-        <span className="text-xs text-gray-500">Preparando panel...</span>
+    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: T.bg, ...BG_DOTS }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 36, height: 36, border: `2px solid ${T.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+        <span style={{ fontSize: 12, color: T.textMuted, fontFamily: T.fontBody }}>Preparando panel...</span>
       </div>
     </div>
   );
 }
 
-// ─── AdminDashboard (default export) ──────────────────────────────────────────
+// ─── AdminDashboard (default export) ───────────────────────────────────────────
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth();
@@ -2031,11 +1544,8 @@ export default function AdminDashboard() {
     try {
       const parsed = JSON.parse(raw);
       setIsAdmin(parsed?.rol === "ADMIN" && user?.rol === "ADMIN");
-    } catch {
-      setIsAdmin(false);
-    } finally {
-      setChecking(false);
-    }
+    } catch { setIsAdmin(false); }
+    finally { setChecking(false); }
   }, [loading, user]);
 
   useEffect(() => {
@@ -2043,10 +1553,8 @@ export default function AdminDashboard() {
     let cancelled = false;
     const fetchStats = async () => {
       const [a, d, g, m] = await Promise.allSettled([
-        api.get("/academico/alumnos/"),
-        api.get("/auth/usuarios/?rol=DOCENTE"),
-        api.get("/academico/grupos/"),
-        api.get("/academico/materias/"),
+        api.get("/academico/alumnos/"), api.get("/auth/usuarios/?rol=DOCENTE"),
+        api.get("/academico/grupos/"), api.get("/academico/materias/"),
       ]);
       if (cancelled) return;
       setStats({
@@ -2076,51 +1584,92 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: C.bg, fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
-      <Sidebar active={section} onSelect={setSection} stats={stats} mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
+    <>
+      {/* Global spin animation */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } * { box-sizing: border-box; }`}</style>
 
-      <div className="min-h-screen lg:pl-72">
-        <header className="sticky top-0 z-30 border-b border-white/5 bg-[#07030f]/85 backdrop-blur-xl">
-          <div className="px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-gray-100 lg:hidden"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="Abrir menu"
-                >
-                  ☰
-                </button>
-                <div>
-                  <h1 className="text-lg font-bold text-gray-100">Panel de Administracion</h1>
-                  <p className="mt-1 text-xs text-gray-500">{currentSection?.label} · {currentSection?.desc}</p>
+      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: T.fontBody, ...BG_DOTS }}>
+        {/* Syne font */}
+        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+        <Sidebar active={section} onSelect={setSection} stats={stats} mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
+
+        <div style={{ minHeight: "100vh", paddingLeft: 272 }}>
+          {/* Header */}
+          <header
+            style={{
+              position: "sticky", top: 0, zIndex: 30,
+              borderBottom: `1px solid ${T.border}`,
+              background: "rgba(5,18,32,0.88)",
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            <div style={{ padding: "16px 32px" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen(true)}
+                    aria-label="Abrir menú"
+                    style={{
+                      width: 40, height: 40, borderRadius: T.radiusSm,
+                      border: `1px solid ${T.border}`, background: T.cyanDim,
+                      color: T.textPrimary, cursor: "pointer", fontSize: 16,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    ☰
+                  </button>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>
+                      Panel de administración
+                    </h1>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: T.textMuted, fontFamily: T.fontBody }}>
+                      {currentSection?.label} · {currentSection?.desc}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, fontFamily: T.fontBody }}>{user.first_name || user.username}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Sesión administrativa</div>
+                  </div>
+                  <div
+                    style={{
+                      width: 40, height: 40, borderRadius: T.radiusSm,
+                      background: "linear-gradient(135deg, rgba(29,185,84,0.20) 0%, rgba(6,182,212,0.12) 100%)",
+                      border: `1px solid ${T.borderGreen}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 14, fontWeight: 700, color: T.accent, fontFamily: T.fontHeading,
+                    }}
+                  >
+                    {(user.first_name?.[0] ?? user.username?.[0] ?? "A").toUpperCase()}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 self-start sm:self-auto">
-                <div className="hidden text-right sm:block">
-                  <div className="text-sm font-semibold text-gray-100">{user.first_name || user.username}</div>
-                  <div className="text-[11px] text-gray-500">Sesion administrativa</div>
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 text-sm font-bold text-violet-100">
-                  {(user.first_name?.[0] ?? user.username?.[0] ?? "A").toUpperCase()}
-                </div>
+
+              {/* Stat cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+                {SECTIONS.map((item) => (
+                  <StatCard
+                    key={item.id}
+                    label={item.label}
+                    value={stats[item.id]}
+                    icon={item.icon}
+                    active={section === item.id}
+                    onClick={() => setSection(item.id)}
+                  />
+                ))}
               </div>
             </div>
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {SECTIONS.map((item) => (
-                <button key={item.id} type="button" onClick={() => setSection(item.id)} className={`text-left transition ${section === item.id ? "opacity-100" : "opacity-70 hover:opacity-100"}`}>
-                  <StatCard label={item.label} value={stats[item.id]} icon={item.icon} />
-                </button>
-              ))}
-            </div>
-          </div>
-        </header>
+          </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
-          {renderSection()}
-        </main>
+          {/* Main content */}
+          <main style={{ padding: "28px 32px" }}>
+            {renderSection()}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

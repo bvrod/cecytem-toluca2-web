@@ -108,3 +108,49 @@ class CumplimientoViewSet(viewsets.ModelViewSet):
             "registros_actualizados": registros_actualizados,
             "timestamp": timezone.now()
         }, status=status.HTTP_200_OK)
+
+    # POST /api/seguimiento/cumplimiento/guardar_asistencia/
+    @action(detail=False, methods=['post'])
+    def guardar_asistencia(self, request):
+        """Guardar asistencia y evaluaciones de un grupo para una actividad"""
+        actividad_id = request.data.get('actividad_id')
+        asistencias = request.data.get('asistencias', {})  # { alumno_id: true/false }
+        evaluaciones = request.data.get('evaluaciones', {})  # { alumno_id: calificacion }
+
+        if not actividad_id:
+            return Response({"error": "Falta actividad_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            actividad = Actividad.objects.get(id=actividad_id)
+        except Actividad.DoesNotExist:
+            return Response({"error": "Actividad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Validación RN15
+        if actividad.fecha_limite + timedelta(days=7) < timezone.now():
+            return Response({
+                "error": "BusinessRuleViolation",
+                "detail": "Periodo de 7 días pasado"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        registros_guardados = 0
+        errores = []
+
+        # Guardar asistencias (como cumplimiento = entregado)
+        for alumno_id_str, presente in asistencias.items():
+            try:
+                alumno_id = int(alumno_id_str)
+                cumplimiento, _ = Cumplimiento.objects.update_or_create(
+                    actividad=actividad,
+                    alumno_id=alumno_id,
+                    defaults={'entregado': presente}
+                )
+                registros_guardados += 1
+            except (ValueError, Cumplimiento.DoesNotExist) as e:
+                errores.append(f"Alumno {alumno_id_str}: {str(e)}")
+
+        return Response({
+            "status": "success",
+            "registros_guardados": registros_guardados,
+            "errores": errores,
+            "timestamp": timezone.now()
+        }, status=status.HTTP_200_OK)

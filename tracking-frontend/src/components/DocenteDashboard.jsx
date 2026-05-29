@@ -82,6 +82,8 @@ export default function DocenteDashboard() {
   const [selectedAsignacion, setSelectedAsignacion] = useState(null);
   const [actividades, setActividades] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
+  const [asistencia, setAsistencia] = useState({}); // { alumno_id: true/false }
+  const [evaluaciones, setEvaluaciones] = useState({}); // { alumno_id: calificacion }
   
   // Estado de UI
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,6 +91,7 @@ export default function DocenteDashboard() {
   const [loadingDetalles, setLoadingDetalles] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedActividad, setSelectedActividad] = useState(null); // Actividad para registrar asistencia
 
   // ──────────────────────────────────────────────────────────────────────────
   // 1. CARGAR ASIGNACIONES DEL DOCENTE
@@ -174,6 +177,42 @@ export default function DocenteDashboard() {
         setLoadingDetalles(false);
       }
     };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 3. GUARDAR ASISTENCIA Y EVALUACIONES
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const guardarAsistencia = async () => {
+    if (!selectedActividad) {
+      alert("Selecciona una actividad para registrar la asistencia");
+      return;
+    }
+
+    try {
+      const payload = {
+        actividad_id: selectedActividad,
+        asistencias: asistencia,
+        evaluaciones: evaluaciones
+      };
+
+      console.log("📤 Guardando asistencia:", payload);
+
+      const res = await api.post("/seguimiento/cumplimiento/guardar_asistencia/", payload);
+
+      console.log("✅ Asistencia guardada:", res.data);
+
+      alert(`✅ Se guardaron ${res.data.registros_guardados} registros`);
+      
+      // Limpiar estados después de guardar
+      setAsistencia({});
+      setEvaluaciones({});
+      setSelectedActividad(null);
+    } catch (err) {
+      console.error("❌ Error al guardar asistencia:", err);
+      const mensaje = err.response?.data?.detail || "Error al guardar";
+      alert(`❌ ${mensaje}`);
+    }
+  };
 
     fetchDetallesMateria();
   }, [selectedAsignacion]);
@@ -366,12 +405,23 @@ export default function DocenteDashboard() {
                       <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
                         <span>👥 Alumnos Matriculados</span>
                       </h3>
-                      <span className="bg-purple-900/30 text-purple-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold">
-                        {alumnos.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-purple-900/30 text-purple-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold">
+                          {alumnos.length}
+                        </span>
+                        {Object.keys(asistencia).length > 0 && (
+                          <button
+                            onClick={() => guardarAsistencia()}
+                            className="px-3 py-1 bg-green-600/80 hover:bg-green-600 text-white text-[10px] font-bold rounded-md transition-all"
+                            title="Guardar asistencias y evaluaciones"
+                          >
+                            💾 Guardar
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-1.5 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-0 custom-scrollbar">
                       {alumnos.length === 0 ? (
                         <EmptyState 
                           icon="📋"
@@ -379,9 +429,39 @@ export default function DocenteDashboard() {
                           message="No se encontraron alumnos matriculados en Control Escolar."
                         />
                       ) : (
-                        alumnos.map((alu, index) => (
-                          <StudentRow key={alu.id || index} alumno={alu} />
-                        ))
+                        <div className="bg-black/10 rounded-lg border border-purple-950/30 overflow-hidden">
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="bg-purple-900/20 border-b border-purple-950/30 sticky top-0">
+                                <th className="px-3 py-2 text-left font-black text-gray-300">Matrícula</th>
+                                <th className="px-3 py-2 text-left font-black text-gray-300">Nombre</th>
+                                <th className="px-3 py-2 text-center font-black text-gray-300">✓ Asist</th>
+                                <th className="px-3 py-2 text-center font-black text-gray-300">Calif.</th>
+                                <th className="px-3 py-2 text-center font-black text-gray-300">Acción</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-purple-950/20">
+                              {alumnos.map((alu) => (
+                                <StudentTableRow
+                                  key={alu.id}
+                                  alumno={alu}
+                                  asistencia={asistencia[alu.id] || false}
+                                  calificacion={evaluaciones[alu.id] || ""}
+                                  onToggleAsistencia={() => setAsistencia(prev => ({
+                                    ...prev,
+                                    [alu.id]: !prev[alu.id]
+                                  }))}
+                                  onCalificacionChange={(valor) => setEvaluaciones(prev => ({
+                                    ...prev,
+                                    [alu.id]: valor
+                                  }))}
+                                  selectedActividad={selectedActividad}
+                                  onSelectActividad={() => setSelectedActividad(selectedActividad?.id === alu.id ? null : alu.id)}
+                                />
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -545,29 +625,72 @@ function ActivityCard({ actividad }) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: FILA DE ALUMNO
+// COMPONENTE: FILA DE TABLA DE ASISTENCIA
 // ────────────────────────────────────────────────────────────────────────────
 
-function StudentRow({ alumno }) {
+function StudentTableRow({ 
+  alumno, 
+  asistencia, 
+  calificacion, 
+  onToggleAsistencia, 
+  onCalificacionChange,
+  selectedActividad,
+  onSelectActividad 
+}) {
   const nombreCompleto = 
     alumno.nombre_completo || 
     alumno.alumno_nombre || 
     `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() ||
     "Alumno sin nombre";
   
-  const matricula = alumno.matricula || alumno.id || "Sin matrícula";
+  const matricula = alumno.matricula || alumno.id || "Sin mat.";
 
   return (
-    <div className="p-2.5 bg-black/20 border border-purple-950/20 rounded-lg hover:bg-purple-950/10 hover:border-purple-900/40 transition-all group">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-300 font-medium truncate flex-1">
-          {nombreCompleto}
-        </span>
-        <span className="text-[10px] font-mono text-gray-500 shrink-0 group-hover:text-purple-400 transition-colors">
-          {matricula}
-        </span>
-      </div>
-    </div>
+    <tr className="hover:bg-purple-950/15 transition-colors group">
+      <td className="px-3 py-2.5 font-mono text-gray-400 text-[10px]">
+        {matricula}
+      </td>
+      <td className="px-3 py-2.5 text-gray-300 font-medium truncate">
+        {nombreCompleto}
+      </td>
+      <td className="px-3 py-2.5 text-center">
+        <button
+          onClick={onToggleAsistencia}
+          className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
+            asistencia
+              ? 'bg-green-500/30 border border-green-400 text-green-400'
+              : 'bg-gray-700/20 border border-gray-600 text-gray-500 hover:border-gray-500'
+          }`}
+          title="Marcar asistencia"
+        >
+          {asistencia ? '✓' : '-'}
+        </button>
+      </td>
+      <td className="px-3 py-2.5 text-center">
+        <input
+          type="number"
+          min="0"
+          max="10"
+          value={calificacion}
+          onChange={(e) => onCalificacionChange(e.target.value)}
+          className="w-12 px-1.5 py-1 bg-purple-950/30 border border-purple-900/40 rounded text-gray-200 text-center text-xs focus:border-purple-600 focus:outline-none"
+          placeholder="-"
+        />
+      </td>
+      <td className="px-3 py-2.5 text-center">
+        <button
+          onClick={onSelectActividad}
+          className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
+            selectedActividad
+              ? 'bg-purple-600 text-white'
+              : 'bg-purple-900/30 text-purple-300 hover:bg-purple-900/50'
+          }`}
+          title="Registrar calificación"
+        >
+          📝
+        </button>
+      </td>
+    </tr>
   );
 }
 
