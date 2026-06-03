@@ -344,7 +344,7 @@ export default function App() {
 
             <div className="flex shrink-0 items-center gap-2 sm:gap-2.5 2xl:gap-3">
               <a
-                href="http://localhost:5174"
+                href="/sistema-institucional"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="cta-secondary hidden items-center justify-center gap-1.5 whitespace-nowrap !rounded-xl !px-3 !py-1.5 !text-sm 2xl:inline-flex"
@@ -389,7 +389,7 @@ export default function App() {
               >
                 <div className="grid gap-2">
                   <a
-                    href="http://localhost:5174"
+                    href="/sistema-institucional"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setMobileOpen(false)}

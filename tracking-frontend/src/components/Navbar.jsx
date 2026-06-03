@@ -86,7 +86,7 @@ export function Navbar() {
 
           {/* Sitio Web link */}
           <a
-            href="http://localhost:5173"
+            href="/"
             style={{
               display: "flex", alignItems: "center", gap: 6,
               fontSize: 12, fontWeight: 600,

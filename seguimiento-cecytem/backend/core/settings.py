@@ -154,6 +154,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
     "http://localhost:3000",
+    "https://cecytem-toluca2-web.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
