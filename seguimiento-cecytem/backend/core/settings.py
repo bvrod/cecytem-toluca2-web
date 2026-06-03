@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-e4tx^*5c*&mbu#^(%ke)%v$in4z7#4%hg&a+qcjzea%tmfl48f'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # En desarrollo, permitir todos los hosts
 
 
 # Application definition
@@ -88,12 +88,8 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',                          # En conexión directa el usuario es solo 'postgres'
-        'PASSWORD': 'CecytemTol2',         # Coloca la contraseña que creaste para este proyecto
-        'HOST': 'db.nuelrreshvilllmwqynk.supabase.co', # El host directo exclusivo de tu proyecto
-        'PORT': '5432',                                # Puerto clásico directo de Postgres
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -153,8 +149,10 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:5175",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
     "http://localhost:3000",
 ]
 

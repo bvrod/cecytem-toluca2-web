@@ -27,15 +27,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
     if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser);
+        // Actualizar ambas instancias de axios
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log('✅ Token restaurado desde localStorage:', token.substring(0, 30));
         setUser(parsedUser);
       } catch {
         localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        localStorage.removeItem('access_token');
       }
     }
     setLoading(false);
@@ -90,17 +93,23 @@ export const AuthProvider = ({ children }) => {
 
     console.log('[AuthContext] userData final (con rol corregido) →', userData);
 
+    // ✅ ACTUALIZAR AMBAS INSTANCIAS DE AXIOS CON EL TOKEN
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    localStorage.setItem('token', token);
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    console.log('✅ Authorization header configurado en ambas instancias');
+
+    localStorage.setItem('access_token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     return { success: true, user: userData };
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
     localStorage.removeItem('user');
+    // Limpiar header en ambas instancias
     delete axios.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common['Authorization'];
     setUser(null);
   };
 

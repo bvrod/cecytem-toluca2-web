@@ -9,10 +9,11 @@ from academico.models import Grupo, Materia, Alumno
 class AsignacionDocente(models.Model):
     # Relacionamos con el Usuario, asegurando que solo los que tengan rol 'DOCENTE' puedan asignarse
     docente = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE,
-        related_name='asignaciones'
-    )
+    settings.AUTH_USER_MODEL, 
+    on_delete=models.CASCADE,
+    related_name='asignaciones',
+    limit_choices_to={'rol': 'DOCENTE'},   # ← agrega esta línea
+)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE, related_name='asignaciones')
     grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name='asignaciones')
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
@@ -24,10 +25,10 @@ class AsignacionDocente(models.Model):
 
     def clean(self):
         # RN3: Solo docentes pueden tener asignaciones
-        if not (self.docente.is_staff or self.docente.is_superuser):
+        if getattr(self.docente, 'rol', None) != 'DOCENTE':
             raise ValidationError(
-                "Solo usuarios con rol de Docente pueden ser asignados a materias."
-            )
+            "Solo usuarios con rol de Docente pueden ser asignados a materias."
+        )
     
     def save(self, *args, **kwargs):
         self.full_clean()

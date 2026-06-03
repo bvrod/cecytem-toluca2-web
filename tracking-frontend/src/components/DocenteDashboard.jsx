@@ -3,620 +3,654 @@ import { Navbar } from './Navbar';
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
-// ────────────────────────────────────────────────────────────────────────────
-// UTILIDADES Y FUNCIONES PURAS
-// ────────────────────────────────────────────────────────────────────────────
+// ─── Design Tokens ─────────────────────────────────────────────────────────────
 
-/**
- * Determina si una actividad está bloqueada para edición
- * (más de 7 días pasada la fecha de vencimiento)
- */
+const T = {
+  bg:            "#082030",
+  surface:       "rgba(5,18,32,0.72)",
+  surfaceDeep:   "rgba(4,13,24,0.97)",
+  border:        "rgba(6,182,212,0.18)",
+  borderStrong:  "rgba(6,182,212,0.32)",
+  borderGreen:   "rgba(29,185,84,0.28)",
+  accent:        "#1db954",
+  accentEnd:     "#159b45",
+  accentGlow:    "rgba(29,185,84,0.15)",
+  cyan:          "#06b6d4",
+  cyanDim:       "rgba(6,182,212,0.10)",
+  textPrimary:   "#e5e7eb",
+  textSecondary: "#9aa5b7",
+  textMuted:     "#4d6070",
+  amber:         "#f59e0b",
+  amberDim:      "rgba(245,158,11,0.12)",
+  amberBorder:   "rgba(245,158,11,0.25)",
+  emerald:       "#34d399",
+  emeraldDim:    "rgba(52,211,153,0.10)",
+  danger:        "rgba(239,68,68,0.10)",
+  dangerBorder:  "rgba(239,68,68,0.25)",
+  dangerText:    "#fca5a5",
+  radius:        "20px",
+  radiusSm:      "12px",
+  radiusXs:      "8px",
+  shadow:        "0 25px 80px rgba(2,10,20,0.55)",
+  shadowSm:      "0 8px 30px rgba(2,10,20,0.40)",
+};
+
+const DOTS_BG = {
+  backgroundImage: `radial-gradient(rgba(6,182,212,0.18) 1.5px, transparent 1.5px)`,
+  backgroundSize:  "26px 26px",
+};
+
+const inputStyle = {
+  width: "100%",
+  background: "rgba(5,18,32,0.55)",
+  border: `1px solid ${T.border}`,
+  borderRadius: T.radiusXs,
+  padding: "9px 12px",
+  fontSize: 12,
+  color: T.textPrimary,
+  outline: "none",
+  fontFamily: "'DM Sans', sans-serif",
+  transition: "border-color 0.2s, box-shadow 0.2s",
+  backdropFilter: "blur(8px)",
+};
+
+// ─── Utilidades ─────────────────────────────────────────────────────────────────
+
 function isLocked(fechaVencimiento) {
   if (!fechaVencimiento) return false;
-  const venc = new Date(fechaVencimiento);
-  const now = new Date();
-  return (now - venc) / (1000 * 60 * 60 * 24) > 7;
+  return (new Date() - new Date(fechaVencimiento)) / (1000 * 60 * 60 * 24) > 7;
 }
 
-/**
- * Extrae el nombre real de la materia desde respuesta del backend
- */
 function extractNombreMateria(asignacion) {
   if (!asignacion) return "Materia";
   return (
-    asignacion.nombre_materia ||
-    asignacion.materia_nombre ||
-    asignacion.materia?.nombre ||
-    asignacion.materia?.clave ||
+    asignacion.nombre_materia || asignacion.materia_nombre ||
+    asignacion.materia?.nombre || asignacion.materia?.clave ||
     (typeof asignacion.materia === 'object' ? "Asignación Académica" : `Materia (ID: ${asignacion.materia})`)
   );
 }
 
-/**
- * Extrae el nombre real del grupo
- */
 function extractNombreGrupo(asignacion) {
   if (!asignacion) return "Grupo";
   return (
-    asignacion.nombre_grupo ||
-    asignacion.detalle_grupo ||
-    asignacion.grupo_nombre ||
-    asignacion.grupo?.nombre ||
-    asignacion.grupo?.codigo ||
-    `Grupo: ${asignacion.grupo}`
+    asignacion.nombre_grupo || asignacion.detalle_grupo ||
+    asignacion.grupo_nombre || asignacion.grupo?.nombre ||
+    asignacion.grupo?.codigo || `Grupo: ${asignacion.grupo}`
   );
 }
 
-/**
- * Extrae el nombre del aula/salón
- */
 function extractAula(asignacion) {
   if (!asignacion) return "Por asignar";
   return asignacion.aula_nombre || asignacion.salon || asignacion.aula || "Por asignar";
 }
 
-/**
- * Normaliza respuestas del backend para garantizar arrays
- */
 function normalizeArrayResponse(data) {
   if (Array.isArray(data)) return data;
   if (!data || typeof data !== 'object') return [];
-  
   return (
-    data.asignaciones ||
-    data.results ||
-    data.data ||
+    data.asignaciones || data.results || data.data ||
     (Array.isArray(data.asignacion) ? data.asignacion : [])
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE PRINCIPAL: DOCENTE DASHBOARD
-// ────────────────────────────────────────────────────────────────────────────
+// ─── Glass Card ─────────────────────────────────────────────────────────────────
+
+function Card({ children, style = {}, accentColor, padding = "0" }) {
+  const topColor = accentColor ?? T.accent;
+  return (
+    <div style={{
+      position: "relative",
+      borderRadius: T.radius,
+      background: T.surface,
+      border: `1px solid ${T.border}`,
+      boxShadow: T.shadow,
+      backdropFilter: "blur(20px)",
+      overflow: "hidden",
+      padding,
+      ...style,
+    }}>
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 3,
+        background: `linear-gradient(90deg, ${topColor} 0%, ${T.accentEnd} 100%)`,
+        borderRadius: `${T.radius} ${T.radius} 0 0`,
+      }} />
+      <div style={{ paddingTop: 3, height: "100%" }}>{children}</div>
+    </div>
+  );
+}
+
+function FieldLabel({ children }) {
+  return (
+    <label style={{
+      display: "block", marginBottom: 6,
+      fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+      letterSpacing: "0.18em", color: T.textMuted,
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      {children}
+    </label>
+  );
+}
+
+// ─── DocenteDashboard ───────────────────────────────────────────────────────────
 
 export default function DocenteDashboard() {
   const { user } = useAuth();
-  
-  // Estado de datos
-  const [asignaciones, setAsignaciones] = useState([]);
-  const [selectedAsignacion, setSelectedAsignacion] = useState(null);
-  const [actividades, setActividades] = useState([]);
-  const [alumnos, setAlumnos] = useState([]);
-  const [asistencia, setAsistencia] = useState({}); // { alumno_id: true/false }
-  const [evaluaciones, setEvaluaciones] = useState({}); // { alumno_id: calificacion }
-  
-  // Estado de UI
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loadingDashboard, setLoadingDashboard] = useState(true);
-  const [loadingDetalles, setLoadingDetalles] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [error, setError] = useState(null);
-  const [selectedActividad, setSelectedActividad] = useState(null); // Actividad para registrar asistencia
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 1. CARGAR ASIGNACIONES DEL DOCENTE
-  // ──────────────────────────────────────────────────────────────────────────
-  
+  const [asignaciones,       setAsignaciones]       = useState([]);
+  const [selectedAsignacion, setSelectedAsignacion] = useState(null);
+  const [actividades,        setActividades]        = useState([]);
+  const [alumnos,            setAlumnos]            = useState([]);
+  const [asistencia,         setAsistencia]         = useState({});
+  const [evaluaciones,       setEvaluaciones]       = useState({});
+  const [searchQuery,        setSearchQuery]        = useState("");
+  const [loadingDashboard,   setLoadingDashboard]   = useState(true);
+  const [loadingDetalles,    setLoadingDetalles]    = useState(false);
+  const [showModal,          setShowModal]          = useState(false);
+  const [error,              setError]              = useState(null);
+  const [selectedActividad,  setSelectedActividad]  = useState(null);
+
+  // ── Cargar asignaciones ────────────────────────────────────────────────────
+
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoadingDashboard(true);
       setError(null);
-      
-      const res = await api.get("/academico/docentes/dashboard");
-      const dataAsignaciones = normalizeArrayResponse(res.data);
-      
-      console.log("🔍 [DocenteDashboard] Respuesta del backend:", res.data);
-      
-      setAsignaciones(dataAsignaciones);
-      
-      // Si existe una asignación seleccionada, actualizarla
+      const res = await api.get("academico/docentes/dashboard/");
+      const data = normalizeArrayResponse(res.data);
+      setAsignaciones(data);
       if (selectedAsignacion) {
-        const updated = dataAsignaciones.find(a => a.id === selectedAsignacion.id);
-        if (updated) {
-          setSelectedAsignacion(updated);
-        }
+        const updated = data.find(a => a.id === selectedAsignacion.id);
+        if (updated) setSelectedAsignacion(updated);
       }
-    } catch (err) {
-      console.error("❌ Error al cargar dashboard:", err);
+    } catch {
       setError("No se pudieron cargar tus asignaciones. Intenta recargar la página.");
     } finally {
       setLoadingDashboard(false);
     }
   }, [selectedAsignacion]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  useEffect(() => { fetchDashboardData(); }, []);
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 2. CARGAR DETALLES DE LA ASIGNACIÓN SELECCIONADA (ACTIVIDADES + ALUMNOS)
-  // ──────────────────────────────────────────────────────────────────────────
-  
-  useEffect(() => {
-    if (!selectedAsignacion?.id) {
-      setActividades([]);
-      setAlumnos([]);
-      return;
-    }
+  // ── Cargar detalles ────────────────────────────────────────────────────────
 
-    const fetchDetallesMateria = async () => {
+  useEffect(() => {
+    if (!selectedAsignacion?.id) { setActividades([]); setAlumnos([]); return; }
+
+    const fetchDetalles = async () => {
       try {
         setLoadingDetalles(true);
         setError(null);
-        
-        // Peticiones paralelas
-        const [resActividades, resAlumnos] = await Promise.all([
-          api.get(`/seguimiento/actividades/?asignacion=${selectedAsignacion.id}`),
-          api.get(`/academico/alumnos/?asignacion=${selectedAsignacion.id}`)
-            .catch(err => {
-              console.warn("⚠️ Error al cargar alumnos, usando datos de respaldo:", err);
-              return { data: [] };
-            })
+        const [resAct, resAlu] = await Promise.all([
+          api.get(`seguimiento/actividades/?asignacion=${selectedAsignacion.id}`),
+          api.get(`academico/alumnos/?asignacion=${selectedAsignacion.id}`).catch(() => ({ data: [] })),
         ]);
-
-        // Normalizar actividades
-        const listaActividades = normalizeArrayResponse(resActividades.data);
-        setActividades(listaActividades);
-        
-        // Normalizar alumnos (con respaldo en datos de asignación)
-        let listaAlumnos = normalizeArrayResponse(resAlumnos.data);
-        if (listaAlumnos.length === 0) {
-          listaAlumnos = selectedAsignacion.alumnos || 
-                         selectedAsignacion.grupo?.alumnos || 
-                         [];
-        }
-        setAlumnos(listaAlumnos);
-        
-        console.log("✅ [DetallesMateria] Actividades:", listaActividades);
-        console.log("✅ [DetallesMateria] Alumnos:", listaAlumnos);
-        
-      } catch (err) {
-        console.error("❌ Error al cargar detalles:", err);
+        setActividades(normalizeArrayResponse(resAct.data));
+        const lista = normalizeArrayResponse(resAlu.data);
+        setAlumnos(lista.length ? lista : selectedAsignacion.alumnos || selectedAsignacion.grupo?.alumnos || []);
+      } catch {
         setError("No se pudieron cargar los detalles de esta materia.");
       } finally {
         setLoadingDetalles(false);
       }
     };
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 3. GUARDAR ASISTENCIA Y EVALUACIONES
-  // ──────────────────────────────────────────────────────────────────────────
+    fetchDetalles();
+  }, [selectedAsignacion]);
+
+  // ── Filtrado ───────────────────────────────────────────────────────────────
+
+  const filteredAsignaciones = useMemo(() => asignaciones.filter(a => {
+    if (!a) return false;
+    const q = String(searchQuery).toLowerCase();
+    return (
+      String(extractNombreMateria(a)).toLowerCase().includes(q) ||
+      String(extractNombreGrupo(a)).toLowerCase().includes(q) ||
+      String(extractAula(a)).toLowerCase().includes(q)
+    );
+  }), [asignaciones, searchQuery]);
+
+  // ── Guardar asistencia ─────────────────────────────────────────────────────
+  // CORRECCIÓN: ruta sin barra inicial para respetar el baseURL de Axios
 
   const guardarAsistencia = async () => {
     if (!selectedActividad) {
       alert("Selecciona una actividad para registrar la asistencia");
       return;
     }
-
     try {
-      const payload = {
+      const res = await api.post("seguimiento/cumplimiento/guardar_asistencia/", {
         actividad_id: selectedActividad,
         asistencias: asistencia,
-        evaluaciones: evaluaciones
-      };
-
-      console.log("📤 Guardando asistencia:", payload);
-
-      const res = await api.post("/seguimiento/cumplimiento/guardar_asistencia/", payload);
-
-      console.log("✅ Asistencia guardada:", res.data);
-
+        evaluaciones,
+      });
       alert(`✅ Se guardaron ${res.data.registros_guardados} registros`);
-      
-      // Limpiar estados después de guardar
       setAsistencia({});
       setEvaluaciones({});
       setSelectedActividad(null);
     } catch (err) {
-      console.error("❌ Error al guardar asistencia:", err);
-      const mensaje = err.response?.data?.detail || "Error al guardar";
-      alert(`❌ ${mensaje}`);
+      alert(`❌ ${err.response?.data?.detail || "Error al guardar"}`);
     }
   };
 
-    fetchDetallesMateria();
-  }, [selectedAsignacion]);
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // 3. FILTRADO DEFENSIVO DE LA BARRA DE BÚSQUEDA
-  // ──────────────────────────────────────────────────────────────────────────
-  
-  const filteredAsignaciones = useMemo(() => {
-    return asignaciones.filter(a => {
-      if (!a) return false;
-      
-      const query = String(searchQuery).toLowerCase();
-      
-      const textoMateria = String(extractNombreMateria(a)).toLowerCase();
-      const textoGrupo = String(extractNombreGrupo(a)).toLowerCase();
-      const textoAula = String(extractAula(a)).toLowerCase();
-
-      return (
-        textoMateria.includes(query) ||
-        textoGrupo.includes(query) ||
-        textoAula.includes(query)
-      );
-    });
-  }, [asignaciones, searchQuery]);
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // RENDER PRINCIPAL
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div 
-      className="min-h-screen text-gray-100 flex flex-col" 
-      style={{ 
-        backgroundColor: "#06020a",
-        backgroundImage: "radial-gradient(circle at 80% 20%, rgba(88,28,135,0.08) 0%, transparent 50%)"
-      }}
-    >
-      <Navbar />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(6,182,212,0.04); }
+        ::-webkit-scrollbar-thumb { background: rgba(6,182,212,0.18); border-radius: 4px; }
+        input[type=number]::-webkit-inner-spin-button { opacity: 0.3; }
+        input::placeholder, textarea::placeholder { color: ${T.textMuted}; }
+        input:focus, textarea:focus, select:focus {
+          outline: none;
+          border-color: rgba(6,182,212,0.40) !important;
+          box-shadow: 0 0 0 3px rgba(6,182,212,0.08);
+        }
+      `}</style>
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-70px)] overflow-hidden">
-        
-        {/* ────── PANEL IZQUIERDO: SELECCIÓN DE MATERIAS (4 cols) ────── */}
-        <aside className="lg:col-span-4 flex flex-col gap-4 h-full overflow-y-auto pr-2 custom-scrollbar">
-          
-          {/* Encabezado y Buscador */}
-          <div className="flex flex-col gap-3 sticky top-0 z-10 bg-gradient-to-b from-[#06020a] via-[#06020a] to-transparent pb-2">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-gray-100 via-gray-300 to-purple-300 bg-clip-text text-transparent">
-                Bienvenido, {user?.nombre || user?.username || "Docente"}
-              </h1>
-              <p className="text-xs text-gray-500">
-                {loadingDashboard ? "Cargando..." : `${asignaciones.length} ${asignaciones.length === 1 ? "asignación" : "asignaciones"} activa${asignaciones.length !== 1 ? "s" : ""}`}
-              </p>
-            </div>
+      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Sans', sans-serif", ...DOTS_BG }}>
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
+          <div style={{ position: "absolute", top: -120, left: -120, width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%)" }} />
+          <div style={{ position: "absolute", bottom: -80, right: -80, width: 340, height: 340, borderRadius: "50%", background: "radial-gradient(circle, rgba(29,185,84,0.05) 0%, transparent 70%)" }} />
+        </div>
 
-            {/* Buscador */}
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-purple-400 text-xs">🔍</span>
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar materia, grupo o aula..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl pl-8 pr-4 py-2.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
-              />
-            </div>
-          </div>
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <Navbar />
 
-          {/* Contenedor de Tarjetas */}
-          {loadingDashboard ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center py-12">
-                <div className="animate-spin mb-3 text-purple-400 text-2xl">⚙️</div>
-                <p className="text-xs text-gray-500">Cargando tus clases del CECyTEM...</p>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center py-12 p-4 border border-red-900/20 rounded-xl bg-red-950/5">
-                <p className="text-xs text-red-400">⚠️ {error}</p>
-              </div>
-            </div>
-          ) : filteredAsignaciones.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center py-12 p-4 border border-dashed border-purple-950/40 rounded-xl">
-                <p className="text-xs text-gray-600 italic">
-                  {searchQuery ? "Ninguna clase coincide con tu búsqueda" : "Ninguna asignación disponible"}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {filteredAsignaciones.map((asignacion) => (
-                <ClassroomCard
-                  key={asignacion.id}
-                  asignacion={asignacion}
-                  isSelected={selectedAsignacion?.id === asignacion.id}
-                  onClick={() => setSelectedAsignacion(asignacion)}
-                  actividadesCount={asignacion.actividades_count || 0}
-                />
-              ))}
-            </div>
-          )}
-        </aside>
+          <main style={{
+            maxWidth: 1600, margin: "0 auto",
+            padding: "20px 24px",
+            display: "grid",
+            gridTemplateColumns: "320px 1fr",
+            gap: 20,
+            height: "calc(100vh - 60px)",
+            overflow: "hidden",
+          }}>
 
-        {/* ────── PANEL DERECHO: ESPACIO DE TRABAJO DINÁMICO (8 cols) ────── */}
-        <section className="lg:col-span-8 bg-purple-950/5 border border-purple-900/10 rounded-2xl p-6 flex flex-col h-full overflow-y-auto custom-scrollbar">
-          
-          {selectedAsignacion ? (
-            <div className="flex flex-col gap-6 h-full">
-              
-              {/* ──── CABECERA DEL GRUPO SELECCIONADO ──── */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-950/40 pb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 bg-purple-950/40 px-2.5 py-1 rounded-md border border-purple-900/30">
-                      Clase Seleccionada
-                    </span>
-                    <span className="text-[10px] font-mono text-gray-500">
-                      ID: {selectedAsignacion.id}
-                    </span>
+            {/* ── PANEL IZQUIERDO ── */}
+            <aside style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%", overflow: "hidden" }}>
+              <Card accentColor={T.cyan}>
+                <div style={{ padding: "18px 18px 16px" }}>
+                  <div style={{ marginBottom: 14 }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: T.textMuted }}>
+                      Portal Docente · CECyTEM
+                    </p>
+                    <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2 }}>
+                      {user?.nombre || user?.username || "Docente"}
+                    </h1>
+                    <p style={{ margin: "4px 0 0", fontSize: 11, color: T.textMuted }}>
+                      {loadingDashboard ? "Cargando..." : `${asignaciones.length} asignación${asignaciones.length !== 1 ? "es" : ""} activa${asignaciones.length !== 1 ? "s" : ""}`}
+                    </p>
                   </div>
-                  <h2 className="text-lg font-black text-gray-100 leading-tight">
-                    {extractNombreMateria(selectedAsignacion)}
-                  </h2>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                    <span>
-                      👥 Grupo: <strong className="text-purple-300 font-semibold">{extractNombreGrupo(selectedAsignacion)}</strong>
-                    </span>
-                    <span>
-                      📍 Aula: <strong className="text-purple-300 font-semibold">{extractAula(selectedAsignacion)}</strong>
-                    </span>
-                    <span>
-                      {selectedAsignacion.total_alumnos || alumnos.length || 0} alumnos
-                    </span>
+
+                  <div style={{ position: "relative" }}>
+                    <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: T.textMuted, pointerEvents: "none" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Buscar materia, grupo o aula..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      style={{ ...inputStyle, paddingLeft: 32 }}
+                    />
                   </div>
                 </div>
-                
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="px-5 py-2.5 bg-gradient-to-r from-purple-800 via-purple-700 to-purple-600 hover:from-purple-700 hover:via-purple-600 hover:to-purple-500 text-white font-bold text-xs rounded-xl transition-all duration-200 shadow-lg shadow-purple-950/40 flex items-center justify-center gap-2 h-10 whitespace-nowrap active:scale-95"
-                >
-                  🚀 Nueva Actividad
-                </button>
+              </Card>
+
+              <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 2 }}>
+                {loadingDashboard ? (
+                  <LoadingSpinner message="Cargando tus clases del CECyTEM..." />
+                ) : error ? (
+                  <ErrorBanner message={error} />
+                ) : filteredAsignaciones.length === 0 ? (
+                  <EmptyState icon="📋" title="Sin asignaciones" message={searchQuery ? "Ninguna clase coincide con tu búsqueda." : "Ninguna asignación disponible."} />
+                ) : filteredAsignaciones.map(asignacion => (
+                  <ClassroomCard
+                    key={asignacion.id}
+                    asignacion={asignacion}
+                    isSelected={selectedAsignacion?.id === asignacion.id}
+                    onClick={() => setSelectedAsignacion(asignacion)}
+                    actividadesCount={asignacion.actividades_count || 0}
+                  />
+                ))}
               </div>
+            </aside>
 
-              {/* ──── CONTENIDO DIVIDIDO: ACTIVIDADES Y ALUMNOS ──── */}
-              {loadingDetalles ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="animate-spin mb-2 text-purple-400 text-xl">⚙️</div>
-                    <p className="text-xs text-gray-500">Cargando detalles...</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
-                  
-                  {/* ──── COLUMNA A: HISTORIAL DE ACTIVIDADES ──── */}
-                  <div className="flex flex-col gap-3 h-full min-h-0">
-                    <div className="flex items-center justify-between sticky top-0 z-5 pb-2 bg-gradient-to-b from-purple-950/5 to-transparent">
-                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                        <span>📋 Planeaciones</span>
-                      </h3>
-                      <span className="bg-purple-900/30 text-purple-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold">
-                        {actividades.length}
-                      </span>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2.5 custom-scrollbar">
-                      {actividades.length === 0 ? (
-                        <EmptyState 
-                          icon="📚"
-                          title="Sin planeaciones"
-                          message="Crea la primera actividad para este grupo usando el botón de arriba."
-                        />
-                      ) : (
-                        actividades.map((act) => (
-                          <ActivityCard key={act.id} actividad={act} />
-                        ))
-                      )}
-                    </div>
-                  </div>
+            {/* ── PANEL DERECHO ── */}
+            <Card style={{ height: "100%", overflow: "hidden" }}>
+              <div style={{ height: "100%", overflowY: "auto", padding: "20px 24px" }}>
+                {selectedAsignacion ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20, height: "100%" }}>
 
-                  {/* ──── COLUMNA B: LISTADO DE ALUMNOS ──── */}
-                  <div className="flex flex-col gap-3 h-full min-h-0">
-                    <div className="flex items-center justify-between sticky top-0 z-5 pb-2 bg-gradient-to-b from-purple-950/5 to-transparent">
-                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                        <span>👥 Alumnos Matriculados</span>
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-purple-900/30 text-purple-300 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold">
-                          {alumnos.length}
-                        </span>
-                        {Object.keys(asistencia).length > 0 && (
-                          <button
-                            onClick={() => guardarAsistencia()}
-                            className="px-3 py-1 bg-green-600/80 hover:bg-green-600 text-white text-[10px] font-bold rounded-md transition-all"
-                            title="Guardar asistencias y evaluaciones"
-                          >
-                            💾 Guardar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-0 custom-scrollbar">
-                      {alumnos.length === 0 ? (
-                        <EmptyState 
-                          icon="📋"
-                          title="Sin alumnos"
-                          message="No se encontraron alumnos matriculados en Control Escolar."
-                        />
-                      ) : (
-                        <div className="bg-black/10 rounded-lg border border-purple-950/30 overflow-hidden">
-                          <table className="w-full text-[11px]">
-                            <thead>
-                              <tr className="bg-purple-900/20 border-b border-purple-950/30 sticky top-0">
-                                <th className="px-3 py-2 text-left font-black text-gray-300">Matrícula</th>
-                                <th className="px-3 py-2 text-left font-black text-gray-300">Nombre</th>
-                                <th className="px-3 py-2 text-center font-black text-gray-300">✓ Asist</th>
-                                <th className="px-3 py-2 text-center font-black text-gray-300">Calif.</th>
-                                <th className="px-3 py-2 text-center font-black text-gray-300">Acción</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-purple-950/20">
-                              {alumnos.map((alu) => (
-                                <StudentTableRow
-                                  key={alu.id}
-                                  alumno={alu}
-                                  asistencia={asistencia[alu.id] || false}
-                                  calificacion={evaluaciones[alu.id] || ""}
-                                  onToggleAsistencia={() => setAsistencia(prev => ({
-                                    ...prev,
-                                    [alu.id]: !prev[alu.id]
-                                  }))}
-                                  onCalificacionChange={(valor) => setEvaluaciones(prev => ({
-                                    ...prev,
-                                    [alu.id]: valor
-                                  }))}
-                                  selectedActividad={selectedActividad}
-                                  onSelectActividad={() => setSelectedActividad(selectedActividad?.id === alu.id ? null : alu.id)}
-                                />
-                              ))}
-                            </tbody>
-                          </table>
+                    <div style={{
+                      display: "flex", flexWrap: "wrap", alignItems: "flex-start",
+                      justifyContent: "space-between", gap: 14,
+                      paddingBottom: 18,
+                      borderBottom: `1px solid rgba(6,182,212,0.10)`,
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                            letterSpacing: "0.16em", color: T.cyan,
+                            background: T.cyanDim, border: `1px solid ${T.border}`,
+                            padding: "3px 10px", borderRadius: T.radiusXs,
+                          }}>
+                            Clase seleccionada
+                          </span>
+                          <span style={{ fontSize: 10, fontFamily: "monospace", color: T.textMuted }}>
+                            ID: {selectedAsignacion.id}
+                          </span>
                         </div>
-                      )}
+                        <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2 }}>
+                          {extractNombreMateria(selectedAsignacion)}
+                        </h2>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, fontSize: 12, color: T.textSecondary }}>
+                          <span>Grupo: <strong style={{ color: T.cyan }}>{extractNombreGrupo(selectedAsignacion)}</strong></span>
+                          <span>Aula: <strong style={{ color: T.cyan }}>{extractAula(selectedAsignacion)}</strong></span>
+                          <span style={{ color: T.textMuted }}>{selectedAsignacion.total_alumnos || alumnos.length || 0} alumnos</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setShowModal(true)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8,
+                          padding: "10px 20px", borderRadius: T.radiusSm,
+                          background: `linear-gradient(135deg, ${T.accent} 0%, ${T.accentEnd} 100%)`,
+                          border: "none", color: "#fff",
+                          fontSize: 12, fontWeight: 700, cursor: "pointer",
+                          boxShadow: `0 4px 20px ${T.accentGlow}`,
+                          fontFamily: "'DM Sans', sans-serif",
+                          transition: "filter 0.18s, transform 0.1s",
+                          whiteSpace: "nowrap",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.1)"}
+                        onMouseLeave={e => e.currentTarget.style.filter = "none"}
+                      >
+                        + Nueva actividad
+                      </button>
                     </div>
+
+                    {loadingDetalles ? (
+                      <LoadingSpinner message="Cargando detalles..." />
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, flex: 1, minHeight: 0, overflow: "hidden" }}>
+
+                        {/* Columna A: Actividades */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <h3 style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>
+                              Planeaciones
+                            </h3>
+                            <span style={{
+                              padding: "2px 10px", borderRadius: 100,
+                              background: T.cyanDim, border: `1px solid ${T.border}`,
+                              fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: T.cyan,
+                            }}>
+                              {actividades.length}
+                            </span>
+                          </div>
+                          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                            {actividades.length === 0
+                              ? <EmptyState icon="📚" title="Sin planeaciones" message="Crea la primera actividad para este grupo." />
+                              : actividades.map(act => <ActivityCard key={act.id} actividad={act} />)
+                            }
+                          </div>
+                        </div>
+
+                        {/* Columna B: Alumnos */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <h3 style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>
+                              Alumnos matriculados
+                            </h3>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{
+                                padding: "2px 10px", borderRadius: 100,
+                                background: T.cyanDim, border: `1px solid ${T.border}`,
+                                fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: T.cyan,
+                              }}>
+                                {alumnos.length}
+                              </span>
+                              {Object.keys(asistencia).length > 0 && (
+                                <button
+                                  onClick={guardarAsistencia}
+                                  style={{
+                                    padding: "4px 12px", borderRadius: T.radiusXs,
+                                    background: "rgba(29,185,84,0.15)",
+                                    border: `1px solid ${T.borderGreen}`,
+                                    color: T.accent, fontSize: 10, fontWeight: 700,
+                                    cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                                  }}
+                                >
+                                  Guardar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, overflowY: "auto", borderRadius: T.radiusSm, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+                            {alumnos.length === 0 ? (
+                              <EmptyState icon="📋" title="Sin alumnos" message="No se encontraron alumnos matriculados." />
+                            ) : (
+                              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                                <thead>
+                                  <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
+                                    {["Matrícula", "Nombre", "Asist.", "Calif.", "Acción"].map(h => (
+                                      <th key={h} style={{
+                                        padding: "9px 10px", textAlign: h === "Matrícula" || h === "Nombre" ? "left" : "center",
+                                        fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                                        letterSpacing: "0.12em", color: T.cyan,
+                                        fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap",
+                                      }}>
+                                        {h}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {alumnos.map((alu, i) => (
+                                    <StudentTableRow
+                                      key={alu.id}
+                                      alumno={alu}
+                                      idx={i}
+                                      asistencia={asistencia[alu.id] || false}
+                                      calificacion={evaluaciones[alu.id] || ""}
+                                      onToggleAsistencia={() => setAsistencia(prev => ({ ...prev, [alu.id]: !prev[alu.id] }))}
+                                      onCalificacionChange={val => setEvaluaciones(prev => ({ ...prev, [alu.id]: val }))}
+                                      selectedActividad={selectedActividad}
+                                      onSelectActividad={() => setSelectedActividad(selectedActividad === alu.id ? null : alu.id)}
+                                    />
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </div>
+
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 40 }}>
+                    <div style={{
+                      width: 64, height: 64, borderRadius: T.radiusSm, marginBottom: 20,
+                      background: T.cyanDim, border: `1px solid ${T.border}`,
+                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28,
+                    }}>
+                      🏫
+                    </div>
+                    <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: "'Syne', sans-serif" }}>
+                      Panel de control del docente
+                    </h3>
+                    <p style={{ margin: 0, fontSize: 12, color: T.textMuted, maxWidth: 340, lineHeight: 1.7 }}>
+                      Selecciona una de tus materias asignadas en la barra lateral para gestionar planeaciones, ver el listado de alumnos e ingresar actividades.
+                    </p>
+                    {asignaciones.length === 0 && (
+                      <div style={{
+                        marginTop: 20, padding: "12px 20px",
+                        borderRadius: T.radiusXs, border: `1px dashed ${T.border}`,
+                        background: T.cyanDim, fontSize: 11, color: T.textMuted,
+                      }}>
+                        Parece que no tienes asignaciones aún. Contacta a Dirección.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
 
-                </div>
-              )}
+          </main>
+        </div>
+      </div>
 
-            </div>
-          ) : (
-            // Empty State cuando no hay clase seleccionada
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-              <div className="mb-4 text-5xl animate-bounce">🏫</div>
-              <h3 className="text-base font-black text-gray-300 mb-2">Panel de Control del Docente</h3>
-              <p className="text-xs text-gray-500 max-w-sm leading-relaxed">
-                Selecciona una de tus materias asignadas en la barra lateral para gestionar planeaciones, ver el listado de alumnos e ingresar actividades.
-              </p>
-              {asignaciones.length === 0 && (
-                <div className="mt-6 p-4 border border-dashed border-purple-950/30 rounded-lg bg-purple-950/5">
-                  <p className="text-[11px] text-gray-600 italic">
-                    Parece que no tienes asignaciones aún. Contacta a Dirección.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      </main>
-
-      {/* ────── MODAL DE NUEVA ACTIVIDAD ────── */}
       {showModal && selectedAsignacion && (
         <ModalNuevaActividad
           asignacion={selectedAsignacion}
           nombreMateria={extractNombreMateria(selectedAsignacion)}
           onClose={() => setShowModal(false)}
-          onCreated={() => {
-            setShowModal(false);
-            // Recargar actividades del grupo
-            if (selectedAsignacion.id) {
-              fetchDashboardData();
-            }
-          }}
+          onCreated={() => { setShowModal(false); fetchDashboardData(); }}
         />
       )}
-    </div>
+    </>
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: TARJETA DE CLASE (ESTILO GOOGLE CLASSROOM)
-// ────────────────────────────────────────────────────────────────────────────
+// ─── ClassroomCard ──────────────────────────────────────────────────────────────
 
 function ClassroomCard({ asignacion, isSelected, onClick, actividadesCount }) {
-  const nombreMateria = extractNombreMateria(asignacion);
-  const nombreGrupo = extractNombreGrupo(asignacion);
-  const aula = extractAula(asignacion);
-  const totalAlumnos = asignacion.total_alumnos || 0;
-  const tieneActividades = actividadesCount > 0;
+  const nombre = extractNombreMateria(asignacion);
+  const grupo  = extractNombreGrupo(asignacion);
+  const aula   = extractAula(asignacion);
+  const total  = asignacion.total_alumnos || 0;
+  const activo = actividadesCount > 0;
 
   return (
     <div
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClick();
-        }
+      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      style={{
+        cursor: "pointer", borderRadius: T.radiusSm, overflow: "hidden",
+        border: `1px solid ${isSelected ? T.borderGreen : T.border}`,
+        background: isSelected
+          ? "linear-gradient(135deg, rgba(29,185,84,0.10) 0%, rgba(6,182,212,0.06) 100%)"
+          : T.surface,
+        backdropFilter: "blur(20px)",
+        boxShadow: isSelected ? `0 0 24px ${T.accentGlow}` : T.shadowSm,
+        transition: "all 0.18s",
+        outline: isSelected ? `2px solid rgba(29,185,84,0.35)` : "none",
+        outlineOffset: 2,
       }}
-      className={`group cursor-pointer rounded-xl overflow-hidden transition-all duration-300 flex flex-col border backdrop-blur-sm ${
-        isSelected 
-          ? "ring-2 ring-purple-500 border-purple-500/30 shadow-lg shadow-purple-950/50 bg-gradient-to-br from-purple-950/40 to-purple-900/20" 
-          : "border-purple-900/20 hover:border-purple-800/40 bg-purple-950/10 hover:bg-purple-950/15"
-      }`}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = T.borderStrong; }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = T.border; }}
     >
-      {/* Encabezado: Materia y Grupo */}
-      <div className="p-3.5 bg-gradient-to-r from-purple-900/30 via-purple-950/20 to-transparent border-b border-purple-950/40">
-        <h3 
-          className="font-black text-gray-200 text-xs tracking-tight truncate pr-4" 
-          title={nombreMateria}
-        >
-          {nombreMateria}
+      <div style={{
+        height: 3,
+        background: isSelected
+          ? `linear-gradient(90deg, ${T.accent} 0%, ${T.accentEnd} 100%)`
+          : `linear-gradient(90deg, ${T.cyan} 0%, rgba(6,182,212,0.4) 100%)`,
+      }} />
+
+      <div style={{ padding: "12px 14px 10px", borderBottom: `1px solid rgba(6,182,212,0.08)` }}>
+        <h3 style={{
+          margin: 0, fontSize: 12, fontWeight: 700, color: T.textPrimary,
+          fontFamily: "'Syne', sans-serif",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }} title={nombre}>
+          {nombre}
         </h3>
-        <p className="text-[11px] text-purple-400 mt-1 font-semibold">
-          Gr. {nombreGrupo}
+        <p style={{ margin: "4px 0 0", fontSize: 11, color: T.cyan, fontWeight: 600 }}>
+          Gr. {grupo}
         </p>
       </div>
 
-      {/* Cuerpo: Info de Aula y Alumnos */}
-      <div className="p-3.5 flex flex-col justify-between flex-1 gap-2.5 bg-black/10 text-[11px]">
-        <div className="flex items-center justify-between text-gray-400">
-          <span>📍 {aula}</span>
-          <span className="text-purple-400 font-mono font-medium">{totalAlumnos} 👥</span>
+      <div style={{ padding: "10px 14px 12px", fontSize: 11, color: T.textSecondary }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <span>{aula}</span>
+          <span style={{ color: T.textMuted, fontFamily: "monospace" }}>{total} alumnos</span>
         </div>
-
-        {/* Indicador de Actividades */}
-        <div className="pt-2.5 border-t border-purple-950/20 flex items-center justify-between">
-          {tieneActividades ? (
-            <span className="text-[10px] text-green-400/80 font-medium">
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          paddingTop: 8, borderTop: `1px solid rgba(6,182,212,0.07)`,
+        }}>
+          {activo ? (
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: T.accent,
+              background: T.accentGlow, border: `1px solid ${T.borderGreen}`,
+              padding: "2px 8px", borderRadius: 100,
+            }}>
               ✓ Activa ({actividadesCount})
             </span>
           ) : (
-            <span className="text-[10px] text-amber-500/80 italic font-medium">
-              ⚠️ Requiere planeación
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: T.amber,
+              background: T.amberDim, border: `1px solid ${T.amberBorder}`,
+              padding: "2px 8px", borderRadius: 100,
+            }}>
+              Requiere planeación
             </span>
           )}
-          <span className="text-gray-600 text-xs group-hover:translate-x-1 transition-transform duration-200">→</span>
+          <span style={{ color: isSelected ? T.accent : T.textMuted, fontSize: 13, transition: "transform 0.2s" }}>→</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: TARJETA DE ACTIVIDAD
-// ────────────────────────────────────────────────────────────────────────────
+// ─── ActivityCard ───────────────────────────────────────────────────────────────
 
 function ActivityCard({ actividad }) {
-  const isBlocked = isLocked(actividad.fecha_limite);
-  const diasVencimiento = actividad.fecha_limite 
+  const locked = isLocked(actividad.fecha_limite);
+  const dias   = actividad.fecha_limite
     ? Math.ceil((new Date(actividad.fecha_limite) - new Date()) / (1000 * 60 * 60 * 24))
     : null;
 
+  const statusColor = locked ? T.dangerText : dias !== null && dias <= 3 ? T.amber : T.emerald;
+
   return (
-    <div className="p-3 bg-purple-950/10 border border-purple-900/20 rounded-lg hover:border-purple-800/40 hover:bg-purple-950/15 transition-all group">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <h4 className="text-xs font-bold text-gray-200 line-clamp-2 flex-1">
-          📌 {actividad.titulo}
+    <div style={{
+      padding: "12px 14px", borderRadius: T.radiusXs,
+      background: T.cyanDim, border: `1px solid ${T.border}`,
+      transition: "border-color 0.15s",
+    }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = T.borderStrong}
+      onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+        <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.textPrimary, flex: 1, lineHeight: 1.4, fontFamily: "'Syne', sans-serif" }}>
+          {actividad.titulo}
         </h4>
-        <span className="text-[9px] px-1.5 py-0.5 bg-purple-900/40 text-purple-300 rounded font-mono shrink-0 whitespace-nowrap">
+        <span style={{
+          padding: "2px 7px", borderRadius: T.radiusXs, flexShrink: 0,
+          background: "rgba(6,182,212,0.08)", border: `1px solid ${T.border}`,
+          fontSize: 9, fontWeight: 700, fontFamily: "monospace", color: T.cyan,
+        }}>
           S{actividad.semana}
         </span>
       </div>
-
       {actividad.descripcion && (
-        <p className="text-[11px] text-gray-400 line-clamp-2 mb-2">
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: T.textSecondary, lineHeight: 1.5,
+          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+        }}>
           {actividad.descripcion}
         </p>
       )}
-
-      <div className="flex items-center justify-between text-[10px] text-gray-500">
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.textMuted }}>
         <span>
-          📅 {new Date(actividad.fecha_limite || "").toLocaleDateString('es-MX', {
-            month: 'short',
-            day: 'numeric'
-          })}
+          {new Date(actividad.fecha_limite || "").toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
         </span>
-        {diasVencimiento !== null && (
-          <span className={`font-semibold ${
-            isBlocked 
-              ? "text-red-400" 
-              : diasVencimiento <= 3 
-              ? "text-amber-400" 
-              : "text-green-400"
-          }`}>
-            {isBlocked ? "🔒 Bloqueada" : diasVencimiento <= 0 ? "⏰ Hoy" : `${diasVencimiento}d`}
+        {dias !== null && (
+          <span style={{ fontWeight: 700, color: statusColor }}>
+            {locked ? "🔒 Bloqueada" : dias <= 0 ? "Hoy" : `${dias}d restantes`}
           </span>
         )}
       </div>
@@ -624,305 +658,243 @@ function ActivityCard({ actividad }) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: FILA DE TABLA DE ASISTENCIA
-// ────────────────────────────────────────────────────────────────────────────
+// ─── StudentTableRow ────────────────────────────────────────────────────────────
 
-function StudentTableRow({ 
-  alumno, 
-  asistencia, 
-  calificacion, 
-  onToggleAsistencia, 
-  onCalificacionChange,
-  selectedActividad,
-  onSelectActividad 
-}) {
-  const nombreCompleto = 
-    alumno.nombre_completo || 
-    alumno.alumno_nombre || 
-    `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() ||
-    "Alumno sin nombre";
-  
-  const matricula = alumno.matricula || alumno.id || "Sin mat.";
+function StudentTableRow({ alumno, idx, asistencia, calificacion, onToggleAsistencia, onCalificacionChange, selectedActividad, onSelectActividad }) {
+  const nombre = alumno.nombre_completo || alumno.alumno_nombre ||
+    `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() || "Sin nombre";
+  const matricula = alumno.matricula || alumno.id || "—";
 
   return (
-    <tr className="hover:bg-purple-950/15 transition-colors group">
-      <td className="px-3 py-2.5 font-mono text-gray-400 text-[10px]">
-        {matricula}
-      </td>
-      <td className="px-3 py-2.5 text-gray-300 font-medium truncate">
-        {nombreCompleto}
-      </td>
-      <td className="px-3 py-2.5 text-center">
+    <tr style={{ borderBottom: `1px solid rgba(6,182,212,0.07)`, background: idx % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent" }}>
+      <td style={{ padding: "9px 10px", fontFamily: "monospace", fontSize: 10, color: T.textMuted }}>{matricula}</td>
+      <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 600, color: T.textPrimary, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nombre}</td>
+      <td style={{ padding: "9px 10px", textAlign: "center" }}>
         <button
           onClick={onToggleAsistencia}
-          className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
-            asistencia
-              ? 'bg-green-500/30 border border-green-400 text-green-400'
-              : 'bg-gray-700/20 border border-gray-600 text-gray-500 hover:border-gray-500'
-          }`}
-          title="Marcar asistencia"
+          style={{
+            width: 24, height: 24, borderRadius: "50%",
+            background: asistencia ? "rgba(29,185,84,0.20)" : "rgba(255,255,255,0.04)",
+            border: `1px solid ${asistencia ? T.borderGreen : T.border}`,
+            color: asistencia ? T.accent : T.textMuted,
+            fontSize: 12, cursor: "pointer", transition: "all 0.15s",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+          }}
         >
-          {asistencia ? '✓' : '-'}
+          {asistencia ? "✓" : "–"}
         </button>
       </td>
-      <td className="px-3 py-2.5 text-center">
+      <td style={{ padding: "9px 10px", textAlign: "center" }}>
         <input
-          type="number"
-          min="0"
-          max="10"
+          type="number" min="0" max="10"
           value={calificacion}
-          onChange={(e) => onCalificacionChange(e.target.value)}
-          className="w-12 px-1.5 py-1 bg-purple-950/30 border border-purple-900/40 rounded text-gray-200 text-center text-xs focus:border-purple-600 focus:outline-none"
-          placeholder="-"
+          onChange={e => onCalificacionChange(e.target.value)}
+          placeholder="–"
+          style={{
+            width: 44, padding: "4px 6px", textAlign: "center",
+            background: "rgba(5,18,32,0.55)", border: `1px solid ${T.border}`,
+            borderRadius: T.radiusXs, color: T.textPrimary, fontSize: 11,
+            fontFamily: "'DM Sans', sans-serif",
+          }}
         />
       </td>
-      <td className="px-3 py-2.5 text-center">
+      <td style={{ padding: "9px 10px", textAlign: "center" }}>
         <button
           onClick={onSelectActividad}
-          className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
-            selectedActividad
-              ? 'bg-purple-600 text-white'
-              : 'bg-purple-900/30 text-purple-300 hover:bg-purple-900/50'
-          }`}
-          title="Registrar calificación"
+          style={{
+            padding: "3px 10px", borderRadius: T.radiusXs,
+            background: selectedActividad ? "rgba(29,185,84,0.18)" : T.cyanDim,
+            border: `1px solid ${selectedActividad ? T.borderGreen : T.border}`,
+            color: selectedActividad ? T.accent : T.cyan,
+            fontSize: 10, fontWeight: 700, cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
+          }}
         >
-          📝
+          Reg.
         </button>
       </td>
     </tr>
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: ESTADO VACÍO REUTILIZABLE
-// ────────────────────────────────────────────────────────────────────────────
+// ─── EmptyState ─────────────────────────────────────────────────────────────────
 
 function EmptyState({ icon, title, message }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-purple-950/20 rounded-lg bg-purple-950/5">
-      <div className="text-2xl mb-2">{icon}</div>
-      <h4 className="text-xs font-bold text-gray-400 mb-1">{title}</h4>
-      <p className="text-[11px] text-gray-500 leading-relaxed max-w-[150px]">
-        {message}
-      </p>
+    <div style={{
+      flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+      justifyContent: "center", textAlign: "center", padding: 24,
+      border: `1px dashed ${T.border}`, borderRadius: T.radiusSm,
+      background: T.cyanDim, minHeight: 120,
+    }}>
+      <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
+      <h4 style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: T.textSecondary, fontFamily: "'Syne', sans-serif" }}>{title}</h4>
+      <p style={{ margin: 0, fontSize: 11, color: T.textMuted, lineHeight: 1.6, maxWidth: 180 }}>{message}</p>
     </div>
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// COMPONENTE MODAL: NUEVA ACTIVIDAD
-// ────────────────────────────────────────────────────────────────────────────
+// ─── LoadingSpinner ──────────────────────────────────────────────────────────────
+
+function LoadingSpinner({ message }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, gap: 12 }}>
+      <div style={{ width: 28, height: 28, border: `2px solid ${T.cyan}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+      <p style={{ margin: 0, fontSize: 11, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>{message}</p>
+    </div>
+  );
+}
+
+// ─── ErrorBanner ────────────────────────────────────────────────────────────────
+
+function ErrorBanner({ message }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+      borderRadius: T.radiusXs, background: T.amberDim, border: `1px solid ${T.amberBorder}`,
+    }}>
+      <span style={{ fontSize: 14, flexShrink: 0 }}>⚠️</span>
+      <p style={{ margin: 0, fontSize: 12, color: T.amber, fontFamily: "'DM Sans', sans-serif" }}>{message}</p>
+    </div>
+  );
+}
+
+// ─── ModalNuevaActividad ────────────────────────────────────────────────────────
 
 function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) {
-  const [formData, setFormData] = useState({
-    titulo: "",
-    descripcion: "",
-    semana: "1",
-    fecha_limite: ""
-  });
-  const [enviando, setEnviando] = useState(false);
+  const [formData,   setFormData]   = useState({ titulo: "", descripcion: "", semana: "1", fecha_limite: "" });
+  const [enviando,   setEnviando]   = useState(false);
   const [errorLocal, setErrorLocal] = useState(null);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setErrorLocal(null);
-  };
+  const set = (field, value) => { setFormData(prev => ({ ...prev, [field]: value })); setErrorLocal(null); };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    setErrorLocal(null);
-
-    // Validaciones
-    if (!formData.titulo.trim()) {
-      setErrorLocal("El título de la actividad es obligatorio.");
-      return;
-    }
-    if (!formData.fecha_limite) {
-      setErrorLocal("Debes especificar una fecha límite.");
-      return;
-    }
-
+    if (!formData.titulo.trim()) { setErrorLocal("El título de la actividad es obligatorio."); return; }
+    if (!formData.fecha_limite)  { setErrorLocal("Debes especificar una fecha límite."); return; }
     setEnviando(true);
-
     try {
-      // Extraer el mes desde la fecha seleccionada
-      const fechaSeleccionada = new Date(formData.fecha_limite + "T00:00:00");
-      const numeroMes = fechaSeleccionada.getMonth() + 1;
-
-      // CRÍTICO: Enviar tipos de datos correctos
-      // El backend espera:
-      // - semana: Integer (ej: 3)
-      // - mes: Integer (ej: 5)
-      // - asignacion: Integer ID
-      const payload = {
+      const fecha = new Date(formData.fecha_limite + "T00:00:00");
+      // CORRECCIÓN: ruta sin barra inicial
+      await api.post("seguimiento/actividades/", {
         asignacion: typeof asignacion === 'object' ? asignacion.id : asignacion,
-        titulo: formData.titulo.trim(),
+        titulo:      formData.titulo.trim(),
         descripcion: formData.descripcion.trim() || "",
-        semana: parseInt(formData.semana, 10),
-        mes: numeroMes,
-        fecha_limite: formData.fecha_limite
-      };
-
-      console.log("📤 [ModalNuevaActividad] Enviando payload:", payload);
-
-      await api.post("/seguimiento/actividades/", payload);
-
-      console.log("✅ [ModalNuevaActividad] Actividad creada exitosamente");
+        semana:      parseInt(formData.semana, 10),
+        mes:         fecha.getMonth() + 1,
+        fecha_limite: formData.fecha_limite,
+      });
       onCreated();
-
     } catch (err) {
-      console.error("❌ [ModalNuevaActividad] Error al crear actividad:", err);
-      
-      // Manejo de errores del backend
-      let mensajeError = "No se pudo guardar la actividad. Intenta nuevamente.";
-      
+      let msg = "No se pudo guardar la actividad.";
       if (err.response?.data) {
-        const datos = err.response.data;
-        
-        if (typeof datos === 'object') {
-          const errores = Object.entries(datos)
-            .map(([campo, mensajes]) => {
-              const msg = Array.isArray(mensajes) ? mensajes.join(", ") : mensajes;
-              return `${campo}: ${msg}`;
-            })
-            .join("\n");
-          mensajeError = errores || mensajeError;
-        } else {
-          mensajeError = String(datos);
-        }
+        const d = err.response.data;
+        msg = typeof d === 'object'
+          ? Object.entries(d).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join("\n")
+          : String(d);
       }
-
-      setErrorLocal(mensajeError);
+      setErrorLocal(msg);
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div 
-        className="w-full max-w-md rounded-2xl border border-purple-900/40 p-6 flex flex-col gap-4 shadow-2xl" 
-        style={{ background: "#0c0618" }}
-      >
-        {/* Encabezado del Modal */}
-        <div className="flex items-center justify-between border-b border-purple-950/40 pb-3">
-          <div className="flex-1">
-            <h3 className="text-sm font-black text-gray-200">Nueva Actividad</h3>
-            <p className="text-[11px] text-purple-400 truncate mt-1">
-              Materia: {nombreMateria}
-            </p>
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 50,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 16, background: "rgba(2,8,16,0.80)", backdropFilter: "blur(8px)",
+    }}>
+      <div style={{
+        width: "100%", maxWidth: 480,
+        borderRadius: T.radius,
+        background: T.surfaceDeep,
+        border: `1px solid ${T.borderStrong}`,
+        boxShadow: T.shadow,
+        backdropFilter: "blur(24px)",
+        overflow: "hidden",
+      }}>
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${T.accent} 0%, ${T.accentEnd} 100%)` }} />
+
+        <div style={{ padding: "20px 24px 24px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${T.border}` }}>
+            <div>
+              <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: "'Syne', sans-serif" }}>
+                Nueva actividad
+              </h3>
+              <p style={{ margin: 0, fontSize: 11, color: T.cyan, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
+                {nombreMateria}
+              </p>
+            </div>
+            <button onClick={onClose} style={{
+              width: 32, height: 32, borderRadius: T.radiusXs, flexShrink: 0,
+              background: T.cyanDim, border: `1px solid ${T.border}`,
+              color: T.textSecondary, cursor: "pointer", fontSize: 14,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              ✕
+            </button>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="text-gray-500 hover:text-gray-300 font-mono text-lg transition-colors ml-4 flex-shrink-0"
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
+
+          {errorLocal && (
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: T.radiusXs, background: T.danger, border: `1px solid ${T.dangerBorder}` }}>
+              <p style={{ margin: 0, fontSize: 12, color: T.dangerText, whiteSpace: "pre-wrap", fontFamily: "'DM Sans', sans-serif" }}>{errorLocal}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <FieldLabel>Título de la actividad *</FieldLabel>
+              <input type="text" required placeholder="Ej. Práctica 1: Modelado de Datos"
+                value={formData.titulo} onChange={e => set('titulo', e.target.value)}
+                style={inputStyle} />
+            </div>
+
+            <div>
+              <FieldLabel>Instrucciones o criterios</FieldLabel>
+              <textarea rows={3} placeholder="Describe qué deben hacer los alumnos..."
+                value={formData.descripcion} onChange={e => set('descripcion', e.target.value)}
+                style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <FieldLabel>Semana *</FieldLabel>
+                <select value={formData.semana} onChange={e => set('semana', e.target.value)}
+                  style={{ ...inputStyle, colorScheme: "dark" }}>
+                  {[1,2,3,4,5].map(s => <option key={s} value={s} style={{ background: "#04141e" }}>Semana {s}</option>)}
+                </select>
+              </div>
+              <div>
+                <FieldLabel>Fecha límite *</FieldLabel>
+                <input type="date" required value={formData.fecha_limite}
+                  onChange={e => set('fecha_limite', e.target.value)}
+                  style={{ ...inputStyle, colorScheme: "dark" }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
+              <button type="button" onClick={onClose} disabled={enviando}
+                style={{ padding: "9px 16px", borderRadius: T.radiusXs, border: "none", background: "transparent", color: T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                Cancelar
+              </button>
+              <button type="submit" disabled={enviando}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "9px 20px", borderRadius: T.radiusSm, border: "none",
+                  background: enviando ? "rgba(29,185,84,0.30)" : `linear-gradient(135deg, ${T.accent} 0%, ${T.accentEnd} 100%)`,
+                  color: "#fff", fontSize: 12, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer",
+                  boxShadow: enviando ? "none" : `0 4px 20px ${T.accentGlow}`,
+                  fontFamily: "'DM Sans', sans-serif", opacity: enviando ? 0.7 : 1, transition: "all 0.18s",
+                }}>
+                {enviando
+                  ? <><span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} /> Publicando...</>
+                  : "Publicar actividad"
+                }
+              </button>
+            </div>
+          </form>
         </div>
-
-        {/* Mensajes de Error */}
-        {errorLocal && (
-          <div className="p-3 bg-red-950/20 border border-red-900/30 rounded-lg">
-            <p className="text-xs text-red-400 whitespace-pre-wrap">{errorLocal}</p>
-          </div>
-        )}
-
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Campo: Título */}
-          <div>
-            <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
-              Título de la Actividad *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Ej. Práctica 1: Modelado de Datos"
-              value={formData.titulo}
-              onChange={(e) => handleInputChange('titulo', e.target.value)}
-              className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
-            />
-          </div>
-
-          {/* Campo: Descripción */}
-          <div>
-            <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
-              Instrucciones o Criterios
-            </label>
-            <textarea
-              rows="3"
-              placeholder="Describe qué deben hacer los alumnos, criterios de evaluación, etc..."
-              value={formData.descripcion}
-              onChange={(e) => handleInputChange('descripcion', e.target.value)}
-              className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all resize-none"
-            />
-          </div>
-
-          {/* Campos: Semana y Fecha */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
-                Semana *
-              </label>
-              <select
-                value={formData.semana}
-                onChange={(e) => handleInputChange('semana', e.target.value)}
-                className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
-                style={{ colorScheme: 'dark' }}
-              >
-                {[1, 2, 3, 4, 5].map(s => (
-                  <option key={s} value={s} className="bg-[#0c0618]">
-                    Semana {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase font-black text-gray-400 tracking-wider mb-2">
-                Fecha Límite *
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.fecha_limite}
-                onChange={(e) => handleInputChange('fecha_limite', e.target.value)}
-                className="w-full bg-purple-950/10 border border-purple-900/30 rounded-xl px-3 py-2.5 text-xs text-gray-200 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-900/20 transition-all"
-                style={{ colorScheme: 'dark' }}
-              />
-            </div>
-          </div>
-
-          {/* Botones de Acción */}
-          <div className="pt-2 flex items-center justify-end gap-3 border-t border-purple-950/20">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={enviando}
-              className="px-4 py-2 text-gray-400 hover:text-gray-300 text-xs font-bold transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={enviando}
-              className="px-5 py-2 bg-gradient-to-r from-purple-800 to-purple-600 hover:from-purple-700 hover:to-purple-500 disabled:from-purple-900 disabled:to-purple-900 text-white font-black text-xs rounded-xl shadow-lg shadow-purple-950/40 transition-all duration-200 disabled:opacity-60 flex items-center gap-2"
-            >
-              {enviando ? (
-                <>
-                  <span className="animate-spin">⚙️</span>
-                  Publicando...
-                </>
-              ) : (
-                <>
-                  🚀 Publicar
-                </>
-              )}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

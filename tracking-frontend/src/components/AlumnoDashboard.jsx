@@ -3,169 +3,285 @@ import { useState, useEffect, useContext } from "react";
 import api from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 
-// ─── Utilidades ────────────────────────────────────────────────────────────────
+// ─── Design Tokens ─────────────────────────────────────────────────────────────
+
+const T = {
+  bg:           "#082030",
+  surface:      "rgba(5,18,32,0.72)",
+  border:       "rgba(6,182,212,0.18)",
+  borderStrong: "rgba(6,182,212,0.32)",
+  accent:       "#1db954",
+  accentEnd:    "#159b45",
+  accentGlow:   "rgba(29,185,84,0.18)",
+  cyan:         "#06b6d4",
+  cyanDim:      "rgba(6,182,212,0.10)",
+  textPrimary:  "#e5e7eb",
+  textSecondary:"#9aa5b7",
+  textMuted:    "#4d6070",
+  amber:        "#f59e0b",
+  amberDim:     "rgba(245,158,11,0.12)",
+  emerald:      "#34d399",
+  emeraldDim:   "rgba(52,211,153,0.12)",
+  purple:       "#a78bfa",
+  purpleDim:    "rgba(167,139,250,0.12)",
+  radius:       "20px",
+  radiusSm:     "12px",
+  radiusXs:     "8px",
+  shadow:       "0 25px 80px rgba(2,10,20,0.55)",
+  shadowSm:     "0 8px 30px rgba(2,10,20,0.40)",
+};
+
+// Dots background (login pattern)
+const DOTS_BG = {
+  backgroundImage: `radial-gradient(rgba(6,182,212,0.18) 1.5px, transparent 1.5px)`,
+  backgroundSize:  "26px 26px",
+};
+
+// ─── Utilidades ─────────────────────────────────────────────────────────────────
 
 const pct = (val, max) => (max > 0 ? Math.round((val / max) * 100) : 0);
 
-/**
- * Semáforo sin rojo:
- *   ≥ 80 → verde esmeralda
- *   50–79 → ámbar
- *   < 50  → gris oscuro / púrpura apagado
- */
-function statusColor(percent) {
-  if (percent >= 80) return { dot: "bg-emerald-400", text: "text-emerald-400", label: "Satisfactorio" };
-  if (percent >= 50) return { dot: "bg-amber-400",   text: "text-amber-400",   label: "En seguimiento" };
-  return              { dot: "bg-purple-400",        text: "text-purple-400",  label: "Atención requerida" };
+function statusInfo(percent) {
+  if (percent >= 80) return { color: T.emerald,  dimColor: T.emeraldDim,  label: "Satisfactorio",       border: "rgba(52,211,153,0.22)" };
+  if (percent >= 50) return { color: T.amber,    dimColor: T.amberDim,    label: "En seguimiento",      border: "rgba(245,158,11,0.22)" };
+  return               { color: T.purple,   dimColor: T.purpleDim,   label: "Atención requerida",  border: "rgba(167,139,250,0.22)" };
 }
 
-// ─── Sub-componentes ────────────────────────────────────────────────────────────
+// ─── Base Card ──────────────────────────────────────────────────────────────────
 
-/** Barra de progreso lineal */
-function ProgressBar({ percent, colorClass = "bg-purple-500" }) {
+function Card({ children, style = {}, accentColor }) {
+  const topColor = accentColor ?? T.accent;
   return (
-    <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+    <div
+      style={{
+        position: "relative",
+        borderRadius: T.radius,
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        boxShadow: T.shadow,
+        backdropFilter: "blur(20px)",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
       <div
-        className={`h-full rounded-full transition-all duration-700 ease-out ${colorClass}`}
-        style={{ width: `${Math.min(percent, 100)}%` }}
+        style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0,
+          height: 3,
+          background: `linear-gradient(90deg, ${topColor} 0%, ${T.accentEnd} 100%)`,
+          borderRadius: `${T.radius} ${T.radius} 0 0`,
+        }}
+      />
+      <div style={{ paddingTop: 3 }}>{children}</div>
+    </div>
+  );
+}
+
+// ─── CircleProgress SVG ─────────────────────────────────────────────────────────
+
+function CircleProgress({ percent, size = 84, stroke = 6, color }) {
+  const r    = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = circ - (Math.min(percent, 100) / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      <circle cx={size/2} cy={size/2} r={r} strokeWidth={stroke}
+        style={{ stroke: "rgba(255,255,255,0.06)", fill: "none" }} />
+      <circle cx={size/2} cy={size/2} r={r} strokeWidth={stroke}
+        style={{
+          fill: "none",
+          stroke: color,
+          strokeDasharray: circ,
+          strokeDashoffset: dash,
+          strokeLinecap: "round",
+          transition: "stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)",
+          filter: `drop-shadow(0 0 6px ${color}66)`,
+        }}
+      />
+    </svg>
+  );
+}
+
+// ─── Linear ProgressBar ─────────────────────────────────────────────────────────
+
+function ProgressBar({ percent, color }) {
+  return (
+    <div style={{ height: 5, width: "100%", borderRadius: 100, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <div
+        style={{
+          height: "100%",
+          width: `${Math.min(percent, 100)}%`,
+          borderRadius: 100,
+          background: `linear-gradient(90deg, ${color} 0%, ${color}bb 100%)`,
+          boxShadow: `0 0 8px ${color}55`,
+          transition: "width 0.8s cubic-bezier(.4,0,.2,1)",
+        }}
       />
     </div>
   );
 }
 
-/** Círculo de progreso SVG puro */
-function CircleProgress({ percent, size = 88, stroke = 6, colorClass = "stroke-purple-500" }) {
-  const r = (size - stroke * 2) / 2;
-  const circ = 2 * Math.PI * r;
-  const dash = circ - (percent / 100) * circ;
-  return (
-    <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke}
-        className="stroke-white/10 fill-none" />
-      <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke}
-        className={`fill-none transition-all duration-700 ease-out ${colorClass}`}
-        strokeDasharray={circ} strokeDashoffset={dash}
-        strokeLinecap="round" />
-    </svg>
-  );
-}
+// ─── MetricCard ─────────────────────────────────────────────────────────────────
 
-/** Tarjeta de métrica principal */
-function MetricCard({ label, value, sub, percent, colorClass }) {
+function MetricCard({ label, value, sub, percent, color }) {
   return (
-    <div className="relative flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-transparent pointer-events-none" />
-      <p className="text-xs font-medium tracking-widest uppercase text-white/50">{label}</p>
-      <div className="flex items-center gap-4">
-        <div className="relative flex items-center justify-center">
-          <CircleProgress percent={percent} colorClass={colorClass} />
-          <span className="absolute text-lg font-bold text-white">{percent}%</span>
+    <Card accentColor={color}>
+      <div style={{ padding: "20px 20px 20px" }}>
+        <p style={{ margin: "0 0 14px", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+          {label}
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+          <div style={{ position: "relative", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CircleProgress percent={percent} color={color} />
+            <span style={{
+              position: "absolute",
+              fontSize: 15, fontWeight: 700,
+              color: T.textPrimary,
+              fontFamily: "'Syne', sans-serif",
+            }}>
+              {percent}%
+            </span>
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: T.textPrimary, lineHeight: 1.1, fontFamily: "'Syne', sans-serif" }}>{value}</p>
+            {sub && <p style={{ margin: "4px 0 0", fontSize: 11, color: T.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{sub}</p>}
+          </div>
         </div>
-        <div>
-          <p className="text-2xl font-bold text-white">{value}</p>
-          {sub && <p className="text-xs text-white/50 mt-0.5">{sub}</p>}
-        </div>
+        <ProgressBar percent={percent} color={color} />
       </div>
-      <ProgressBar percent={percent} colorClass={colorClass.replace("stroke-", "bg-")} />
-    </div>
+    </Card>
   );
 }
 
-/** Fila de materia en la tabla */
-function MateriaRow({ materia, index }) {
-  const asistPct = pct(materia.asistencias_presentes, materia.asistencias_total);
-  const tareaPct = pct(materia.tareas_entregadas, materia.tareas_total);
+// ─── StatusBadge ────────────────────────────────────────────────────────────────
+
+function StatusBadge({ percent }) {
+  const s = statusInfo(percent);
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "4px 10px", borderRadius: 100,
+      background: s.dimColor, border: `1px solid ${s.border}`,
+      fontSize: 11, fontWeight: 600, color: s.color,
+      fontFamily: "'DM Sans', sans-serif",
+      whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, boxShadow: `0 0 5px ${s.color}` }} />
+      {s.label}
+    </span>
+  );
+}
+
+// ─── MateriaRow ─────────────────────────────────────────────────────────────────
+
+function MateriaRow({ materia, index, isLast }) {
+  const asistPct   = pct(materia.asistencias_presentes, materia.asistencias_total);
+  const tareaPct   = pct(materia.tareas_entregadas,     materia.tareas_total);
   const generalPct = Math.round((asistPct + tareaPct) / 2);
-  const status = statusColor(generalPct);
+
+  const asistColor  = statusInfo(asistPct).color;
+  const tareaColor  = statusInfo(tareaPct).color;
+
+  const initials = (materia.docente ?? "?").trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
   return (
     <tr
-      className="border-b border-white/5 hover:bg-white/5 transition-colors duration-150"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{
+        borderBottom: isLast ? "none" : `1px solid rgba(6,182,212,0.07)`,
+        background: index % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent",
+        transition: "background 0.15s",
+      }}
     >
       {/* Materia */}
-      <td className="py-4 px-4">
-        <p className="font-semibold text-white text-sm">{materia.nombre}</p>
-        <p className="text-xs text-white/40 mt-0.5">{materia.clave || "—"}</p>
+      <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
+        <p style={{ margin: 0, fontWeight: 600, color: T.textPrimary, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>{materia.nombre}</p>
+        <p style={{ margin: "3px 0 0", fontSize: 11, color: T.textMuted, fontFamily: "monospace" }}>{materia.clave || "—"}</p>
       </td>
 
       {/* Docente */}
-      <td className="py-4 px-4">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-full bg-purple-800/60 flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-purple-200">
-              {materia.docente?.charAt(0) ?? "?"}
-            </span>
+      <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: T.radiusXs, flexShrink: 0,
+            background: "linear-gradient(135deg, rgba(6,182,212,0.18) 0%, rgba(29,185,84,0.10) 100%)",
+            border: `1px solid ${T.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 700, color: T.cyan, fontFamily: "'DM Sans', sans-serif",
+          }}>
+            {initials}
           </div>
-          <span className="text-sm text-white/70">{materia.docente ?? "Sin asignar"}</span>
+          <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{materia.docente ?? "Sin asignar"}</span>
         </div>
       </td>
 
       {/* Asistencia */}
-      <td className="py-4 px-4">
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-white/50">Asistencia</span>
-            <span className="font-medium text-white">{asistPct}%</span>
-          </div>
-          <ProgressBar percent={asistPct} colorClass={statusColor(asistPct).dot.replace("bg-", "bg-")} />
-          <p className="text-xs text-white/30">{materia.asistencias_presentes}/{materia.asistencias_total} clases</p>
+      <td style={{ padding: "16px 20px", verticalAlign: "middle", minWidth: 140 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>Asistencia</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: asistColor, fontFamily: "'Syne', sans-serif" }}>{asistPct}%</span>
         </div>
+        <ProgressBar percent={asistPct} color={asistColor} />
+        <p style={{ margin: "5px 0 0", fontSize: 10, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+          {materia.asistencias_presentes}/{materia.asistencias_total} clases
+        </p>
       </td>
 
       {/* Tareas */}
-      <td className="py-4 px-4">
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-white/50">Tareas</span>
-            <span className="font-medium text-white">{tareaPct}%</span>
-          </div>
-          <ProgressBar percent={tareaPct} colorClass={statusColor(tareaPct).dot.replace("bg-", "bg-")} />
-          <p className="text-xs text-white/30">{materia.tareas_entregadas}/{materia.tareas_total} entregadas</p>
+      <td style={{ padding: "16px 20px", verticalAlign: "middle", minWidth: 140 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>Tareas</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: tareaColor, fontFamily: "'Syne', sans-serif" }}>{tareaPct}%</span>
         </div>
+        <ProgressBar percent={tareaPct} color={tareaColor} />
+        <p style={{ margin: "5px 0 0", fontSize: 10, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+          {materia.tareas_entregadas}/{materia.tareas_total} entregadas
+        </p>
       </td>
 
-      {/* Estatus semáforo */}
-      <td className="py-4 px-4">
-        <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${status.dot} shadow-sm`} />
-          <span className={`text-xs font-medium ${status.text}`}>{status.label}</span>
-        </div>
+      {/* Estatus */}
+      <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
+        <StatusBadge percent={generalPct} />
       </td>
     </tr>
   );
 }
 
-/** Skeleton de carga */
-function Skeleton({ className }) {
-  return <div className={`animate-pulse rounded-lg bg-white/10 ${className}`} />;
+// ─── Skeleton ───────────────────────────────────────────────────────────────────
+
+function Skeleton({ width = "100%", height = 16, radius = T.radiusXs }) {
+  return (
+    <div style={{ width, height, borderRadius: radius, background: "rgba(6,182,212,0.08)", animation: "pulse 1.6s ease-in-out infinite" }} />
+  );
 }
 
-// ─── Componente principal ───────────────────────────────────────────────────────
+// ─── AlumnoDashboard ────────────────────────────────────────────────────────────
 
 export default function AlumnoDashboard() {
-  const { user } = useContext(AuthContext);
-
-  const [materias, setMaterias]   = useState([]);
-  const [resumen, setResumen]     = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [searchQ, setSearchQ]     = useState("");
+  const { user }                      = useContext(AuthContext);
+  const [materias,  setMaterias]      = useState([]);
+  const [resumen,   setResumen]       = useState(null);
+  const [loading,   setLoading]       = useState(true);
+  const [error,     setError]         = useState(null);
+  const [searchQ,   setSearchQ]       = useState("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const [matRes, resRes] = await Promise.all([
-          api.get("/alumno/materias/"),
-          api.get("/alumno/resumen/"),
+        // Rutas relativas: Axios concatena estas con el baseURL definido en api.js
+        // Resultado final: <baseURL>/academico/alumnos/resumen/  y  <baseURL>/academico/alumnos/materias/
+        const [resRes, matRes] = await Promise.all([
+          api.get("academico/alumnos/resumen/"),
+          api.get("academico/alumnos/materias/"),
         ]);
         if (!cancelled) {
-          setMaterias(matRes.data);
-          setResumen(resRes.data);
+          setResumen(resRes.data.alumno || resRes.data);
+          setMaterias(matRes.data.materias || []);
         }
-      } catch (e) {
+      } catch (err) {
+        console.error("Error detallado:", err);
         if (!cancelled) setError("No se pudieron cargar los datos. Intenta de nuevo.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -179,176 +295,223 @@ export default function AlumnoDashboard() {
     m.docente?.toLowerCase().includes(searchQ.toLowerCase())
   );
 
-  // Métricas generales calculadas en front si el endpoint no las trae
-  const globalAsist = resumen?.asistencia_global ?? (
-    materias.length
-      ? Math.round(materias.reduce((a, m) => a + pct(m.asistencias_presentes, m.asistencias_total), 0) / materias.length)
-      : 0
-  );
-  const globalTareas = resumen?.tareas_global ?? (
-    materias.length
-      ? Math.round(materias.reduce((a, m) => a + pct(m.tareas_entregadas, m.tareas_total), 0) / materias.length)
-      : 0
-  );
+  const globalAsist  = resumen?.asistencia_global ?? (materias.length ? Math.round(materias.reduce((a, m) => a + pct(m.asistencias_presentes, m.asistencias_total), 0) / materias.length) : 0);
+  const globalTareas = resumen?.tareas_global     ?? (materias.length ? Math.round(materias.reduce((a, m) => a + pct(m.tareas_entregadas, m.tareas_total),      0) / materias.length) : 0);
   const cumplimiento = Math.round((globalAsist + globalTareas) / 2);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#111827] font-['Sora',sans-serif]">
-      {/* Google Font */}
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');`}</style>
+    <>
+      {/* ── Google Fonts + keyframes ── */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+        * { box-sizing: border-box; }
+        tr:hover td { background: rgba(6,182,212,0.04) !important; }
+        input::placeholder { color: rgba(154,165,183,0.45); }
+        input:focus { outline: none; border-color: rgba(6,182,212,0.45) !important; box-shadow: 0 0 0 3px rgba(6,182,212,0.10); }
+      `}</style>
 
-      {/* Fondo decorativo */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-purple-900/30 blur-3xl" />
-        <div className="absolute top-1/2 -right-48 h-80 w-80 rounded-full bg-purple-800/20 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-violet-900/20 blur-3xl" />
-      </div>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: T.bg,
+          fontFamily: "'DM Sans', sans-serif",
+          ...DOTS_BG,
+        }}
+      >
+        {/* Ambient glow blobs */}
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
+          <div style={{ position: "absolute", top: "-120px", left: "-120px", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%)" }} />
+          <div style={{ position: "absolute", bottom: "-80px", right: "-80px", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(29,185,84,0.06) 0%, transparent 70%)" }} />
+        </div>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <main style={{ position: "relative", zIndex: 1, maxWidth: 1120, margin: "0 auto", padding: "40px 24px 60px" }}>
 
-        {/* ── Header de bienvenida ── */}
-        <header className="mb-10">
-          <p className="text-xs font-medium tracking-widest uppercase text-purple-400 mb-1">
-            Portal del Estudiante · CECyTEM Toluca II
-          </p>
-          <h1 className="text-3xl font-extrabold text-white">
-            Bienvenido, <span className="text-purple-300">{user?.nombre ?? user?.username ?? "Alumno"}</span>
-          </h1>
-          <p className="mt-1 text-sm text-white/40">
-            Ciclo escolar activo · Consulta tu avance académico en tiempo real
-          </p>
-        </header>
+          {/* ── Header ── */}
+          <header style={{ marginBottom: 36 }}>
+            <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: T.cyan, fontFamily: "'DM Sans', sans-serif" }}>
+              Portal del Estudiante · CECyTEM Toluca II
+            </p>
+            <h1 style={{ margin: "0 0 6px", fontSize: 28, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2 }}>
+              Bienvenido,{" "}
+              <span style={{ background: `linear-gradient(90deg, ${T.accent} 0%, ${T.cyan} 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                {user?.nombre ?? user?.username ?? "Alumno"}
+              </span>
+            </h1>
+            <p style={{ margin: 0, fontSize: 13, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+              Ciclo escolar activo · Consulta tu avance académico en tiempo real
+            </p>
+          </header>
 
-        {/* ── Tarjetas de métricas ── */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-            {[1,2,3].map(i => <Skeleton key={i} className="h-36" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-            <MetricCard
-              label="Cumplimiento General"
-              value={`${cumplimiento}%`}
-              sub="Promedio asistencia + tareas"
-              percent={cumplimiento}
-              colorClass="stroke-purple-400"
-            />
-            <MetricCard
-              label="Asistencia Global"
-              value={`${globalAsist}%`}
-              sub={`${materias.length} materias registradas`}
-              percent={globalAsist}
-              colorClass="stroke-emerald-400"
-            />
-            <MetricCard
-              label="Entrega de Tareas"
-              value={`${globalTareas}%`}
-              sub="Promedio entre todas las materias"
-              percent={globalTareas}
-              colorClass="stroke-amber-400"
-            />
-          </div>
-        )}
-
-        {/* ── Panel de materias ── */}
-        <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
-
-          {/* Encabezado del panel */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-5 border-b border-white/10">
-            <div>
-              <h2 className="text-base font-bold text-white">Materias Inscritas</h2>
-              <p className="text-xs text-white/40 mt-0.5">
-                {loading ? "Cargando…" : `${filtered.length} de ${materias.length} materias`}
-              </p>
-            </div>
-            {/* Búsqueda */}
-            <div className="relative w-full sm:w-64">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Buscar materia o docente…"
-                value={searchQ}
-                onChange={e => setSearchQ(e.target.value)}
-                className="w-full rounded-xl bg-white/10 border border-white/10 pl-9 pr-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
-              />
-            </div>
+          {/* ── Metric Cards Grid ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
+            {loading ? (
+              <>
+                <Skeleton height={148} radius={T.radius} />
+                <Skeleton height={148} radius={T.radius} />
+                <Skeleton height={148} radius={T.radius} />
+              </>
+            ) : (
+              <>
+                <MetricCard
+                  label="Cumplimiento General"
+                  value={`${cumplimiento}%`}
+                  sub="Promedio asistencia + tareas"
+                  percent={cumplimiento}
+                  color={T.accent}
+                />
+                <MetricCard
+                  label="Asistencia Global"
+                  value={`${globalAsist}%`}
+                  sub={`${materias.length} materia${materias.length !== 1 ? "s" : ""} registrada${materias.length !== 1 ? "s" : ""}`}
+                  percent={globalAsist}
+                  color={T.emerald}
+                />
+                <MetricCard
+                  label="Entrega de Tareas"
+                  value={`${globalTareas}%`}
+                  sub="Promedio entre todas las materias"
+                  percent={globalTareas}
+                  color={T.amber}
+                />
+              </>
+            )}
           </div>
 
-          {/* Estado de error */}
-          {error && (
-            <div className="flex items-center gap-3 mx-6 my-5 rounded-xl bg-amber-900/30 border border-amber-500/30 px-4 py-3">
-              <svg className="h-5 w-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              </svg>
-              <p className="text-sm text-amber-300">{error}</p>
-            </div>
-          )}
+          {/* ── Materias Panel ── */}
+          <Card>
+            {/* Panel header */}
+            <div style={{
+              display: "flex", flexWrap: "wrap", alignItems: "center",
+              justifyContent: "space-between", gap: 16,
+              padding: "20px 24px 18px",
+              borderBottom: `1px solid rgba(6,182,212,0.09)`,
+            }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: "'Syne', sans-serif" }}>
+                  Materias Inscritas
+                </h2>
+                <p style={{ margin: "3px 0 0", fontSize: 11, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+                  {loading ? "Cargando…" : `${filtered.length} de ${materias.length} materia${materias.length !== 1 ? "s" : ""}`}
+                </p>
+              </div>
 
-          {/* Tabla */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/10">
-                  {["Materia", "Docente", "Asistencia", "Tareas", "Estatus"].map(h => (
-                    <th key={h} className="py-3 px-4 text-xs font-semibold tracking-widest uppercase text-white/30">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading
-                  ? Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-white/5">
-                        {Array.from({ length: 5 }).map((_, j) => (
-                          <td key={j} className="py-4 px-4">
-                            <Skeleton className="h-4 w-24" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  : filtered.length === 0
-                    ? (
-                      <tr>
-                        <td colSpan={5} className="py-16 text-center text-white/30 text-sm">
-                          {searchQ ? "No se encontraron materias con ese criterio." : "No hay materias inscritas en este ciclo."}
-                        </td>
-                      </tr>
-                    )
-                    : filtered.map((m, i) => (
-                        <MateriaRow key={m.id ?? i} materia={m} index={i} />
+              {/* Search input */}
+              <div style={{ position: "relative", width: 240 }}>
+                <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: T.textMuted, pointerEvents: "none" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Buscar materia o docente…"
+                  value={searchQ}
+                  onChange={e => setSearchQ(e.target.value)}
+                  style={{
+                    width: "100%",
+                    paddingLeft: 36, paddingRight: 14, paddingTop: 9, paddingBottom: 9,
+                    borderRadius: T.radiusSm,
+                    background: "rgba(5,18,32,0.60)",
+                    border: `1px solid ${T.border}`,
+                    fontSize: 13, color: T.textPrimary,
+                    fontFamily: "'DM Sans', sans-serif",
+                    backdropFilter: "blur(8px)",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Error banner */}
+            {error && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 12,
+                margin: "16px 24px 0",
+                padding: "12px 16px", borderRadius: T.radiusXs,
+                background: T.amberDim, border: "1px solid rgba(245,158,11,0.25)",
+              }}>
+                <svg style={{ width: 18, height: 18, color: T.amber, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                </svg>
+                <p style={{ margin: 0, fontSize: 13, color: T.amber, fontFamily: "'DM Sans', sans-serif" }}>{error}</p>
+              </div>
+            )}
+
+            {/* Table */}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid rgba(6,182,212,0.10)` }}>
+                    {["Materia", "Docente", "Asistencia", "Tareas", "Estatus"].map(h => (
+                      <th key={h} style={{
+                        padding: "12px 20px", textAlign: "left",
+                        fontSize: 10, fontWeight: 700,
+                        letterSpacing: "0.18em", textTransform: "uppercase",
+                        color: T.cyan, fontFamily: "'DM Sans', sans-serif",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading
+                    ? Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} style={{ borderBottom: `1px solid rgba(6,182,212,0.07)` }}>
+                          {[180, 140, 130, 130, 110].map((w, j) => (
+                            <td key={j} style={{ padding: "16px 20px" }}>
+                              <Skeleton width={w} height={14} />
+                            </td>
+                          ))}
+                        </tr>
                       ))
-                }
-              </tbody>
-            </table>
-          </div>
-
-          {/* Leyenda semáforo */}
-          {!loading && (
-            <div className="flex flex-wrap gap-5 px-6 py-4 border-t border-white/10">
-              <p className="text-xs text-white/30 font-medium tracking-wide uppercase mr-2 self-center">Leyenda:</p>
-              {[
-                { dot: "bg-emerald-400", label: "Satisfactorio (≥ 80%)" },
-                { dot: "bg-amber-400",   label: "En seguimiento (50–79%)" },
-                { dot: "bg-purple-400",  label: "Atención requerida (< 50%)" },
-              ].map(({ dot, label }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-                  <span className="text-xs text-white/40">{label}</span>
-                </div>
-              ))}
+                    : filtered.length === 0
+                      ? (
+                        <tr>
+                          <td colSpan={5} style={{ padding: "56px 20px", textAlign: "center", fontSize: 13, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+                            {searchQ ? "No se encontraron materias con ese criterio." : "No hay materias inscritas en este ciclo."}
+                          </td>
+                        </tr>
+                      )
+                      : filtered.map((m, i) => (
+                          <MateriaRow key={m.id ?? i} materia={m} index={i} isLast={i === filtered.length - 1} />
+                        ))
+                  }
+                </tbody>
+              </table>
             </div>
-          )}
-        </section>
 
-        {/* Pie de página */}
-        <footer className="mt-10 text-center text-xs text-white/20">
-          CECyTEM Plantel Toluca II · Sistema de Seguimiento Académico
-        </footer>
-      </main>
-    </div>
+            {/* Legend */}
+            {!loading && (
+              <div style={{
+                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 20,
+                padding: "14px 24px",
+                borderTop: `1px solid rgba(6,182,212,0.09)`,
+              }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+                  Leyenda:
+                </span>
+                {[
+                  { color: T.emerald, label: "Satisfactorio (≥ 80%)" },
+                  { color: T.amber,   label: "En seguimiento (50–79%)" },
+                  { color: T.purple,  label: "Atención requerida (< 50%)" },
+                ].map(({ color, label }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, boxShadow: `0 0 5px ${color}88`, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: T.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* ── Footer ── */}
+          <footer style={{ marginTop: 36, textAlign: "center", fontSize: 11, color: T.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+            CECyTEM Plantel Toluca II · Sistema de Seguimiento Académico
+          </footer>
+        </main>
+      </div>
+    </>
   );
 }

@@ -657,7 +657,7 @@ function AlumnosSection() {
     if (!modal?.userId || !form.grupo) { show("Selecciona un grupo válido.", "error"); return; }
     setSaving(true);
     try {
-      await api.put(`/academico/alumnos/${modal.id}/`, { user: modal.userId, grupo: Number.parseInt(form.grupo, 10) });
+      await api.put(`/alumnos/${modal.id}/`, { user: modal.userId, grupo: Number.parseInt(form.grupo, 10) });
       show("Alumno actualizado correctamente.");
       setModal(null);
       await load();
@@ -667,7 +667,7 @@ function AlumnosSection() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("¿Eliminar este alumno?")) return;
-    try { await api.delete(`/academico/alumnos/${id}/`); show("Alumno eliminado."); await load(); }
+    try { await api.delete(`/alumnos/${id}/`); show("Alumno eliminado."); await load(); }
     catch { show("No se pudo eliminar el alumno.", "error"); }
   };
 
@@ -695,7 +695,7 @@ function AlumnosSection() {
       });
       const userUuid = userResponse.data.id;
       if (!userUuid) throw new Error("El servidor no devolvió un ID válido.");
-      await api.post("/academico/alumnos/", {
+      await api.post("/alumnos/", {
         user: userUuid, curp: formAlumno.curp.trim(), carrera: formAlumno.carrera,
         semestre: Number.parseInt(formAlumno.semestre, 10), grupo: Number.parseInt(formAlumno.grupo, 10), turno: formAlumno.turno,
       });
@@ -1154,7 +1154,7 @@ function GruposSection() {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      const grupoRes = await api.post("/academico/grupos/", { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
+      const grupoRes = await api.post("/grupos/", { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const grupoId = grupoRes.data.id;
       const validas = asignForm.filter((r) => r.docente_id && r.docente_id.trim() !== "" && !isNaN(Number.parseInt(r.docente_id, 10)) && Number.parseInt(r.docente_id, 10) > 0);
       if (validas.length > 0) {
@@ -1172,7 +1172,7 @@ function GruposSection() {
     if (!editGroup?.grupoId) return;
     setSaving(true);
     try {
-      await api.put(`/academico/grupos/${editGroup.grupoId}/`, { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
+      await api.put(`/grupos/${editGroup.grupoId}/`, { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const asignActuales = getAsignacionesPorGrupo(editGroup.grupoId);
       const ops = asignForm.map(async (row) => {
         const existing = asignActuales.find((a) => a.materia === row.materia_id);
@@ -1198,7 +1198,7 @@ function GruposSection() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("¿Eliminar este grupo y sus asignaciones?")) return;
-    try { await api.delete(`/academico/grupos/${id}/`); show("Grupo eliminado."); await load(); }
+    try { await api.delete(`/grupos/${id}/`); show("Grupo eliminado."); await load(); }
     catch (err) { show(parseDRFError(err), "error"); }
   };
 
@@ -1454,8 +1454,8 @@ function MateriasSection() {
     setSaving(true);
     try {
       const payload = normalizeMateriaPayload(form);
-      if (modal.mode === "create") { await api.post("/academico/materias/", payload); show("Materia creada correctamente."); }
-      else { await api.put(`/academico/materias/${modal.id}/`, payload); show("Materia actualizada correctamente."); }
+      if (modal.mode === "create") { await api.post("/materias/", payload); show("Materia creada correctamente."); }
+      else { await api.put(`/materias/${modal.id}/`, payload); show("Materia actualizada correctamente."); }
       setModal(null); await load();
     } catch (err) {
       if (err.response?.data) { const msg = Object.entries(err.response.data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | "); show(`Error: ${msg}`, "error"); }
@@ -1465,7 +1465,7 @@ function MateriasSection() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("¿Eliminar esta materia? Esta acción no se puede deshacer.")) return;
-    try { await api.delete(`/academico/materias/${id}/`); show("Materia eliminada."); await load(); }
+    try { await api.delete(`/materias/${id}/`); show("Materia eliminada."); await load(); }
     catch { show("No se pudo eliminar la materia.", "error"); }
   };
 

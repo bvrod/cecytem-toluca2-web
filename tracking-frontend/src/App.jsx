@@ -260,7 +260,7 @@ function App() {
                   color: '#9aa5b7', margin: '6px 0 0', letterSpacing: '0.04em',
                   textTransform: 'uppercase',
                 }}>
-                  Control Escolar
+                  Sistema de Seguimiento Académico
                 </p>
               </div>
 
@@ -328,7 +328,7 @@ function App() {
                 marginTop: '24px', textAlign: 'center', color: '#4b5563',
                 fontSize: '11px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.03em',
               }}>
-                © {new Date().getFullYear()} CECyTEM · Sistema de Control Escolar
+                © {new Date().getFullYear()} CECyTEM · Sistema de Seguimiento Académico
               </div>
             </div>
           </div>
