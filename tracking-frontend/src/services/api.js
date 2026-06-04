@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/', 
+  baseURL: 'https://cecytem-toluca2-web.onrender.com', 
 });
 api.interceptors.request.use((config) => {
   let token = localStorage.getItem('access_token');
