@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Navbar } from './Navbar';
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
-
+import { ENDPOINTS } from "../services/endpoints";
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
 
 const T = {
@@ -151,12 +151,11 @@ export default function DocenteDashboard() {
   const [selectedActividad,  setSelectedActividad]  = useState(null);
 
   // ── Cargar asignaciones ────────────────────────────────────────────────────
-
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoadingDashboard(true);
-      setError(null);
-      const res = await api.get("academico/docentes/dashboard/");
+const fetchDashboardData = useCallback(async () => {
+  try {
+    setLoadingDashboard(true);
+    setError(null);
+    const res = await api.get(ENDPOINTS.ACADEMICO.DOCENTES_DASHBOARD);
       const data = normalizeArrayResponse(res.data);
       setAsignaciones(data);
       if (selectedAsignacion) {
@@ -182,8 +181,8 @@ export default function DocenteDashboard() {
         setLoadingDetalles(true);
         setError(null);
         const [resAct, resAlu] = await Promise.all([
-          api.get(`seguimiento/actividades/?asignacion=${selectedAsignacion.id}`),
-          api.get(`academico/alumnos/?asignacion=${selectedAsignacion.id}`).catch(() => ({ data: [] })),
+        api.get(`${ENDPOINTS.SEGUIMIENTO.ACTIVIDADES}?asignacion=${selectedAsignacion.id}`),
+        api.get(`${ENDPOINTS.ACADEMICO.ALUMNOS}?asignacion=${selectedAsignacion.id}`).catch(() => ({ data: [] })),
         ]);
         setActividades(normalizeArrayResponse(resAct.data));
         const lista = normalizeArrayResponse(resAlu.data);
@@ -219,7 +218,7 @@ export default function DocenteDashboard() {
       return;
     }
     try {
-      const res = await api.post("seguimiento/cumplimiento/guardar_asistencia/", {
+      const res = await api.post(ENDPOINTS.SEGUIMIENTO.GUARDAR_ASISTENCIA, {
         actividad_id: selectedActividad,
         asistencias: asistencia,
         evaluaciones,
@@ -776,7 +775,7 @@ function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) 
     try {
       const fecha = new Date(formData.fecha_limite + "T00:00:00");
       // CORRECCIÓN: ruta sin barra inicial
-      await api.post("seguimiento/actividades/", {
+      await api.post(ENDPOINTS.SEGUIMIENTO.ACTIVIDADES, {
         asignacion: typeof asignacion === 'object' ? asignacion.id : asignacion,
         titulo:      formData.titulo.trim(),
         descripcion: formData.descripcion.trim() || "",
