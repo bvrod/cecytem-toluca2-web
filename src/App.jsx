@@ -307,7 +307,7 @@ export default function App() {
     }, 900);
   };
 
-  // ── RENDER ────────────────────────────────────────────────────
+// ── RENDER ────────────────────────────────────────────────────
   return (
     <div className="relative min-h-screen overflow-hidden text-[var(--text)]">
       <div className="ambient-background" aria-hidden="true" />
@@ -339,41 +339,42 @@ export default function App() {
                     {item.label}
                   </button>
                 ))}
-              </div>
-            </div>
+                
+                <a
+                  href="https://cecytem-toluca2-web-2xap.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm 2xl:inline-flex"
+                >
+                  <FaGlobe className="text-sm" />
+                  Portal
+                </a>
 
-            <div className="flex shrink-0 items-center gap-2 sm:gap-2.5 2xl:gap-3">
-              <a
-                href="tracking-frontend/src/App.jsx"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="cta-secondary hidden items-center justify-center gap-1.5 whitespace-nowrap !rounded-xl !px-3 !py-1.5 !text-sm 2xl:inline-flex"
-              >
-                <FaGlobe className="text-sm" />
-                Portal
-              </a>
-              <button
-                type="button"
-                onClick={() => handleAnchorClick("admisiones")}
-                className="cta-primary hidden items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm 2xl:inline-flex"
-              >
-                Inscríbete
-                <FaArrowRight />
-              </button>
-              <ThemeToggle
-                theme={theme}
-                onToggle={() => setTheme((c) => (c === "light" ? "dark" : "light"))}
-              />
-              <button
-                type="button"
-                className="glass-card flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--text)] 2xl:hidden"
-                onClick={() => setMobileOpen((c) => !c)}
-                aria-expanded={mobileOpen}
-                aria-controls="mobile-navigation"
-                aria-label="Abrir menú"
-              >
-                {mobileOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleAnchorClick("admisiones")}
+                  className="cta-primary hidden items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm 2xl:inline-flex"
+                >
+                  Inscríbete
+                  <FaArrowRight />
+                </button>
+                
+                <ThemeToggle
+                  theme={theme}
+                  onToggle={() => setTheme((c) => (c === "light" ? "dark" : "light"))}
+                />
+                
+                <button
+                  type="button"
+                  className="glass-card flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--text)] 2xl:hidden"
+                  onClick={() => setMobileOpen((c) => !c)}
+                  aria-expanded={mobileOpen}
+                  aria-controls="mobile-navigation"
+                  aria-label="Abrir menú"
+                >
+                  {mobileOpen ? <FiX size={20} /> : <FiMenu size={20} />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -389,7 +390,7 @@ export default function App() {
               >
                 <div className="grid gap-2">
                   <a
-                    href="tracking-frontend/src/App.jsx"
+                    href="https://cecytem-toluca2-web-2xap.vercel.app/"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setMobileOpen(false)}
