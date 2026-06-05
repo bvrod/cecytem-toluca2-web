@@ -603,7 +603,7 @@ export const contactInfo = {
   email: "plantel.toluca2@cecytem.mx",
   address: "Calle Francisco I. Madero s/n, Col. La Constitución Totoltepec, Toluca, Estado de México, C.P. 50236",
   hours: "Lunes a viernes, 7:00 – 15:00 hrs",
-  website: "https://www.cecytem.edu.mx",
+  website: "https://cecytem-toluca2-web-2xap.vercel.app/",
   director: "Ing. Karla Ninel Rodríguez López",
   brochurePdf: "#",
   mapEmbed: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3765.4246875936774!2d-99.5786438!3d19.3225217!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d20980647b74f9%3A0xe7261944da9cbbf0!2sCECyTEM%20Plantel%20Toluca%20II!5e0!3m2!1ses-419!2smx!4v1716315000000!5m2!1ses-419!2smx",
