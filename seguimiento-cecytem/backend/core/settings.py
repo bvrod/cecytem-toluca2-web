@@ -155,16 +155,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
-    "http://localhost:3000",
 
-    # Web institucional
     "https://cecytem-toluca2-web.vercel.app",
-
-    # Sistema frontend
     "https://cecytem-toluca2-web-2xap.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_METHODS = [
     "DELETE",
