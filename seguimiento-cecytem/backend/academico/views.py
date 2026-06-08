@@ -49,10 +49,12 @@ class GrupoViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class MateriaViewSet(viewsets.ModelViewSet):
     queryset = Materia.objects.all()
     serializer_class = MateriaSerializer
     permission_classes = [IsAuthenticated]
+
 
 class AlumnoViewSet(viewsets.ModelViewSet):
     queryset = Alumno.objects.all()
@@ -90,11 +92,38 @@ class AlumnoViewSet(viewsets.ModelViewSet):
     def materias(self, request):
         try:
             alumno = Alumno.objects.get(user=request.user)
-            materias = Materia.objects.filter(asignaciones__grupo=alumno.grupo).distinct()
-            serializer = MateriaSerializer(materias, many=True)
-            return Response({'status': 'success', 'materias': serializer.data})
+
+            # ── FIX: consultar desde AsignacionDocente para obtener el docente ──
+            asignaciones = AsignacionDocente.objects.filter(
+                grupo=alumno.grupo
+            ).select_related('materia', 'docente')
+
+            result = []
+            for asig in asignaciones:
+                nombre_docente = (
+                    f"{asig.docente.first_name} {asig.docente.last_name}".strip()
+                    or asig.docente.username
+                )
+                result.append({
+                    "id":                    asig.materia.id,
+                    "nombre":                asig.materia.nombre,
+                    "clave":                 asig.materia.clave,
+                    "creditos":              asig.materia.creditos,
+                    "docente":               nombre_docente,
+                    "asistencias_presentes": 0,
+                    "asistencias_total":     0,
+                    "tareas_entregadas":     0,
+                    "tareas_total":          0,
+                })
+
+            return Response({'status': 'success', 'materias': result})
+
         except Alumno.DoesNotExist:
-            return Response({'error': 'No registrado como alumno'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'No registrado como alumno'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -102,6 +131,7 @@ def docente_dashboard(request):
     asignaciones = AsignacionDocente.objects.filter(docente=request.user)
     serializer = AsignacionDocenteSerializer(asignaciones, many=True)
     return Response(serializer.data)
+
 
 class MisAsignacionesView(APIView):
     permission_classes = [IsAuthenticated]
