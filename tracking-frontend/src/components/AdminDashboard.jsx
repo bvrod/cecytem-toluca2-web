@@ -1093,7 +1093,12 @@ function DocentesSection() {
 
 // ─── GruposSection ──────────────────────────────────────────────────────────────
 
-const getMateriasPorSemestreCarrera = (todasMaterias) => todasMaterias;
+const getMateriasPorSemestreCarrera = (todasMaterias, semestre, carrera) =>
+  todasMaterias.filter((m) => {
+    const matchSemestre = !semestre || m.semestre === Number.parseInt(semestre, 10);
+    const matchCarrera  = !carrera  || m.carrera === carrera;
+    return matchSemestre && matchCarrera;
+  });
 
 function GruposSection() {
   const [grupos,       setGrupos]       = React.useState([]);
@@ -1138,25 +1143,30 @@ function GruposSection() {
 
   const resetAll = () => { setFase1({ semestre: "", carrera: "", grupo_letra: "", turno: "Matutino" }); setAsignForm([]); setStep(0); setEditGroup(null); };
   const openCreate = () => { resetAll(); setModalOpen(true); };
+
   const openEditGroup = (grupo) => {
     const asigs = getAsignacionesPorGrupo(grupo.id);
     setFase1({ semestre: String(grupo.semestre || ""), carrera: grupo.carrera || "", grupo_letra: String(grupo.grupo_letra || ""), turno: grupo.turno || "Matutino" });
-    const rows = materias.map((mat) => {
+    const matsFiltradas = getMateriasPorSemestreCarrera(materias, String(grupo.semestre || ""), grupo.carrera || "");
+    const rows = matsFiltradas.map((mat) => {
       const asig = asigs.find((a) => a.materia === mat.id);
       return { materia_id: mat.id, materia_clave: mat.clave, materia_nombre: mat.nombre, docente_id: asig?.docente ? String(asig.docente) : "", asig_id: asig?.id ?? null };
     });
     setAsignForm(rows); setEditGroup({ grupoId: grupo.id }); setStep(0); setModalOpen(true);
   };
+
   const goToFase2 = () => {
     if (!fase1.semestre || !fase1.carrera || !fase1.grupo_letra) { show("Completa semestre, carrera y grupo antes de continuar.", "error"); return; }
-    const currentMats = getMateriasPorSemestreCarrera(materias);
+    const currentMats = getMateriasPorSemestreCarrera(materias, fase1.semestre, fase1.carrera);
     setAsignForm((prev) => currentMats.map((mat) => {
       const existing = prev.find((r) => r.materia_id === mat.id);
       return existing ?? { materia_id: mat.id, materia_clave: mat.clave, materia_nombre: mat.nombre, docente_id: "", asig_id: null };
     }));
     setStep(1);
   };
+
   const updateDocenteEnFila = (materiaId, docenteId) => setAsignForm((prev) => prev.map((row) => row.materia_id === materiaId ? { ...row, docente_id: docenteId } : row));
+
   const parseDRFError = (err) => {
     if (!err.response?.data) return "Error desconocido.";
     const data = err.response.data;
@@ -1170,13 +1180,36 @@ function GruposSection() {
     try {
       const grupoRes = await api.post("/academico/grupos/", { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const grupoId = grupoRes.data.id;
-      const validas = asignForm.filter((r) => r.docente_id && r.docente_id.trim() !== "" && !isNaN(Number.parseInt(r.docente_id, 10)) && Number.parseInt(r.docente_id, 10) > 0);
+
+      // Filtra filas con docente válido y sin duplicado en BD
+      const validas = asignForm.filter((r) => {
+        if (!r.docente_id || r.docente_id.trim() === "" || isNaN(Number.parseInt(r.docente_id, 10)) || Number.parseInt(r.docente_id, 10) <= 0) return false;
+        const yaExiste = asignaciones.some(
+          (a) => a.docente === Number.parseInt(r.docente_id, 10) &&
+                 a.materia === r.materia_id &&
+                 a.grupo   === grupoId
+        );
+        return !yaExiste;
+      });
+
       if (validas.length > 0) {
-        const results = await Promise.allSettled(validas.map((row) => api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: grupoId })));
+        const results = await Promise.allSettled(
+          validas.map((row) => api.post("/seguimiento/asignaciones/", {
+            docente: Number.parseInt(row.docente_id, 10),
+            materia: row.materia_id,
+            grupo:   grupoId,
+          }))
+        );
         const fallos = results.filter((r) => r.status === "rejected");
-        if (fallos.length > 0) show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron.`, "error");
-        else show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado con ${validas.length} asignación(es).`);
-      } else { show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado sin asignaciones.`); }
+        if (fallos.length > 0) {
+          const detalle = fallos.map((f) => parseDRFError(f.reason)).join(" | ");
+          show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron: ${detalle}`, "error");
+        } else {
+          show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado con ${validas.length} asignación(es).`);
+        }
+      } else {
+        show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado sin asignaciones.`);
+      }
       setModalOpen(false); resetAll(); await load();
     } catch (err) { show(parseDRFError(err), "error"); }
     finally { setSaving(false); }
@@ -1190,15 +1223,31 @@ function GruposSection() {
       const asignActuales = getAsignacionesPorGrupo(editGroup.grupoId);
       const ops = asignForm.map(async (row) => {
         const existing = asignActuales.find((a) => a.materia === row.materia_id);
-        const esValida = row.docente_id && row.docente_id.trim() !== "" && !isNaN(Number.parseInt(row.docente_id, 10));
-        if (existing && esValida) { if (Number(existing.docente) !== Number.parseInt(row.docente_id, 10)) await api.patch(`/seguimiento/asignaciones/${existing.id}/`, { docente: Number.parseInt(row.docente_id, 10) }); }
-        else if (existing && !esValida) { await api.delete(`/seguimiento/asignaciones/${existing.id}/`); }
-        else if (!existing && esValida) { await api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: editGroup.grupoId }); }
+        const esValida  = row.docente_id && row.docente_id.trim() !== "" && !isNaN(Number.parseInt(row.docente_id, 10));
+        if (existing && esValida) {
+          if (Number(existing.docente) !== Number.parseInt(row.docente_id, 10))
+            await api.patch(`/seguimiento/asignaciones/${existing.id}/`, { docente: Number.parseInt(row.docente_id, 10) });
+        } else if (existing && !esValida) {
+          await api.delete(`/seguimiento/asignaciones/${existing.id}/`);
+        } else if (!existing && esValida) {
+          // Verificar que no exista ya en BD antes de crear
+          const yaExiste = asignaciones.some(
+            (a) => a.docente === Number.parseInt(row.docente_id, 10) &&
+                   a.materia === row.materia_id &&
+                   a.grupo   === editGroup.grupoId
+          );
+          if (!yaExiste)
+            await api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: editGroup.grupoId });
+        }
       });
       const results = await Promise.allSettled(ops);
-      const fallos = results.filter((r) => r.status === "rejected");
-      if (fallos.length > 0) show(`Grupo actualizado, pero ${fallos.length} cambio(s) fallaron.`, "error");
-      else show("Grupo actualizado correctamente.");
+      const fallos  = results.filter((r) => r.status === "rejected");
+      if (fallos.length > 0) {
+        const detalle = fallos.map((f) => parseDRFError(f.reason)).join(" | ");
+        show(`Grupo actualizado, pero ${fallos.length} cambio(s) fallaron: ${detalle}`, "error");
+      } else {
+        show("Grupo actualizado correctamente.");
+      }
       setModalOpen(false); resetAll(); await load();
     } catch (err) { show(parseDRFError(err), "error"); }
     finally { setSaving(false); }
@@ -1256,7 +1305,6 @@ function GruposSection() {
 
       {modalOpen && (
         <Modal title={editGroup ? "Editar grupo" : "Nuevo grupo"} onClose={() => { setModalOpen(false); resetAll(); }}>
-          {/* Steps */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
             {["Datos del grupo", "Matriz académica"].map((label, i) => (
               <React.Fragment key={label}>
@@ -1330,7 +1378,7 @@ function GruposSection() {
               <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
                 {asignForm.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "32px 16px", fontSize: 12, color: T.textMuted, border: `1px solid ${T.border}`, borderRadius: T.radiusXs }}>
-                    No hay materias en el catálogo. Agrégalas primero.
+                    No hay materias para este semestre y carrera. Agrégalas primero en el catálogo.
                   </div>
                 ) : asignForm.map((row) => (
                   <div key={row.materia_id} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: T.radiusXs, background: row.docente_id ? "rgba(29,185,84,0.05)" : "rgba(6,182,212,0.03)", border: `1px solid ${row.docente_id ? T.borderGreen : T.border}`, transition: "all 0.15s" }}>
