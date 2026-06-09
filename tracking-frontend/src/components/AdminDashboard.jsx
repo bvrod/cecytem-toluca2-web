@@ -1492,7 +1492,7 @@ function MateriasSection() {
   const [loading,  setLoading]  = useState(true);
   const [modal,    setModal]    = useState(null);
   const [saving,   setSaving]   = useState(false);
-  const [form,     setForm]     = useState({ nombre: "", clave: "", creditos: "" });
+  const [form,     setForm]     = useState({ nombre: "", clave: "", creditos: "", semestre: "", carrera: "" });
   const { toast, show } = useToast();
 
   const load = useCallback(async () => {
@@ -1504,8 +1504,21 @@ function MateriasSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = () => { setForm({ nombre: "", clave: "", creditos: "" }); setModal({ mode: "create" }); };
-  const openEdit = (m) => { setForm({ nombre: m.nombre ?? "", clave: m.clave ?? "", creditos: String(m.creditos ?? "") }); setModal({ mode: "edit", id: m.id }); };
+  const openCreate = () => {
+    setForm({ nombre: "", clave: "", creditos: "", semestre: "", carrera: "" });
+    setModal({ mode: "create" });
+  };
+
+  const openEdit = (m) => {
+    setForm({
+      nombre:   m.nombre   ?? "",
+      clave:    m.clave    ?? "",
+      creditos: String(m.creditos ?? ""),
+      semestre: m.semestre ? String(m.semestre) : "",
+      carrera:  m.carrera  ?? "",
+    });
+    setModal({ mode: "edit", id: m.id });
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -1513,9 +1526,15 @@ function MateriasSection() {
     if (!form.clave.trim())  { show("La clave es obligatoria.", "error"); return; }
     const creditos = Number.parseInt(form.creditos, 10);
     if (isNaN(creditos) || creditos < 0 || creditos > 20) { show("Los créditos deben estar entre 0 y 20.", "error"); return; }
+    const semestre = form.semestre ? Number.parseInt(form.semestre, 10) : null;
+    if (semestre !== null && (semestre < 1 || semestre > 6)) { show("El semestre debe ser entre 1 y 6.", "error"); return; }
     setSaving(true);
     try {
-      const payload = normalizeMateriaPayload(form);
+      const payload = {
+        ...normalizeMateriaPayload(form),
+        semestre: semestre,
+        carrera:  form.carrera || null,
+      };
       if (modal.mode === "create") { await api.post("/academico/materias/", payload); show("Materia creada correctamente."); }
       else { await api.put(`/academico/materias/${modal.id}/`, payload); show("Materia actualizada correctamente."); }
       setModal(null); await load();
@@ -1531,15 +1550,48 @@ function MateriasSection() {
     catch { show("No se pudo eliminar la materia.", "error"); }
   };
 
+  // Valida carreras disponibles según semestre (misma lógica que Grupos)
+  const carrerasDisponibles = (semestre) => {
+    const s = Number.parseInt(semestre, 10);
+    if (!s) return [
+      { value: "LOGISTICA",         label: "Logística" },
+      { value: "CIENCIA_DATOS",     label: "Ciencia de Datos" },
+      { value: "ANIMACION_DIGITAL", label: "Animación Digital" },
+    ];
+    if (s === 1) return [
+      { value: "LOGISTICA",     label: "Logística" },
+      { value: "CIENCIA_DATOS", label: "Ciencia de Datos" },
+    ];
+    if (s === 4 || s === 6) return [
+      { value: "LOGISTICA",         label: "Logística" },
+      { value: "CIENCIA_DATOS",     label: "Ciencia de Datos" },
+      { value: "ANIMACION_DIGITAL", label: "Animación Digital" },
+    ];
+    return [
+      { value: "LOGISTICA",     label: "Logística" },
+      { value: "CIENCIA_DATOS", label: "Ciencia de Datos" },
+    ];
+  };
+
   return (
     <>
       <Toast toast={toast} />
-      <SectionTitle title="Materias" subtitle="Catálogo de materias." action={<Btn onClick={openCreate}>+ Nueva materia</Btn>} />
-      <Table cols={["Clave", "Nombre", "Créditos", ""]} loading={loading} emptyText="Sin materias registradas">
+      <SectionTitle title="Materias" subtitle="Catálogo de materias por semestre y carrera." action={<Btn onClick={openCreate}>+ Nueva materia</Btn>} />
+      <Table cols={["Clave", "Nombre", "Semestre", "Carrera", "Créditos", ""]} loading={loading} emptyText="Sin materias registradas">
         {materias.map((materia, idx) => (
           <TR key={materia.id} idx={idx}>
             <TD><span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{materia.clave}</span></TD>
             <TD><span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{materia.nombre}</span></TD>
+            <TD>
+              {materia.semestre
+                ? <Pill>{materia.semestre}°</Pill>
+                : <span style={{ fontSize: 12, color: T.textMuted }}>—</span>}
+            </TD>
+            <TD>
+              {materia.carrera
+                ? <span style={{ fontSize: 12, color: T.textSecondary }}>{carreraLabels[materia.carrera] ?? materia.carrera}</span>
+                : <span style={{ fontSize: 12, color: T.textMuted }}>—</span>}
+            </TD>
             <TD><Pill color="gray">{materia.creditos ?? 0} créditos</Pill></TD>
             <TD>
               <div style={{ display: "flex", gap: 8 }}>
@@ -1563,6 +1615,30 @@ function MateriasSection() {
               </Field>
               <Field label="Créditos">
                 <StyledInput type="number" value={form.creditos} onChange={(e) => setForm((c) => ({ ...c, creditos: e.target.value }))} placeholder="5" disabled={saving} />
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Semestre">
+                <StyledSelect
+                  value={form.semestre}
+                  disabled={saving}
+                  onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, carrera: "" }))}
+                >
+                  <option value="">Sin semestre</option>
+                  {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}°</option>)}
+                </StyledSelect>
+              </Field>
+              <Field label="Carrera">
+                <StyledSelect
+                  value={form.carrera}
+                  disabled={saving}
+                  onChange={(e) => setForm((c) => ({ ...c, carrera: e.target.value }))}
+                >
+                  <option value="">Sin carrera</option>
+                  {carrerasDisponibles(form.semestre).map((car) => (
+                    <option key={car.value} value={car.value}>{car.label}</option>
+                  ))}
+                </StyledSelect>
               </Field>
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>

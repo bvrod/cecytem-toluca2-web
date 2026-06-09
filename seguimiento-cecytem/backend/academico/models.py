@@ -44,17 +44,23 @@ class Grupo(models.Model):
 
 
 class Materia(models.Model):
-    nombre = models.CharField(max_length=150)
-    clave = models.CharField(max_length=50, unique=True)
-    creditos = models.IntegerField(default=0)  # Créditos de la materia
+    CARRERAS_CHOICES = [
+        ('LOGISTICA', 'Logística'),
+        ('CIENCIA_DATOS', 'Ciencia de Datos'),
+        ('ANIMACION_DIGITAL', 'Animación Digital'),
+    ]
+
+    nombre   = models.CharField(max_length=150)
+    clave    = models.CharField(max_length=50, unique=True)
+    creditos = models.IntegerField(default=0)
+    semestre = models.IntegerField(null=True, blank=True)
+    carrera  = models.CharField(max_length=20, choices=CARRERAS_CHOICES, null=True, blank=True)
 
     class Meta:
         ordering = ['clave']
 
     def __str__(self):
         return f"{self.clave} - {self.nombre} ({self.creditos} cr)"
-
-
 class Alumno(models.Model):
     # Vincula al Alumno de forma directa uno a uno con sus credenciales de usuario (autenticacion)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil_alumno')
