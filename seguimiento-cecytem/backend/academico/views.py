@@ -88,41 +88,54 @@ class AlumnoViewSet(viewsets.ModelViewSet):
         except Alumno.DoesNotExist:
             return Response({'error': 'No registrado como alumno'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['get'], url_path='materias')
-    def materias(self, request):
-        try:
-            alumno = Alumno.objects.get(user=request.user)
+@action(detail=False, methods=['get'], url_path='materias')
+def materias(self, request):
+    try:
+        alumno = Alumno.objects.get(user=request.user)
 
-            # ── FIX: consultar desde AsignacionDocente para obtener el docente ──
-            asignaciones = AsignacionDocente.objects.filter(
-                grupo=alumno.grupo
-            ).select_related('materia', 'docente')
+        asignaciones = AsignacionDocente.objects.filter(
+            grupo=alumno.grupo
+        ).select_related('materia', 'docente')
 
-            result = []
-            for asig in asignaciones:
-                nombre_docente = (
-                    f"{asig.docente.first_name} {asig.docente.last_name}".strip()
-                    or asig.docente.username
-                )
-                result.append({
-                    "id":                    asig.materia.id,
-                    "nombre":                asig.materia.nombre,
-                    "clave":                 asig.materia.clave,
-                    "creditos":              asig.materia.creditos,
-                    "docente":               nombre_docente,
-                    "asistencias_presentes": 0,
-                    "asistencias_total":     0,
-                    "tareas_entregadas":     0,
-                    "tareas_total":          0,
-                })
-
-            return Response({'status': 'success', 'materias': result})
-
-        except Alumno.DoesNotExist:
-            return Response(
-                {'error': 'No registrado como alumno'},
-                status=status.HTTP_404_NOT_FOUND
+        result = []
+        for asig in asignaciones:
+            nombre_docente = (
+                f"{asig.docente.first_name} {asig.docente.last_name}".strip()
+                or asig.docente.username
             )
+
+            # Todas las actividades de esta asignación
+            from seguimiento.models import Actividad, Cumplimiento
+            actividades = Actividad.objects.filter(asignacion=asig)
+            total_actividades = actividades.count()
+
+            # Cuántas cumplió este alumno
+            cumplidas = Cumplimiento.objects.filter(
+                actividad__in=actividades,
+                alumno=alumno,
+                entregado=True
+            ).count()
+
+            result.append({
+                "id":                    asig.materia.id,
+                "nombre":                asig.materia.nombre,
+                "clave":                 asig.materia.clave,
+                "creditos":              asig.materia.creditos,
+                "docente":               nombre_docente,
+                # El frontend usa estos 4 campos para calcular los porcentajes
+                "asistencias_presentes": cumplidas,
+                "asistencias_total":     total_actividades,
+                "tareas_entregadas":     cumplidas,
+                "tareas_total":          total_actividades,
+            })
+
+        return Response({'status': 'success', 'materias': result})
+
+    except Alumno.DoesNotExist:
+        return Response(
+            {'error': 'No registrado como alumno'},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
 
 @api_view(['GET'])
