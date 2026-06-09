@@ -940,6 +940,19 @@ function DocentesSection() {
     catch { show("No se pudo remover la materia.", "error"); }
   };
 
+  const handleDeleteDocente = async (docente) => {
+    const name = [docente.first_name, docente.last_name].filter(Boolean).join(" ") || docente.username;
+    if (!window.confirm(`¿Eliminar al docente "${name}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/auth/usuarios/${docente.id}/`);
+      show(`Docente ${name} eliminado.`);
+      await load();
+    } catch (err) {
+      if (err.response) alert("DJANGO RECHAZÓ:\n" + JSON.stringify(err.response.data, null, 2));
+      else show("No se pudo eliminar al docente.", "error");
+    }
+  };
+
   return (
     <>
       <Toast toast={toast} />
@@ -986,6 +999,7 @@ function DocentesSection() {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Btn variant="ghost" size="sm" onClick={() => openDetails(docente)}>Detalles</Btn>
                   <Btn variant="ghost" size="sm" onClick={() => openAddMateria(docente)}>+ Materia</Btn>
+                  <Btn variant="danger" size="sm" onClick={() => handleDeleteDocente(docente)}>Eliminar</Btn>
                 </div>
               </TD>
             </TR>
