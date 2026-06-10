@@ -370,7 +370,7 @@ function Modal({ title, children, onClose }) {
       <div
         style={{
           position: "relative", zIndex: 10,
-          maxHeight: "90vh", width: "100%", maxWidth: 560,
+          maxHeight: "90vh", width: "calc(100% - 32px)", maxWidth: 560,
           overflowY: "auto", borderRadius: T.radius,
           padding: 24,
           background: "rgba(4,13,24,0.97)",
@@ -492,6 +492,7 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
         />
       )}
       <aside
+        className="sidebar-desktop"
         style={{
           position: "fixed", top: 0, bottom: 0, left: 0,
           zIndex: 50, width: 272,
@@ -499,8 +500,8 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
           background: "rgba(4,13,24,0.96)",
           borderRight: `1px solid ${T.border}`,
           backdropFilter: "blur(24px)",
-          transform: mobileOpen ? "translateX(0)" : undefined,
-          transition: "transform 0.2s",
+          transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.25s ease",
           ...BG_DOTS,
         }}
       >
@@ -1724,7 +1725,20 @@ export default function AdminDashboard() {
   return (
     <>
       {/* Global spin animation */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } * { box-sizing: border-box; }`}</style>
+    <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+        @media (max-width: 768px) {
+        .main-layout { padding-left: 0 !important; }
+        .header-content { padding: 12px 16px !important; }
+        .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        .main-content { padding: 16px !important; }
+        .sidebar-desktop { display: none; }
+  }
+  @media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr 1fr !important; }
+      }}
+  `}</style>
 
       <div style={{ minHeight: "100vh", background: T.bg, fontFamily: T.fontBody, ...BG_DOTS }}>
         {/* Syne font */}
@@ -1732,7 +1746,7 @@ export default function AdminDashboard() {
 
         <Sidebar active={section} onSelect={setSection} stats={stats} mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
 
-        <div style={{ minHeight: "100vh", paddingLeft: 272 }}>
+        <div className="main-layout" style={{ minHeight: "100vh", paddingLeft: 272 }}>
           {/* Header */}
           <header
             style={{
@@ -1742,7 +1756,7 @@ export default function AdminDashboard() {
               backdropFilter: "blur(20px)",
             }}
           >
-            <div style={{ padding: "16px 32px" }}>
+            <div className="header-content" style={{ padding: "16px 32px" }}>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <button
@@ -1787,7 +1801,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Stat cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+              <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
                 {SECTIONS.map((item) => (
                   <StatCard
                     key={item.id}
@@ -1803,7 +1817,7 @@ export default function AdminDashboard() {
           </header>
 
           {/* Main content */}
-          <main style={{ padding: "28px 32px" }}>
+          <main className="main-content" style={{ padding: "28px 32px" }}>
             {renderSection()}
           </main>
         </div>

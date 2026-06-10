@@ -95,7 +95,7 @@ function normalizeArrayResponse(data) {
 
 // ─── Glass Card ─────────────────────────────────────────────────────────────────
 
-function Card({ children, style = {}, accentColor, padding = "0" }) {
+function Card({ children, style = {}, accentColor, padding = "0", className = "" }) {
   const topColor = accentColor ?? T.accent;
   return (
     <div style={{
@@ -241,6 +241,23 @@ const fetchDashboardData = useCallback(async () => {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
         * { box-sizing: border-box; }
+        @media (max-width: 768px) {
+        .docente-main { 
+        grid-template-columns: 1fr !important; 
+        height: auto !important; 
+        overflow: visible !important;
+        padding: 12px !important;
+      }
+        .docente-aside { height: auto !important; overflow: visible !important; }
+        .docente-right-panel { height: auto !important; min-height: 60vh; }
+        .detail-grid { grid-template-columns: 1fr !important; }
+        .header-row { flex-direction: column !important; align-items: flex-start !important; }
+        .nueva-actividad-btn { width: 100% !important; justify-content: center !important; }
+    }
+    @media (max-width: 480px) {
+      .docente-main { gap: 12px !important; }
+      .modal-grid { grid-template-columns: 1fr !important; }
+  }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: rgba(6,182,212,0.04); }
         ::-webkit-scrollbar-thumb { background: rgba(6,182,212,0.18); border-radius: 4px; }
@@ -262,18 +279,18 @@ const fetchDashboardData = useCallback(async () => {
         <div style={{ position: "relative", zIndex: 1 }}>
           <Navbar />
 
-          <main style={{
-            maxWidth: 1600, margin: "0 auto",
-            padding: "20px 24px",
-            display: "grid",
-            gridTemplateColumns: "320px 1fr",
-            gap: 20,
-            height: "calc(100vh - 60px)",
-            overflow: "hidden",
-          }}>
+      <main className="docente-main" style={{
+        maxWidth: 1600, margin: "0 auto",
+        padding: "20px 24px",
+        display: "grid",
+        gridTemplateColumns: "320px 1fr",
+        gap: 20,
+        height: "calc(100vh - 60px)",
+        overflow: "hidden",
+      }}>
 
             {/* ── PANEL IZQUIERDO ── */}
-            <aside style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%", overflow: "hidden" }}>
+            <aside className="docente-aside" style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%", overflow: "hidden" }}>
               <Card accentColor={T.cyan}>
                 <div style={{ padding: "18px 18px 16px" }}>
                   <div style={{ marginBottom: 14 }}>
@@ -323,17 +340,17 @@ const fetchDashboardData = useCallback(async () => {
             </aside>
 
             {/* ── PANEL DERECHO ── */}
-            <Card style={{ height: "100%", overflow: "hidden" }}>
+            <Card className="docente-right-panel" style={{ height: "100%", overflow: "hidden" }}>
               <div style={{ height: "100%", overflowY: "auto", padding: "20px 24px" }}>
                 {selectedAsignacion ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 20, height: "100%" }}>
 
-                    <div style={{
-                      display: "flex", flexWrap: "wrap", alignItems: "flex-start",
-                      justifyContent: "space-between", gap: 14,
-                      paddingBottom: 18,
-                      borderBottom: `1px solid rgba(6,182,212,0.10)`,
-                    }}>
+                      <div className="header-row" style={{
+                            display: "flex", flexWrap: "wrap", alignItems: "flex-start",
+                            justifyContent: "space-between", gap: 14,
+                            paddingBottom: 18,
+                            borderBottom: `1px solid rgba(6,182,212,0.10)`,
+                          }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                           <span style={{
@@ -359,6 +376,7 @@ const fetchDashboardData = useCallback(async () => {
                       </div>
 
                       <button
+                        className="nueva-actividad-btn"
                         onClick={() => setShowModal(true)}
                         style={{
                           display: "flex", alignItems: "center", gap: 8,
@@ -381,7 +399,7 @@ const fetchDashboardData = useCallback(async () => {
                     {loadingDetalles ? (
                       <LoadingSpinner message="Cargando detalles..." />
                     ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, flex: 1, minHeight: 0, overflow: "hidden" }}>
+                      <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, flex: 1, minHeight: 0, overflow: "hidden" }}>
 
                         {/* Columna A: Actividades */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
@@ -805,7 +823,7 @@ function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) 
       padding: 16, background: "rgba(2,8,16,0.80)", backdropFilter: "blur(8px)",
     }}>
       <div style={{
-        width: "100%", maxWidth: 480,
+        width: "calc(100% - 32px)", maxWidth: 480,
         borderRadius: T.radius,
         background: T.surfaceDeep,
         border: `1px solid ${T.borderStrong}`,
@@ -856,7 +874,7 @@ function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) 
                 style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="modal-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <FieldLabel>Semana *</FieldLabel>
                 <select value={formData.semana} onChange={e => set('semana', e.target.value)}
