@@ -19,7 +19,7 @@ class GrupoSerializer(serializers.ModelSerializer):
 class MateriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Materia
-        fields = ['id', 'nombre', 'clave', 'creditos']
+        fields = ['id', 'nombre', 'clave', 'creditos', 'semestre', 'carrera']
 
 # Serializer anidado para ver los datos del usuario junto con el alumno
 class AlumnoSerializer(serializers.ModelSerializer):
