@@ -1,9 +1,21 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import CecytoLogo from '../imagenes/cecytem-logo.png'; 
+import CecytoLogo from '../imagenes/cecytem-logo.png';
 
-// ─── Design Tokens (Login-coherent palette) ────────────────────────────────────
+// ─── Hook: window width ────────────────────────────────────────────────────────
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
+// ─── Design Tokens ─────────────────────────────────────────────────────────────
 
 const T = {
   bg:            "#082030",
@@ -29,20 +41,15 @@ const T = {
   radiusXs:      "8px",
   shadow:        "0 25px 80px rgba(2,10,20,0.55)",
   shadowSm:      "0 8px 30px rgba(2,10,20,0.35)",
-  glass:         "backdrop-filter:blur(20px)",
   fontBody:      "'DM Sans', 'Inter', sans-serif",
   fontHeading:   "'Syne', 'DM Sans', sans-serif",
 };
-
-// ─── Background dots pattern (from login) ─────────────────────────────────────
 
 const BG_DOTS = {
   backgroundImage: `radial-gradient(circle at 20% 20%, rgba(6,182,212,0.07) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(29,185,84,0.06) 0%, transparent 50%),
     radial-gradient(circle at 50% 50%, rgba(6,182,212,0.04) 0%, transparent 70%)`,
 };
-
-// ─── Shared input style ────────────────────────────────────────────────────────
 
 const inputStyle = {
   width: "100%",
@@ -56,6 +63,7 @@ const inputStyle = {
   transition: "border-color 0.2s",
   backdropFilter: "blur(8px)",
   fontFamily: T.fontBody,
+  boxSizing: "border-box",
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -72,6 +80,8 @@ const SECTIONS = [
   { id: "grupos",   label: "Grupos",   desc: "Oferta académica",   icon: "G" },
   { id: "materias", label: "Materias", desc: "Catálogo base",      icon: "M" },
 ];
+
+const SIDEBAR_WIDTH = 272;
 
 // ─── Pure helpers ──────────────────────────────────────────────────────────────
 
@@ -144,6 +154,7 @@ function Btn({ children, onClick, variant = "primary", type = "button", size = "
     fontFamily: T.fontBody,
     border: "none",
     outline: "none",
+    whiteSpace: "nowrap",
   };
   const sizes = {
     sm: { padding: "6px 12px", fontSize: "12px" },
@@ -189,9 +200,9 @@ function Btn({ children, onClick, variant = "primary", type = "button", size = "
 
 function Pill({ children, color = "cyan" }) {
   const colors = {
-    cyan:    { background: T.cyanDim,   border: `1px solid ${T.border}`,       color: T.cyan },
-    green:   { background: T.accentGlow, border: `1px solid ${T.borderGreen}`, color: T.accent },
-    gray:    { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: T.textSecondary },
+    cyan:  { background: T.cyanDim,    border: `1px solid ${T.border}`,       color: T.cyan },
+    green: { background: T.accentGlow, border: `1px solid ${T.borderGreen}`,  color: T.accent },
+    gray:  { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: T.textSecondary },
   };
   return (
     <span
@@ -259,27 +270,28 @@ function StatCard({ label, value, icon, active, onClick }) {
         boxSizing: "border-box",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div
           style={{
-            width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+            width: 40, height: 40, flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
             borderRadius: T.radiusSm,
             background: active
               ? "linear-gradient(135deg, rgba(29,185,84,0.25) 0%, rgba(6,182,212,0.15) 100%)"
               : T.cyanDim,
             border: `1px solid ${active ? T.borderGreen : T.border}`,
-            fontSize: 14, fontWeight: 700,
+            fontSize: 13, fontWeight: 700,
             color: active ? T.accent : T.cyan,
             fontFamily: T.fontHeading,
           }}
         >
           {icon}
         </div>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: T.textPrimary, lineHeight: 1.2, fontFamily: T.fontHeading }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: T.textPrimary, lineHeight: 1.2, fontFamily: T.fontHeading }}>
             {value ?? "—"}
           </div>
-          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2, fontFamily: T.fontBody }}>{label}</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2, fontFamily: T.fontBody, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
         </div>
       </div>
     </button>
@@ -291,15 +303,15 @@ function StatCard({ label, value, icon, active, onClick }) {
 function Table({ cols, children, loading, emptyText = "Sin registros" }) {
   const hasRows = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
-    <div style={{ overflowX: "auto", borderRadius: T.radius, border: `1px solid ${T.border}`, background: T.surface, backdropFilter: "blur(20px)", boxShadow: T.shadowSm }}>
-      <table style={{ minWidth: 680, width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+    <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: T.radius, border: `1px solid ${T.border}`, background: T.surface, backdropFilter: "blur(20px)", boxShadow: T.shadowSm }}>
+      <table style={{ minWidth: 620, width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
           <tr style={{ background: "rgba(6,182,212,0.06)", borderBottom: `1px solid ${T.border}` }}>
             {cols.map((col) => (
               <th
                 key={col}
                 style={{
-                  padding: "12px 16px", textAlign: "left",
+                  padding: "12px 14px", textAlign: "left",
                   fontSize: 10, fontWeight: 700,
                   letterSpacing: "0.18em", textTransform: "uppercase",
                   color: T.cyan, whiteSpace: "nowrap",
@@ -338,7 +350,7 @@ function TR({ children, idx }) {
   return (
     <tr
       style={{
-        borderTop: `1px solid rgba(6,182,212,0.07)`,
+        borderTop: "1px solid rgba(6,182,212,0.07)",
         background: idx % 2 === 0 ? "rgba(6,182,212,0.025)" : "transparent",
         transition: "background 0.15s",
       }}
@@ -350,7 +362,7 @@ function TR({ children, idx }) {
 
 function TD({ children }) {
   return (
-    <td style={{ padding: "12px 16px", verticalAlign: "top", color: T.textSecondary, fontFamily: T.fontBody }}>
+    <td style={{ padding: "12px 14px", verticalAlign: "top", color: T.textSecondary, fontFamily: T.fontBody }}>
       {children}
     </td>
   );
@@ -359,20 +371,27 @@ function TD({ children }) {
 // ─── Modal ─────────────────────────────────────────────────────────────────────
 
 function Modal({ title, children, onClose }) {
+  // Prevent body scroll while modal is open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
       <button
         type="button"
         onClick={onClose}
         aria-label="Cerrar"
-        style={{ position: "absolute", inset: 0, background: "rgba(2,8,16,0.75)", backdropFilter: "blur(6px)", border: "none", cursor: "pointer" }}
+        style={{ position: "absolute", inset: 0, background: "rgba(2,8,16,0.80)", backdropFilter: "blur(6px)", border: "none", cursor: "pointer" }}
       />
       <div
         style={{
           position: "relative", zIndex: 10,
-          maxHeight: "90vh", width: "calc(100% - 32px)", maxWidth: 560,
+          maxHeight: "92vh", width: "100%", maxWidth: 540,
           overflowY: "auto", borderRadius: T.radius,
-          padding: 24,
+          padding: "20px 20px",
           background: "rgba(4,13,24,0.97)",
           border: `1px solid ${T.borderStrong}`,
           boxShadow: T.shadow,
@@ -381,12 +400,13 @@ function Modal({ title, children, onClose }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>{title}</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
             style={{
+              flexShrink: 0,
               borderRadius: T.radiusXs, border: `1px solid ${T.border}`,
               background: T.cyanDim, padding: "6px 10px",
               color: T.textSecondary, cursor: "pointer", fontSize: 13,
@@ -466,6 +486,7 @@ function Toast({ toast }) {
     <div
       style={{
         position: "fixed", bottom: 20, right: 20, zIndex: 60,
+        maxWidth: "calc(100vw - 40px)",
         borderRadius: T.radiusSm, padding: "12px 16px",
         fontSize: 13, boxShadow: T.shadow, backdropFilter: "blur(16px)",
         fontFamily: T.fontBody, ...palette[toast.type],
@@ -476,7 +497,17 @@ function Toast({ toast }) {
   );
 }
 
+// ─── Sidebar ────────────────────────────────────────────────────────────────────
+
 function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
+  // Prevent body scroll when sidebar open on mobile
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [mobileOpen]);
+
   return (
     <>
       {mobileOpen && (
@@ -486,50 +517,38 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
           aria-label="Cerrar menú"
           style={{
             position: "fixed", inset: 0, zIndex: 40,
-            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+            background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
             border: "none", cursor: "pointer",
           }}
         />
       )}
       <aside
-        className="sidebar-desktop"
         style={{
           position: "fixed", top: 0, bottom: 0, left: 0,
-          zIndex: 50, width: 272,
+          zIndex: 50, width: SIDEBAR_WIDTH,
           display: "flex", flexDirection: "column",
-          background: "rgba(4,13,24,0.96)",
+          background: "rgba(4,13,24,0.97)",
           borderRight: `1px solid ${T.border}`,
           backdropFilter: "blur(24px)",
           transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.25s ease",
+          overflowY: "auto",
           ...BG_DOTS,
         }}
       >
         {/* Logo */}
-        <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                width: 40,
-                height: 45,
-                borderRadius: T.radiusSm,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
+                width: 40, height: 45, borderRadius: T.radiusSm,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden", flexShrink: 0,
                 boxShadow: `0 4px 20px ${T.accentGlow}`,
-                background: "rgba(255,255,255,0.05)" // Fondo leve por si el logo tiene transparencia
+                background: "rgba(255,255,255,0.05)",
               }}
             >
-              <img
-                src={CecytoLogo}
-                alt="Logo CECyTEM"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain'
-                }}
-              />
+              <img src={CecytoLogo} alt="Logo CECyTEM" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>CECyTEM</div>
@@ -539,14 +558,14 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
           <button
             type="button"
             onClick={onClose}
-            style={{ background: T.cyanDim, border: `1px solid ${T.border}`, borderRadius: T.radiusXs, padding: "6px 8px", color: T.textSecondary, cursor: "pointer", fontSize: 13 }}
+            style={{ background: T.cyanDim, border: `1px solid ${T.border}`, borderRadius: T.radiusXs, padding: "6px 8px", color: T.textSecondary, cursor: "pointer", fontSize: 13, flexShrink: 0 }}
           >
             ✕
           </button>
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
+        <nav style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
           {SECTIONS.map((section) => {
             const isActive = section.id === active;
             return (
@@ -572,7 +591,7 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div
                     style={{
-                      width: 38, height: 38, borderRadius: T.radiusXs,
+                      width: 38, height: 38, borderRadius: T.radiusXs, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       background: isActive ? "rgba(29,185,84,0.18)" : "rgba(6,182,212,0.08)",
                       border: `1px solid ${isActive ? T.borderGreen : T.border}`,
@@ -589,7 +608,7 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
                     </div>
                     <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>{section.desc}</div>
                   </div>
-                  <span style={{ fontSize: 12, fontFamily: "monospace", color: isActive ? T.accent : T.textMuted }}>
+                  <span style={{ fontSize: 12, fontFamily: "monospace", color: isActive ? T.accent : T.textMuted, flexShrink: 0 }}>
                     {stats[section.id] ?? "—"}
                   </span>
                 </div>
@@ -599,7 +618,7 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}` }}>
+        <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, fontFamily: T.fontBody }}>{user?.first_name || user?.username}</div>
           <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Administrador</div>
         </div>
@@ -611,6 +630,9 @@ function Sidebar({ active, onSelect, stats, mobileOpen, onClose, user }) {
 // ─── AlumnosSection ─────────────────────────────────────────────────────────────
 
 function AlumnosSection() {
+  const width = useWindowWidth();
+  const isMobile = width < 640;
+
   const [alumnos, setAlumnos]           = useState([]);
   const [grupos,  setGrupos]            = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -710,6 +732,8 @@ function AlumnosSection() {
     } finally { setSaving(false); }
   };
 
+  const twoCol = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 };
+
   return (
     <>
       <Toast toast={toast} />
@@ -760,7 +784,7 @@ function AlumnosSection() {
                 </div>
               </div>
             </Card>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Semestre">
                 <StyledSelect value={form.semestre} onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, grupo: "" }))}>
                   <option value="">Todos</option>
@@ -792,7 +816,7 @@ function AlumnosSection() {
       {alumnoModalOpen ? (
         <Modal title="Registrar nuevo alumno" onClose={() => setAlumnoModalOpen(false)}>
           <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSaveAlumno}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Nombre(s)" required>
                 <StyledInput value={formAlumno.firstName} onChange={(e) => setFormAlumno(c => ({ ...c, firstName: e.target.value }))} placeholder="Ej. Luis Rodrigo" />
               </Field>
@@ -800,7 +824,7 @@ function AlumnosSection() {
                 <StyledInput value={formAlumno.lastName} onChange={(e) => setFormAlumno(c => ({ ...c, lastName: e.target.value }))} placeholder="Ej. Briseño" />
               </Field>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Número de control" required>
                 <StyledInput value={formAlumno.numeroControl} onChange={(e) => setFormAlumno(c => ({ ...c, numeroControl: e.target.value }))} placeholder="231502..." />
               </Field>
@@ -808,7 +832,7 @@ function AlumnosSection() {
                 <StyledInput value={formAlumno.curp} onChange={(e) => setFormAlumno(c => ({ ...c, curp: e.target.value }))} placeholder="18 caracteres" maxLength={18} />
               </Field>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Carrera" required>
                 <StyledSelect value={formAlumno.carrera} onChange={(e) => setFormAlumno(c => ({ ...c, carrera: e.target.value, grupo: "" }))}>
                   <option value="">Seleccionar carrera</option>
@@ -823,7 +847,7 @@ function AlumnosSection() {
                 </StyledSelect>
               </Field>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Turno" required>
                 <StyledSelect value={formAlumno.turno} onChange={(e) => setFormAlumno(c => ({ ...c, turno: e.target.value, grupo: "" }))}>
                   <option value="Matutino">Matutino</option>
@@ -862,6 +886,9 @@ function AlumnosSection() {
 // ─── DocentesSection ────────────────────────────────────────────────────────────
 
 function DocentesSection() {
+  const width = useWindowWidth();
+  const isMobile = width < 640;
+
   const [docentes,     setDocentes]     = useState([]);
   const [materias,     setMaterias]     = useState([]);
   const [grupos,       setGrupos]       = useState([]);
@@ -953,6 +980,8 @@ function DocentesSection() {
       else show("No se pudo eliminar al docente.", "error");
     }
   };
+
+  const twoCol = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 };
 
   return (
     <>
@@ -1066,7 +1095,7 @@ function DocentesSection() {
       {modal?.mode === "register_docente" && (
         <Modal title="Registrar nuevo docente institucional" onClose={() => setModal(null)}>
           <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleCreateDocente}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Nombre(s)" required>
                 <StyledInput value={formDocente.firstName} onChange={(e) => setFormDocente({ ...formDocente, firstName: e.target.value })} placeholder="Ej. Arturo" />
               </Field>
@@ -1102,6 +1131,9 @@ const getMateriasPorSemestreCarrera = (todasMaterias, semestre, carrera) =>
   });
 
 function GruposSection() {
+  const width = useWindowWidth();
+  const isMobile = width < 640;
+
   const [grupos,       setGrupos]       = React.useState([]);
   const [docentes,     setDocentes]     = React.useState([]);
   const [materias,     setMaterias]     = React.useState([]);
@@ -1181,30 +1213,16 @@ function GruposSection() {
     try {
       const grupoRes = await api.post("/academico/grupos/", { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const grupoId = grupoRes.data.id;
-
-      // Filtra filas con docente válido y sin duplicado en BD
       const validas = asignForm.filter((r) => {
         if (!r.docente_id || r.docente_id.trim() === "" || isNaN(Number.parseInt(r.docente_id, 10)) || Number.parseInt(r.docente_id, 10) <= 0) return false;
-        const yaExiste = asignaciones.some(
-          (a) => a.docente === Number.parseInt(r.docente_id, 10) &&
-                 a.materia === r.materia_id &&
-                 a.grupo   === grupoId
-        );
+        const yaExiste = asignaciones.some((a) => a.docente === Number.parseInt(r.docente_id, 10) && a.materia === r.materia_id && a.grupo === grupoId);
         return !yaExiste;
       });
-
       if (validas.length > 0) {
-        const results = await Promise.allSettled(
-          validas.map((row) => api.post("/seguimiento/asignaciones/", {
-            docente: Number.parseInt(row.docente_id, 10),
-            materia: row.materia_id,
-            grupo:   grupoId,
-          }))
-        );
+        const results = await Promise.allSettled(validas.map((row) => api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: grupoId })));
         const fallos = results.filter((r) => r.status === "rejected");
         if (fallos.length > 0) {
-          const detalle = fallos.map((f) => parseDRFError(f.reason)).join(" | ");
-          show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron: ${detalle}`, "error");
+          show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron: ${fallos.map((f) => parseDRFError(f.reason)).join(" | ")}`, "error");
         } else {
           show(`Grupo ${fase1.semestre}${fase1.grupo_letra} creado con ${validas.length} asignación(es).`);
         }
@@ -1231,12 +1249,7 @@ function GruposSection() {
         } else if (existing && !esValida) {
           await api.delete(`/seguimiento/asignaciones/${existing.id}/`);
         } else if (!existing && esValida) {
-          // Verificar que no exista ya en BD antes de crear
-          const yaExiste = asignaciones.some(
-            (a) => a.docente === Number.parseInt(row.docente_id, 10) &&
-                   a.materia === row.materia_id &&
-                   a.grupo   === editGroup.grupoId
-          );
+          const yaExiste = asignaciones.some((a) => a.docente === Number.parseInt(row.docente_id, 10) && a.materia === row.materia_id && a.grupo === editGroup.grupoId);
           if (!yaExiste)
             await api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: editGroup.grupoId });
         }
@@ -1244,8 +1257,7 @@ function GruposSection() {
       const results = await Promise.allSettled(ops);
       const fallos  = results.filter((r) => r.status === "rejected");
       if (fallos.length > 0) {
-        const detalle = fallos.map((f) => parseDRFError(f.reason)).join(" | ");
-        show(`Grupo actualizado, pero ${fallos.length} cambio(s) fallaron: ${detalle}`, "error");
+        show(`Grupo actualizado, pero ${fallos.length} cambio(s) fallaron: ${fallos.map((f) => parseDRFError(f.reason)).join(" | ")}`, "error");
       } else {
         show("Grupo actualizado correctamente.");
       }
@@ -1265,6 +1277,8 @@ function GruposSection() {
     try { await api.delete(`/academico/grupos/${id}/`); show("Grupo eliminado."); await load(); }
     catch (err) { show(parseDRFError(err), "error"); }
   };
+
+  const twoCol = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 };
 
   return (
     <>
@@ -1306,10 +1320,11 @@ function GruposSection() {
 
       {modalOpen && (
         <Modal title={editGroup ? "Editar grupo" : "Nuevo grupo"} onClose={() => { setModalOpen(false); resetAll(); }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          {/* Stepper */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "nowrap" }}>
             {["Datos del grupo", "Matriz académica"].map((label, i) => (
               <React.Fragment key={label}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 11, fontWeight: 700, transition: "all 0.2s",
@@ -1319,16 +1334,16 @@ function GruposSection() {
                   }}>
                     {step > i ? "✓" : i + 1}
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: step === i ? T.textPrimary : T.textMuted, fontFamily: T.fontBody }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: step === i ? T.textPrimary : T.textMuted, fontFamily: T.fontBody, whiteSpace: "nowrap" }}>{label}</span>
                 </div>
-                {i < 1 && <div style={{ flex: 1, height: 1, background: step > 0 ? T.borderGreen : T.border }} />}
+                {i < 1 && <div style={{ flex: 1, height: 1, background: step > 0 ? T.borderGreen : T.border, minWidth: 16 }} />}
               </React.Fragment>
             ))}
           </div>
 
           {step === 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={twoCol}>
                 <Field label="Semestre" required>
                   <StyledSelect value={fase1.semestre} onChange={(e) => setFase1((c) => ({ ...c, semestre: e.target.value, carrera: "", grupo_letra: "" }))}>
                     <option value="">Seleccionar</option>
@@ -1342,7 +1357,7 @@ function GruposSection() {
                   </StyledSelect>
                 </Field>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={twoCol}>
                 <Field label="Letra de grupo" required>
                   <StyledSelect value={fase1.grupo_letra} disabled={!fase1.carrera} onChange={(e) => setFase1((c) => ({ ...c, grupo_letra: e.target.value }))}>
                     <option value="">Seleccionar</option>
@@ -1367,7 +1382,7 @@ function GruposSection() {
           {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, borderRadius: T.radiusSm, background: T.cyanDim, border: `1px solid ${T.border}` }}>
-                <div style={{ width: 40, height: 40, borderRadius: T.radiusXs, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(29,185,84,0.15)", border: `1px solid ${T.borderGreen}`, fontFamily: "monospace", fontSize: 16, fontWeight: 700, color: T.accent }}>
+                <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: T.radiusXs, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(29,185,84,0.15)", border: `1px solid ${T.borderGreen}`, fontFamily: "monospace", fontSize: 16, fontWeight: 700, color: T.accent }}>
                   {fase1.semestre}{fase1.grupo_letra}
                 </div>
                 <div>
@@ -1376,13 +1391,13 @@ function GruposSection() {
                 </div>
               </div>
               <p style={{ margin: 0, fontSize: 12, color: T.textMuted }}>Asigna un docente a cada materia. Las filas sin docente no crearán asignación.</p>
-              <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
                 {asignForm.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "32px 16px", fontSize: 12, color: T.textMuted, border: `1px solid ${T.border}`, borderRadius: T.radiusXs }}>
                     No hay materias para este semestre y carrera. Agrégalas primero en el catálogo.
                   </div>
                 ) : asignForm.map((row) => (
-                  <div key={row.materia_id} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: T.radiusXs, background: row.docente_id ? "rgba(29,185,84,0.05)" : "rgba(6,182,212,0.03)", border: `1px solid ${row.docente_id ? T.borderGreen : T.border}`, transition: "all 0.15s" }}>
+                  <div key={row.materia_id} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.4fr", alignItems: "center", gap: isMobile ? 6 : 12, padding: "10px 12px", borderRadius: T.radiusXs, background: row.docente_id ? "rgba(29,185,84,0.05)" : "rgba(6,182,212,0.03)", border: `1px solid ${row.docente_id ? T.borderGreen : T.border}`, transition: "all 0.15s" }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{row.materia_clave}</div>
                       <div style={{ fontSize: 11, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.materia_nombre}</div>
@@ -1410,12 +1425,12 @@ function GruposSection() {
               <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Matriz académica</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {getAsignacionesPorGrupo(detailsGroup.id).length > 0 ? getAsignacionesPorGrupo(detailsGroup.id).map((asig) => (
-                  <div key={asig.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, borderRadius: T.radiusXs, background: T.cyanDim, border: `1px solid ${T.border}` }}>
+                  <div key={asig.id} style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", gap: 8, padding: 12, borderRadius: T.radiusXs, background: T.cyanDim, border: `1px solid ${T.border}` }}>
                     <div>
                       <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{asig.materia_detalle?.clave ?? `#${asig.materia}`}</span>
                       <span style={{ marginLeft: 8, fontSize: 12, color: T.textSecondary }}>{asig.materia_detalle?.nombre}</span>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div style={{ textAlign: isMobile ? "left" : "right" }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{asig.docente_detalle ? `${asig.docente_detalle.first_name} ${asig.docente_detalle.last_name}`.trim() : "—"}</div>
                       <div style={{ fontSize: 11, color: T.textMuted }}>{asig.docente_detalle?.email ?? ""}</div>
                     </div>
@@ -1451,8 +1466,8 @@ function GruposSection() {
               <span style={{ fontSize: 13, color: T.textMuted }}>Cargando alumnos...</span>
             </div>
           ) : alumnosModal.lista.length > 0 ? (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 360 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                     {["Matrícula", "Nombre", "Correo"].map((h) => <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.cyan, letterSpacing: "0.12em", textTransform: "uppercase" }}>{h}</th>)}
@@ -1489,6 +1504,9 @@ function GruposSection() {
 // ─── MateriasSection ────────────────────────────────────────────────────────────
 
 function MateriasSection() {
+  const width = useWindowWidth();
+  const isMobile = width < 640;
+
   const [materias, setMaterias] = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [modal,    setModal]    = useState(null);
@@ -1505,19 +1523,9 @@ function MateriasSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = () => {
-    setForm({ nombre: "", clave: "", creditos: "", semestre: "", carrera: "" });
-    setModal({ mode: "create" });
-  };
-
+  const openCreate = () => { setForm({ nombre: "", clave: "", creditos: "", semestre: "", carrera: "" }); setModal({ mode: "create" }); };
   const openEdit = (m) => {
-    setForm({
-      nombre:   m.nombre   ?? "",
-      clave:    m.clave    ?? "",
-      creditos: String(m.creditos ?? ""),
-      semestre: m.semestre ? String(m.semestre) : "",
-      carrera:  m.carrera  ?? "",
-    });
+    setForm({ nombre: m.nombre ?? "", clave: m.clave ?? "", creditos: String(m.creditos ?? ""), semestre: m.semestre ? String(m.semestre) : "", carrera: m.carrera ?? "" });
     setModal({ mode: "edit", id: m.id });
   };
 
@@ -1531,16 +1539,12 @@ function MateriasSection() {
     if (semestre !== null && (semestre < 1 || semestre > 6)) { show("El semestre debe ser entre 1 y 6.", "error"); return; }
     setSaving(true);
     try {
-      const payload = {
-        ...normalizeMateriaPayload(form),
-        semestre: semestre,
-        carrera:  form.carrera || null,
-      };
+      const payload = { ...normalizeMateriaPayload(form), semestre, carrera: form.carrera || null };
       if (modal.mode === "create") { await api.post("/academico/materias/", payload); show("Materia creada correctamente."); }
       else { await api.put(`/academico/materias/${modal.id}/`, payload); show("Materia actualizada correctamente."); }
       setModal(null); await load();
     } catch (err) {
-      if (err.response?.data) { const msg = Object.entries(err.response.data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | "); show(`Error: ${msg}`, "error"); }
+      if (err.response?.data) { show(`Error: ${Object.entries(err.response.data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join(" | ")}`, "error"); }
       else show("No se pudo guardar la materia.", "error");
     } finally { setSaving(false); }
   };
@@ -1551,28 +1555,14 @@ function MateriasSection() {
     catch { show("No se pudo eliminar la materia.", "error"); }
   };
 
-  // Valida carreras disponibles según semestre (misma lógica que Grupos)
   const carrerasDisponibles = (semestre) => {
     const s = Number.parseInt(semestre, 10);
-    if (!s) return [
-      { value: "LOGISTICA",         label: "Logística" },
-      { value: "CIENCIA_DATOS",     label: "Ciencia de Datos" },
-      { value: "ANIMACION_DIGITAL", label: "Animación Digital" },
-    ];
-    if (s === 1) return [
-      { value: "LOGISTICA",     label: "Logística" },
-      { value: "CIENCIA_DATOS", label: "Ciencia de Datos" },
-    ];
-    if (s === 4 || s === 6) return [
-      { value: "LOGISTICA",         label: "Logística" },
-      { value: "CIENCIA_DATOS",     label: "Ciencia de Datos" },
-      { value: "ANIMACION_DIGITAL", label: "Animación Digital" },
-    ];
-    return [
-      { value: "LOGISTICA",     label: "Logística" },
-      { value: "CIENCIA_DATOS", label: "Ciencia de Datos" },
-    ];
+    const base = [{ value: "LOGISTICA", label: "Logística" }, { value: "CIENCIA_DATOS", label: "Ciencia de Datos" }];
+    if (!s || s === 4 || s === 6) return [...base, { value: "ANIMACION_DIGITAL", label: "Animación Digital" }];
+    return base;
   };
+
+  const twoCol = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 };
 
   return (
     <>
@@ -1583,16 +1573,8 @@ function MateriasSection() {
           <TR key={materia.id} idx={idx}>
             <TD><span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: T.cyan }}>{materia.clave}</span></TD>
             <TD><span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{materia.nombre}</span></TD>
-            <TD>
-              {materia.semestre
-                ? <Pill>{materia.semestre}°</Pill>
-                : <span style={{ fontSize: 12, color: T.textMuted }}>—</span>}
-            </TD>
-            <TD>
-              {materia.carrera
-                ? <span style={{ fontSize: 12, color: T.textSecondary }}>{carreraLabels[materia.carrera] ?? materia.carrera}</span>
-                : <span style={{ fontSize: 12, color: T.textMuted }}>—</span>}
-            </TD>
+            <TD>{materia.semestre ? <Pill>{materia.semestre}°</Pill> : <span style={{ fontSize: 12, color: T.textMuted }}>—</span>}</TD>
+            <TD>{materia.carrera ? <span style={{ fontSize: 12, color: T.textSecondary }}>{carreraLabels[materia.carrera] ?? materia.carrera}</span> : <span style={{ fontSize: 12, color: T.textMuted }}>—</span>}</TD>
             <TD><Pill color="gray">{materia.creditos ?? 0} créditos</Pill></TD>
             <TD>
               <div style={{ display: "flex", gap: 8 }}>
@@ -1610,7 +1592,7 @@ function MateriasSection() {
             <Field label="Nombre" required>
               <StyledInput value={form.nombre} onChange={(e) => setForm((c) => ({ ...c, nombre: e.target.value }))} placeholder="Ej. Matemáticas I" disabled={saving} />
             </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Clave" required>
                 <StyledInput value={form.clave} onChange={(e) => setForm((c) => ({ ...c, clave: e.target.value }))} placeholder="MAT-101" disabled={saving} />
               </Field>
@@ -1618,27 +1600,17 @@ function MateriasSection() {
                 <StyledInput type="number" value={form.creditos} onChange={(e) => setForm((c) => ({ ...c, creditos: e.target.value }))} placeholder="5" disabled={saving} />
               </Field>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={twoCol}>
               <Field label="Semestre">
-                <StyledSelect
-                  value={form.semestre}
-                  disabled={saving}
-                  onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, carrera: "" }))}
-                >
+                <StyledSelect value={form.semestre} disabled={saving} onChange={(e) => setForm((c) => ({ ...c, semestre: e.target.value, carrera: "" }))}>
                   <option value="">Sin semestre</option>
                   {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}°</option>)}
                 </StyledSelect>
               </Field>
               <Field label="Carrera">
-                <StyledSelect
-                  value={form.carrera}
-                  disabled={saving}
-                  onChange={(e) => setForm((c) => ({ ...c, carrera: e.target.value }))}
-                >
+                <StyledSelect value={form.carrera} disabled={saving} onChange={(e) => setForm((c) => ({ ...c, carrera: e.target.value }))}>
                   <option value="">Sin carrera</option>
-                  {carrerasDisponibles(form.semestre).map((car) => (
-                    <option key={car.value} value={car.value}>{car.label}</option>
-                  ))}
+                  {carrerasDisponibles(form.semestre).map((car) => <option key={car.value} value={car.value}>{car.label}</option>)}
                 </StyledSelect>
               </Field>
             </div>
@@ -1670,6 +1642,12 @@ function DashboardLoader() {
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth();
+  const width = useWindowWidth();
+
+  // Breakpoints
+  const isMobile  = width < 900;   // sidebar hidden by default
+  const isSmall   = width < 480;   // 2-col stat grid
+
   const [checking,    setChecking]    = useState(true);
   const [isAdmin,     setIsAdmin]     = useState(false);
   const [section,     setSection]     = useState("alumnos");
@@ -1712,6 +1690,9 @@ export default function AdminDashboard() {
 
   const currentSection = SECTIONS.find((s) => s.id === section);
 
+  // JS-driven layout: sidebar offset only on desktop
+  const mainPaddingLeft = isMobile ? 0 : SIDEBAR_WIDTH;
+
   const renderSection = () => {
     switch (section) {
       case "alumnos":  return <AlumnosSection />;
@@ -1724,84 +1705,119 @@ export default function AdminDashboard() {
 
   return (
     <>
-      {/* Global spin animation */}
-    <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        * { box-sizing: border-box; }
-        @media (max-width: 768px) {
-        .main-layout { padding-left: 0 !important; }
-        .header-content { padding: 12px 16px !important; }
-        .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        .main-content { padding: 16px !important; }
-        .sidebar-desktop { display: none; }
-  }
-  @media (max-width: 480px) {
-    .stat-grid { grid-template-columns: 1fr 1fr !important; }
-      }}
-  `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } * { box-sizing: border-box; }`}</style>
 
       <div style={{ minHeight: "100vh", background: T.bg, fontFamily: T.fontBody, ...BG_DOTS }}>
-        {/* Syne font */}
         <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-        <Sidebar active={section} onSelect={setSection} stats={stats} mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
-
-        <div className="main-layout" style={{ minHeight: "100vh", paddingLeft: 272 }}>
-          {/* Header */}
-          <header
+        {/* Desktop persistent sidebar */}
+        {!isMobile && (
+          <aside
             style={{
-              position: "sticky", top: 0, zIndex: 30,
-              borderBottom: `1px solid ${T.border}`,
-              background: "rgba(5,18,32,0.88)",
-              backdropFilter: "blur(20px)",
+              position: "fixed", top: 0, bottom: 0, left: 0,
+              zIndex: 50, width: SIDEBAR_WIDTH,
+              display: "flex", flexDirection: "column",
+              background: "rgba(4,13,24,0.97)",
+              borderRight: `1px solid ${T.border}`,
+              backdropFilter: "blur(24px)",
+              overflowY: "auto",
+              ...BG_DOTS,
             }}
           >
-            <div className="header-content" style={{ padding: "16px 32px" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+            {/* Logo */}
+            <div style={{ padding: "20px 20px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+              <div style={{ width: 40, height: 45, borderRadius: T.radiusSm, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, boxShadow: `0 4px 20px ${T.accentGlow}`, background: "rgba(255,255,255,0.05)" }}>
+                <img src={CecytoLogo} alt="Logo CECyTEM" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>CECyTEM</div>
+                <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Panel administrativo</div>
+              </div>
+            </div>
+            {/* Nav */}
+            <nav style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
+              {SECTIONS.map((sec) => {
+                const isActive = sec.id === section;
+                return (
+                  <button key={sec.id} type="button" onClick={() => setSection(sec.id)}
+                    style={{ all: "unset", display: "block", width: "100%", boxSizing: "border-box", borderRadius: T.radiusSm, padding: "12px", marginBottom: 4, cursor: "pointer", border: `1px solid ${isActive ? T.borderGreen : "transparent"}`, background: isActive ? "linear-gradient(135deg, rgba(29,185,84,0.12) 0%, rgba(6,182,212,0.08) 100%)" : "transparent", transition: "all 0.18s" }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: T.radiusXs, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: isActive ? "rgba(29,185,84,0.18)" : "rgba(6,182,212,0.08)", border: `1px solid ${isActive ? T.borderGreen : T.border}`, fontSize: 13, fontWeight: 700, color: isActive ? T.accent : T.cyan, fontFamily: T.fontHeading }}>{sec.icon}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#d1fae5" : T.textPrimary, fontFamily: T.fontBody }}>{sec.label}</div>
+                        <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>{sec.desc}</div>
+                      </div>
+                      <span style={{ fontSize: 12, fontFamily: "monospace", color: isActive ? T.accent : T.textMuted, flexShrink: 0 }}>{stats[sec.id] ?? "—"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
+            {/* Footer */}
+            <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, fontFamily: T.fontBody }}>{user?.first_name || user?.username}</div>
+              <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Administrador</div>
+            </div>
+          </aside>
+        )}
+
+        {/* Mobile overlay sidebar */}
+        {isMobile && (
+          <Sidebar
+            active={section}
+            onSelect={setSection}
+            stats={stats}
+            mobileOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            user={user}
+          />
+        )}
+
+        {/* Main area */}
+        <div style={{ minHeight: "100vh", paddingLeft: mainPaddingLeft, transition: "padding-left 0.25s ease" }}>
+
+          {/* Header */}
+          <header style={{ position: "sticky", top: 0, zIndex: 30, borderBottom: `1px solid ${T.border}`, background: "rgba(5,18,32,0.92)", backdropFilter: "blur(20px)" }}>
+            <div style={{ padding: isMobile ? "12px 16px" : "16px 32px" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {/* Hamburger — always shown so users can always open sidebar */}
                   <button
                     type="button"
                     onClick={() => setSidebarOpen(true)}
                     aria-label="Abrir menú"
-                    style={{
-                      width: 40, height: 40, borderRadius: T.radiusSm,
-                      border: `1px solid ${T.border}`, background: T.cyanDim,
-                      color: T.textPrimary, cursor: "pointer", fontSize: 16,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
+                    style={{ width: 40, height: 40, borderRadius: T.radiusSm, border: `1px solid ${T.border}`, background: T.cyanDim, color: T.textPrimary, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     ☰
                   </button>
                   <div>
-                    <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>
+                    <h1 style={{ margin: 0, fontSize: isMobile ? 15 : 18, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>
                       Panel de administración
                     </h1>
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: T.textMuted, fontFamily: T.fontBody }}>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>
                       {currentSection?.label} · {currentSection?.desc}
                     </p>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, fontFamily: T.fontBody }}>{user.first_name || user.username}</div>
                     <div style={{ fontSize: 11, color: T.textMuted, fontFamily: T.fontBody }}>Sesión administrativa</div>
                   </div>
-                  <div
-                    style={{
-                      width: 40, height: 40, borderRadius: T.radiusSm,
-                      background: "linear-gradient(135deg, rgba(29,185,84,0.20) 0%, rgba(6,182,212,0.12) 100%)",
-                      border: `1px solid ${T.borderGreen}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 14, fontWeight: 700, color: T.accent, fontFamily: T.fontHeading,
-                    }}
-                  >
+                  <div style={{ width: 38, height: 38, borderRadius: T.radiusSm, flexShrink: 0, background: "linear-gradient(135deg, rgba(29,185,84,0.20) 0%, rgba(6,182,212,0.12) 100%)", border: `1px solid ${T.borderGreen}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.accent, fontFamily: T.fontHeading }}>
                     {(user.first_name?.[0] ?? user.username?.[0] ?? "A").toUpperCase()}
                   </div>
                 </div>
               </div>
 
-              {/* Stat cards */}
-              <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+              {/* Stat cards — 2 cols on small, 4 on large */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isSmall ? "repeat(2, 1fr)" : isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+                gap: isMobile ? 10 : 12,
+                marginTop: 14,
+              }}>
                 {SECTIONS.map((item) => (
                   <StatCard
                     key={item.id}
@@ -1817,7 +1833,7 @@ export default function AdminDashboard() {
           </header>
 
           {/* Main content */}
-          <main className="main-content" style={{ padding: "28px 32px" }}>
+          <main style={{ padding: isMobile ? "16px" : "28px 32px" }}>
             {renderSection()}
           </main>
         </div>

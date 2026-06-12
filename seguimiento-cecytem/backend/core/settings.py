@@ -172,6 +172,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:3000",
+    "http://localhost:5173/kiosko",
+    "http://localhost:5173/panel-laboratorio",
     "https://cecytem-toluca2-web-2xap.vercel.app",
 ]
 
