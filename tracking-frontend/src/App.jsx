@@ -9,6 +9,10 @@ import AdminDashboard from './components/AdminDashboard';
 import DocenteDashboard from './components/DocenteDashboard';
 import AlumnoDashboard from './components/AlumnoDashboard';
 
+// Importaciones de los componentes de cómputo
+import KioskoAlumno from './components/lab/KioskoAlumno';
+import PanelEncargado from './components/lab/PanelEncargado';
+
 // ==========================================
 // ESTILOS CSS EN EMBAJADA (Mantenidos Intactos)
 // ==========================================
@@ -25,14 +29,14 @@ const STYLES = `
   }
   @keyframes glowPulse {
     0%, 100% { opacity: 0.75; }
-    50%       { opacity: 1; }
+    50%      { opacity: 1; }
   }
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
-    20%       { transform: translateX(-6px); }
-    40%       { transform: translateX(6px); }
-    60%       { transform: translateX(-4px); }
-    80%       { transform: translateX(4px); }
+    20%      { transform: translateX(-6px); }
+    40%      { transform: translateX(6px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
   }
 
   .login-page * { box-sizing: border-box; }
@@ -105,6 +109,13 @@ const STYLES = `
 
 function App() {
   const { user, login } = useAuth();
+
+  // ==========================================
+  // INTERCEPTOR DE RUTAS DE LABORATORIO
+  // ==========================================
+const currentPath = window.location.pathname;
+  if (currentPath === '/panel-alumno') return <KioskoAlumno />;
+  if (currentPath === '/panel-encargado') return <PanelEncargado />;
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
