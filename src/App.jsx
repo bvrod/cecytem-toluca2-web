@@ -316,73 +316,82 @@ export default function App() {
       <header className="fixed inset-x-0 top-0 z-50 px-4 pt-5 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-screen-2xl">
           <div className="glass-card flex items-center justify-between rounded-[1.8rem] px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
-            <div className="flex min-w-0 items-center gap-x-3 lg:gap-x-4 xl:gap-x-6">
+
+            {/* Logo */}
+            <button
+              type="button"
+              onClick={() => handleAnchorClick("inicio")}
+              className="shrink-0 text-left"
+              aria-label="Ir al inicio"
+            >
+              <LogoMark />
+            </button>
+
+            {/* Nav links — solo en xl+ */}
+            <div className="hidden items-center gap-x-1.5 xl:ml-2 xl:flex 2xl:gap-x-3">
+              {navigation.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleAnchorClick(item.id)}
+                  className={`nav-link whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold leading-none transition-all 2xl:px-4 2xl:py-2 2xl:text-sm ${
+                    activeSection === item.id ? "is-active" : ""
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+
+              <a
+                href="https://cecytem-toluca2-web-2xap.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm"
+              >
+                <FaGlobe className="text-sm" />
+                Portal
+              </a>
+
               <button
                 type="button"
-                onClick={() => handleAnchorClick("inicio")}
-                className="shrink-0 text-left"
-                aria-label="Ir al inicio"
+                onClick={() => handleAnchorClick("admisiones")}
+                className="cta-primary inline-flex items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm"
               >
-                <LogoMark />
+                Inscríbete
+                <FaArrowRight />
               </button>
 
-              <div className="hidden items-center gap-x-1.5 xl:ml-2 xl:flex 2xl:gap-x-3">
-                {navigation.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleAnchorClick(item.id)}
-                    className={`nav-link whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold leading-none transition-all 2xl:px-4 2xl:py-2 2xl:text-sm ${
-                      activeSection === item.id ? "is-active" : ""
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-                
-                <a
-                  href="https://cecytem-toluca2-web-2xap.vercel.app/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hidden items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm 2xl:inline-flex"
-                >
-                  <FaGlobe className="text-sm" />
-                  Portal
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => handleAnchorClick("admisiones")}
-                  className="cta-primary hidden items-center gap-2 whitespace-nowrap !rounded-xl !px-4 !py-1.5 !text-sm 2xl:inline-flex"
-                >
-                  Inscríbete
-                  <FaArrowRight />
-                </button>
-                
-                <ThemeToggle
-                  theme={theme}
-                  onToggle={() => setTheme((c) => (c === "light" ? "dark" : "light"))}
-                />
-                
-                <button
-                  type="button"
-                  className="glass-card flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--text)] 2xl:hidden"
-                  onClick={() => setMobileOpen((c) => !c)}
-                  aria-expanded={mobileOpen}
-                  aria-controls="mobile-navigation"
-                  aria-label="Abrir menú"
-                >
-                  {mobileOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-                </button>
-              </div>
+              <ThemeToggle
+                theme={theme}
+                onToggle={() => setTheme((c) => (c === "light" ? "dark" : "light"))}
+              />
             </div>
+
+            {/* ThemeToggle + Hamburguesa — siempre visibles en móvil */}
+            <div className="flex items-center gap-2 xl:hidden">
+              <ThemeToggle
+                theme={theme}
+                onToggle={() => setTheme((c) => (c === "light" ? "dark" : "light"))}
+              />
+              <button
+                type="button"
+                className="glass-card flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--text)]"
+                onClick={() => setMobileOpen((c) => !c)}
+                aria-expanded={mobileOpen}
+                aria-controls="mobile-navigation"
+                aria-label="Abrir menú"
+              >
+                {mobileOpen ? <FiX size={20} /> : <FiMenu size={20} />}
+              </button>
+            </div>
+
           </div>
 
           <AnimatePresence>
             {mobileOpen ? (
               <motion.div
                 id="mobile-navigation"
-                className="glass-card mt-3 overflow-hidden rounded-[1.8rem] p-4 2xl:hidden"
+                className="glass-card mt-3 overflow-hidden rounded-[1.8rem] p-4 xl:hidden"
                 initial={{ opacity: 0, y: -14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
@@ -955,11 +964,11 @@ export default function App() {
         </section>
 
         {/* ── NOTICIAS Y VIDA ESTUDIANTIL ──────────────────── */}
-     <section id="noticias">
-  <SectionShell>
-    <Suspense fallback={placeholderFallback}>
-      <ComunidadSection posts={studentLifePosts} onPreview={openStudentStory} />
-    </Suspense>
+        <section id="noticias">
+          <SectionShell>
+            <Suspense fallback={placeholderFallback}>
+              <ComunidadSection posts={studentLifePosts} onPreview={openStudentStory} />
+            </Suspense>
 
             <div className="mt-20 grid gap-10 xl:grid-cols-[1.02fr_0.98fr]">
               {/* Noticias */}
@@ -1054,7 +1063,7 @@ export default function App() {
           </SectionShell>
         </section>
 
-        {/* ── DOCUMENTOS (nueva sección) ───────────────────── */}
+        {/* ── DOCUMENTOS ───────────────────────────────────── */}
         <section id="documentos">
           <SectionShell>
             <SectionHeading
