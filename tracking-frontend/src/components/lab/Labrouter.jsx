@@ -13,7 +13,7 @@ import { useState, useEffect, useRef } from "react";
 
 // ── Ajusta estas rutas a donde viven tus componentes ──────────────────────────
 import KioskoAlumno   from "./KioskoAlumno";
-import PanelEncargado from "../Computo/PanelEncargado";
+import PanelEncargado from "./PanelEncargado";
 
 // ── Credenciales del super-usuario (encargado / admin) ────────────────────────
 // Cambia estos valores o múltiplalos si necesitas varios encargados.
