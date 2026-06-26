@@ -3,19 +3,14 @@ import React, { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import CecytoMascota from './imagenes/Cecyto.png';
 
-// Importaciones de tus dashboards que ya funcionaban
 import Navbar from './components/Navbar';
 import AdminDashboard from './components/AdminDashboard';
 import DocenteDashboard from './components/DocenteDashboard';
 import AlumnoDashboard from './components/AlumnoDashboard';
 
-// Importaciones de los componentes de cómputo
-import KioskoAlumno from './components/lab/KioskoAlumno';
-import PanelEncargado from './components/lab/PanelEncargado';
+// ── Sala de cómputo — tiene su propio login ──────────────────────────────────
+import LabRouter from './components/lab/LabRouter';
 
-// ==========================================
-// ESTILOS CSS EN EMBAJADA (Mantenidos Intactos)
-// ==========================================
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;800;900&family=DM+Sans:wght@300;400;500&display=swap');
 
@@ -110,13 +105,19 @@ const STYLES = `
 function App() {
   const { user, login } = useAuth();
 
-  // ==========================================
-  // INTERCEPTOR DE RUTAS DE LABORATORIO
-  // ==========================================
-const currentPath = window.location.pathname;
-  if (currentPath === '/panel-alumno') return <KioskoAlumno />;
-  if (currentPath === '/panel-encargado') return <PanelEncargado />;
-  
+  // ══════════════════════════════════════════════════════════════════
+  // INTERCEPTOR DE RUTAS
+  // Cada ruta aquí bypasea el login del sistema de seguimiento.
+  // ══════════════════════════════════════════════════════════════════
+  const currentPath = window.location.pathname;
+
+  // /sala → Sala de cómputo con su propio login (LabRouter)
+  if (currentPath === '/sala') return <LabRouter />;
+
+  // Rutas legacy (mantenidas por compatibilidad)
+  // if (currentPath === '/panel-alumno')    return <KioskoAlumno />;
+  // if (currentPath === '/panel-encargado') return <PanelEncargado />;
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState(null);
@@ -132,10 +133,7 @@ const currentPath = window.location.pathname;
     try {
       setLoading(true);
       setError(null);
-      
-      // Llamada directa al login que SÍ funciona con Django
       await login(username.trim(), password);
-
     } catch (err) {
       setError('Usuario o contraseña incorrectos.');
       setShakeKey(k => k + 1);
@@ -145,7 +143,7 @@ const currentPath = window.location.pathname;
     }
   };
 
-  // VISTA 1: Si NO hay usuario, renderizamos el Login de Alta Gama con la Mascota
+  // ── VISTA 1: Login del sistema de seguimiento ─────────────────────────────
   if (!user) {
     return (
       <>
@@ -164,75 +162,38 @@ const currentPath = window.location.pathname;
             overflow: 'hidden',
           }}
         >
-          {/* DOTS */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 0,
-              backgroundImage: 'radial-gradient(rgba(6,182,212,0.18) 1.5px, transparent 1.5px)',
-              backgroundSize: '26px 26px',
-              pointerEvents: 'none',
-            }}
-          />
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 0,
+            backgroundImage: 'radial-gradient(rgba(6,182,212,0.18) 1.5px, transparent 1.5px)',
+            backgroundSize: '26px 26px', pointerEvents: 'none',
+          }} />
+          <div className="glow-bg" style={{
+            position: 'absolute', inset: 0, zIndex: 1,
+            background: 'radial-gradient(ellipse 75% 55% at 50% 60%, rgba(6,182,212,0.28) 0%, rgba(8,145,178,0.10) 45%, transparent 72%)',
+            filter: 'blur(45px)', pointerEvents: 'none',
+          }} />
+          <div className="glow-mascot" style={{
+            position: 'absolute', inset: 0, zIndex: 1,
+            background: 'radial-gradient(ellipse 40% 30% at 50% 33%, rgba(6,182,212,0.38) 0%, rgba(8,145,178,0.12) 50%, transparent 75%)',
+            filter: 'blur(30px)', pointerEvents: 'none',
+          }} />
 
-          {/* GLOW PRINCIPAL */}
-          <div
-            className="glow-bg"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 1,
-              background: 'radial-gradient(ellipse 75% 55% at 50% 60%, rgba(6,182,212,0.28) 0%, rgba(8,145,178,0.10) 45%, transparent 72%)',
-              filter: 'blur(45px)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* SPOTLIGHT MASCOTA */}
-          <div
-            className="glow-mascot"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 1,
-              background: 'radial-gradient(ellipse 40% 30% at 50% 33%, rgba(6,182,212,0.38) 0%, rgba(8,145,178,0.12) 50%, transparent 75%)',
-              filter: 'blur(30px)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Wrapper general */}
           <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: '420px' }}>
 
             {/* PEEK-A-BOO */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-165px',
-                left: 0,
-                width: '100%',
-                height: '166px',
-                overflow: 'hidden',
-                zIndex: 0,
-                pointerEvents: 'none',
-              }}
-            >
+            <div style={{
+              position: 'absolute', top: '-165px', left: 0,
+              width: '100%', height: '166px',
+              overflow: 'hidden', zIndex: 0, pointerEvents: 'none',
+            }}>
               <img
-                src={CecytoMascota}
-                alt="Mascota CECyTEM"
+                src={CecytoMascota} alt="Mascota CECyTEM"
                 className="mascota-anim"
-                style={{
-                  display: 'block',
-                  margin: '0 auto',
-                  width: '180px',
-                  height: 'auto',
-                  transform: 'translateY(35px)',
-                }}
+                style={{ display: 'block', margin: '0 auto', width: '180px', height: 'auto', transform: 'translateY(35px)' }}
               />
             </div>
 
-            {/* Tarjeta glassmorphism */}
+            {/* Tarjeta */}
             <div
               key={shakeKey > 0 ? `shake-${shakeKey}` : 'card'}
               className={shakeKey > 0 ? 'error-shake' : ''}
@@ -242,23 +203,18 @@ const currentPath = window.location.pathname;
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(6,182,212,0.18)',
                 borderRadius: '20px',
-                padding: '52px 36px 36px',
-                paddingTop: '48px',
+                padding: '48px 36px 32px',
                 boxShadow: '0 25px 80px rgba(2,10,20,0.55), 0 0 0 1px rgba(6,182,212,0.08) inset',
-                position: 'relative',
-                zIndex: 2,
+                position: 'relative', zIndex: 2,
               }}
             >
-              {/* Franja verde */}
               <div style={{
-                position: 'absolute', top: 0,
-                left: '50%', transform: 'translateX(-50%)',
+                position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
                 width: '60px', height: '3px',
                 background: 'linear-gradient(90deg, #1db954, #159b45)',
                 borderRadius: '0 0 4px 4px',
               }} />
 
-              {/* Encabezado */}
               <div className="card-enter" style={{ textAlign: 'center', marginBottom: '28px' }}>
                 <p style={{
                   fontFamily: "'Syne', sans-serif", fontWeight: 900, fontSize: '22px',
@@ -268,8 +224,7 @@ const currentPath = window.location.pathname;
                 </p>
                 <p style={{
                   fontFamily: "'DM Sans', sans-serif", fontWeight: 300, fontSize: '13px',
-                  color: '#9aa5b7', margin: '6px 0 0', letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  color: '#9aa5b7', margin: '6px 0 0', letterSpacing: '0.04em', textTransform: 'uppercase',
                 }}>
                   Sistema de Seguimiento Académico
                 </p>
@@ -335,8 +290,28 @@ const currentPath = window.location.pathname;
                 </div>
               </form>
 
+              {/* ── Acceso discreto a la Sala de Cómputo ── */}
+              <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                <a
+                  href="/sala"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    fontSize: '12px', color: '#334155', textDecoration: 'none',
+                    fontFamily: "'DM Sans', sans-serif", transition: 'color 0.18s',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.color = '#06b6d4'}
+                  onMouseOut={e  => e.currentTarget.style.color = '#334155'}
+                >
+                  <svg style={{ width: '13px', height: '13px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Acceso · Sala de Cómputo
+                </a>
+              </div>
+
               <div className="card-enter-4" style={{
-                marginTop: '24px', textAlign: 'center', color: '#4b5563',
+                marginTop: '14px', textAlign: 'center', color: '#4b5563',
                 fontSize: '11px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.03em',
               }}>
                 © {new Date().getFullYear()} CECyTEM · Sistema de Seguimiento Académico
@@ -355,14 +330,14 @@ const currentPath = window.location.pathname;
     );
   }
 
-  // VISTA 2: Si el usuario SÍ existe, renderiza los dashboards correspondientes al rol de inmediato
+  // ── VISTA 2: Dashboards según rol ─────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans flex flex-col">
       <Navbar />
       <main className="flex-1 p-6">
-        {user.rol === 'ADMIN' && <AdminDashboard />}
+        {user.rol === 'ADMIN'   && <AdminDashboard />}
         {user.rol === 'DOCENTE' && <DocenteDashboard />}
-        {user.rol === 'ALUMNO' && <AlumnoDashboard />}
+        {user.rol === 'ALUMNO'  && <AlumnoDashboard />}
       </main>
     </div>
   );
