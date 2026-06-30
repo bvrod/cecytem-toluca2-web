@@ -98,7 +98,7 @@ function normalizeArrayResponse(data) {
 function Card({ children, style = {}, accentColor, padding = "0", className = "" }) {
   const topColor = accentColor ?? T.accent;
   return (
-    <div style={{
+    <div className={className} style={{
       position: "relative",
       borderRadius: T.radius,
       background: T.surface,
@@ -141,21 +141,28 @@ export default function DocenteDashboard() {
   const [selectedAsignacion, setSelectedAsignacion] = useState(null);
   const [actividades,        setActividades]        = useState([]);
   const [alumnos,            setAlumnos]            = useState([]);
-  const [asistencia,         setAsistencia]         = useState({});
-  const [evaluaciones,       setEvaluaciones]       = useState({});
+
+  // Entregas / calificaciones ahora se guardan POR ACTIVIDAD:
+  // { [actividadId]: { [alumnoId]: true|false } }
+  const [entregas,           setEntregas]           = useState({});
+  const [calificaciones,     setCalificaciones]     = useState({});
+
   const [searchQuery,        setSearchQuery]        = useState("");
   const [loadingDashboard,   setLoadingDashboard]   = useState(true);
   const [loadingDetalles,    setLoadingDetalles]    = useState(false);
   const [showModal,          setShowModal]          = useState(false);
   const [error,              setError]              = useState(null);
+  const [guardando,          setGuardando]          = useState(false);
+
+  // Actividad seleccionada para calificar (solo UNA a la vez)
   const [selectedActividad,  setSelectedActividad]  = useState(null);
 
   // ── Cargar asignaciones ────────────────────────────────────────────────────
-const fetchDashboardData = useCallback(async () => {
-  try {
-    setLoadingDashboard(true);
-    setError(null);
-    const res = await api.get(ENDPOINTS.ACADEMICO.DOCENTES_DASHBOARD);
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoadingDashboard(true);
+      setError(null);
+      const res = await api.get(ENDPOINTS.ACADEMICO.DOCENTES_DASHBOARD);
       const data = normalizeArrayResponse(res.data);
       setAsignaciones(data);
       if (selectedAsignacion) {
@@ -181,8 +188,8 @@ const fetchDashboardData = useCallback(async () => {
         setLoadingDetalles(true);
         setError(null);
         const [resAct, resAlu] = await Promise.all([
-        api.get(`${ENDPOINTS.SEGUIMIENTO.ACTIVIDADES}?asignacion=${selectedAsignacion.id}`),
-        api.get(`${ENDPOINTS.ACADEMICO.ALUMNOS}?asignacion=${selectedAsignacion.id}`).catch(() => ({ data: [] })),
+          api.get(`${ENDPOINTS.SEGUIMIENTO.ACTIVIDADES}?asignacion=${selectedAsignacion.id}`),
+          api.get(`${ENDPOINTS.ACADEMICO.ALUMNOS}?asignacion=${selectedAsignacion.id}`).catch(() => ({ data: [] })),
         ]);
         setActividades(normalizeArrayResponse(resAct.data));
         const lista = normalizeArrayResponse(resAlu.data);
@@ -195,6 +202,8 @@ const fetchDashboardData = useCallback(async () => {
     };
 
     fetchDetalles();
+    // Al cambiar de materia, se cierra la actividad que estuviera seleccionada
+    setSelectedActividad(null);
   }, [selectedAsignacion]);
 
   // ── Filtrado ───────────────────────────────────────────────────────────────
@@ -209,26 +218,63 @@ const fetchDashboardData = useCallback(async () => {
     );
   }), [asignaciones, searchQuery]);
 
-  // ── Guardar asistencia ─────────────────────────────────────────────────────
-  // CORRECCIÓN: ruta sin barra inicial para respetar el baseURL de Axios
+  // ── Selección de actividad (solo una a la vez) ───────────────────────────────
 
-  const guardarAsistencia = async () => {
+  const toggleActividad = (actividadId) => {
+    setSelectedActividad(prev => (prev === actividadId ? null : actividadId));
+  };
+
+  // ── Marcar entrega / calificar (sólo aplica a la actividad seleccionada) ────
+
+  const toggleEntrega = (alumnoId) => {
+    if (!selectedActividad) return;
+    setEntregas(prev => ({
+      ...prev,
+      [selectedActividad]: {
+        ...(prev[selectedActividad] || {}),
+        [alumnoId]: !(prev[selectedActividad]?.[alumnoId]),
+      },
+    }));
+  };
+
+  const setCalificacion = (alumnoId, value) => {
+    if (!selectedActividad) return;
+    setCalificaciones(prev => ({
+      ...prev,
+      [selectedActividad]: {
+        ...(prev[selectedActividad] || {}),
+        [alumnoId]: value,
+      },
+    }));
+  };
+
+  const entregasActuales      = selectedActividad ? (entregas[selectedActividad] || {}) : {};
+  const calificacionesActuales = selectedActividad ? (calificaciones[selectedActividad] || {}) : {};
+  const hayCambiosPendientes  = selectedActividad
+    ? (Object.keys(entregasActuales).length > 0 || Object.keys(calificacionesActuales).length > 0)
+    : false;
+
+  // ── Guardar entregas/calificaciones de la actividad seleccionada ────────────
+
+  const guardarRegistros = async () => {
     if (!selectedActividad) {
-      alert("Selecciona una actividad para registrar la asistencia");
+      alert("Selecciona una actividad para registrar entregas y calificaciones");
       return;
     }
     try {
+      setGuardando(true);
       const res = await api.post(ENDPOINTS.SEGUIMIENTO.GUARDAR_ASISTENCIA, {
         actividad_id: selectedActividad,
-        asistencias: asistencia,
-        evaluaciones,
+        asistencias: entregasActuales,
+        evaluaciones: calificacionesActuales,
       });
       alert(`✅ Se guardaron ${res.data.registros_guardados} registros`);
-      setAsistencia({});
-      setEvaluaciones({});
-      setSelectedActividad(null);
+      setEntregas(prev => { const next = { ...prev }; delete next[selectedActividad]; return next; });
+      setCalificaciones(prev => { const next = { ...prev }; delete next[selectedActividad]; return next; });
     } catch (err) {
       alert(`❌ ${err.response?.data?.detail || "Error al guardar"}`);
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -241,23 +287,49 @@ const fetchDashboardData = useCallback(async () => {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
         * { box-sizing: border-box; }
+
+        .docente-main {
+          max-width: 1600px; margin: 0 auto;
+          padding: 20px 24px;
+          display: grid;
+          grid-template-columns: 320px 1fr;
+          gap: 20px;
+          height: calc(100vh - 60px);
+          overflow: hidden;
+        }
+        .docente-aside { display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden; }
+        .docente-right-panel { height: 100%; overflow: hidden; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; min-height: 0; overflow: hidden; }
+        .header-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 14px; }
+        .table-scroll-wrap { overflow: auto; -webkit-overflow-scrolling: touch; }
+        .alumnos-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 360px; }
+
+        @media (max-width: 1024px) {
+          .docente-main { grid-template-columns: 260px 1fr; gap: 14px; padding: 16px; }
+        }
+
         @media (max-width: 768px) {
-        .docente-main { 
-        grid-template-columns: 1fr !important; 
-        height: auto !important; 
-        overflow: visible !important;
-        padding: 12px !important;
-      }
-        .docente-aside { height: auto !important; overflow: visible !important; }
-        .docente-right-panel { height: auto !important; min-height: 60vh; }
-        .detail-grid { grid-template-columns: 1fr !important; }
-        .header-row { flex-direction: column !important; align-items: flex-start !important; }
-        .nueva-actividad-btn { width: 100% !important; justify-content: center !important; }
-    }
-    @media (max-width: 480px) {
-      .docente-main { gap: 12px !important; }
-      .modal-grid { grid-template-columns: 1fr !important; }
-  }
+          .docente-main {
+            grid-template-columns: 1fr !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 12px !important;
+            gap: 14px !important;
+          }
+          .docente-aside { height: auto !important; overflow: visible !important; max-height: 320px; }
+          .docente-right-panel { height: auto !important; min-height: 60vh; overflow: visible !important; }
+          .detail-grid { grid-template-columns: 1fr !important; }
+          .header-row { flex-direction: column !important; align-items: stretch !important; }
+          .nueva-actividad-btn { width: 100% !important; justify-content: center !important; }
+          .guardar-btn { width: 100% !important; justify-content: center !important; }
+        }
+
+        @media (max-width: 480px) {
+          .docente-main { gap: 12px !important; padding: 8px !important; }
+          .modal-grid { grid-template-columns: 1fr !important; }
+          .alumnos-table { font-size: 10px; }
+        }
+
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: rgba(6,182,212,0.04); }
         ::-webkit-scrollbar-thumb { background: rgba(6,182,212,0.18); border-radius: 4px; }
@@ -279,18 +351,10 @@ const fetchDashboardData = useCallback(async () => {
         <div style={{ position: "relative", zIndex: 1 }}>
           <Navbar />
 
-      <main className="docente-main" style={{
-        maxWidth: 1600, margin: "0 auto",
-        padding: "20px 24px",
-        display: "grid",
-        gridTemplateColumns: "320px 1fr",
-        gap: 20,
-        height: "calc(100vh - 60px)",
-        overflow: "hidden",
-      }}>
+          <main className="docente-main">
 
             {/* ── PANEL IZQUIERDO ── */}
-            <aside className="docente-aside" style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%", overflow: "hidden" }}>
+            <aside className="docente-aside">
               <Card accentColor={T.cyan}>
                 <div style={{ padding: "18px 18px 16px" }}>
                   <div style={{ marginBottom: 14 }}>
@@ -340,19 +404,17 @@ const fetchDashboardData = useCallback(async () => {
             </aside>
 
             {/* ── PANEL DERECHO ── */}
-            <Card className="docente-right-panel" style={{ height: "100%", overflow: "hidden" }}>
+            <Card className="docente-right-panel">
               <div style={{ height: "100%", overflowY: "auto", padding: "20px 24px" }}>
                 {selectedAsignacion ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 20, height: "100%" }}>
 
-                      <div className="header-row" style={{
-                            display: "flex", flexWrap: "wrap", alignItems: "flex-start",
-                            justifyContent: "space-between", gap: 14,
-                            paddingBottom: 18,
-                            borderBottom: `1px solid rgba(6,182,212,0.10)`,
-                          }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div className="header-row" style={{
+                      paddingBottom: 18,
+                      borderBottom: `1px solid rgba(6,182,212,0.10)`,
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                           <span style={{
                             fontSize: 10, fontWeight: 700, textTransform: "uppercase",
                             letterSpacing: "0.16em", color: T.cyan,
@@ -399,11 +461,11 @@ const fetchDashboardData = useCallback(async () => {
                     {loadingDetalles ? (
                       <LoadingSpinner message="Cargando detalles..." />
                     ) : (
-                      <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, flex: 1, minHeight: 0, overflow: "hidden" }}>
+                      <div className="detail-grid">
 
                         {/* Columna A: Actividades */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                             <h3 style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>
                               Planeaciones
                             </h3>
@@ -415,17 +477,29 @@ const fetchDashboardData = useCallback(async () => {
                               {actividades.length}
                             </span>
                           </div>
+                          {actividades.length > 0 && (
+                            <p style={{ margin: 0, fontSize: 10, color: T.textMuted, lineHeight: 1.5 }}>
+                              Selecciona una actividad para registrar entregas y calificaciones de los alumnos.
+                            </p>
+                          )}
                           <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
                             {actividades.length === 0
                               ? <EmptyState icon="📚" title="Sin planeaciones" message="Crea la primera actividad para este grupo." />
-                              : actividades.map(act => <ActivityCard key={act.id} actividad={act} />)
+                              : actividades.map(act => (
+                                <ActivityCard
+                                  key={act.id}
+                                  actividad={act}
+                                  isSelected={selectedActividad === act.id}
+                                  onClick={() => toggleActividad(act.id)}
+                                />
+                              ))
                             }
                           </div>
                         </div>
 
                         {/* Columna B: Alumnos */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                             <h3 style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>
                               Alumnos matriculados
                             </h3>
@@ -437,30 +511,54 @@ const fetchDashboardData = useCallback(async () => {
                               }}>
                                 {alumnos.length}
                               </span>
-                              {Object.keys(asistencia).length > 0 && (
+                              {hayCambiosPendientes && (
                                 <button
-                                  onClick={guardarAsistencia}
+                                  className="guardar-btn"
+                                  onClick={guardarRegistros}
+                                  disabled={guardando}
                                   style={{
                                     padding: "4px 12px", borderRadius: T.radiusXs,
                                     background: "rgba(29,185,84,0.15)",
                                     border: `1px solid ${T.borderGreen}`,
                                     color: T.accent, fontSize: 10, fontWeight: 700,
-                                    cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                                    cursor: guardando ? "not-allowed" : "pointer",
+                                    opacity: guardando ? 0.6 : 1,
+                                    fontFamily: "'DM Sans', sans-serif",
                                   }}
                                 >
-                                  Guardar
+                                  {guardando ? "Guardando..." : "Guardar"}
                                 </button>
                               )}
                             </div>
                           </div>
-                          <div style={{ flex: 1, overflowY: "auto", borderRadius: T.radiusSm, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+
+                          {!selectedActividad ? (
+                            <div style={{
+                              padding: "8px 12px", borderRadius: T.radiusXs,
+                              background: T.amberDim, border: `1px solid ${T.amberBorder}`,
+                              fontSize: 10, color: T.amber, lineHeight: 1.5,
+                            }}>
+                              Selecciona una actividad en "Planeaciones" para poder registrar entregas y calificaciones.
+                            </div>
+                          ) : (
+                            <div style={{
+                              padding: "8px 12px", borderRadius: T.radiusXs,
+                              background: T.cyanDim, border: `1px solid ${T.border}`,
+                              fontSize: 10, color: T.cyan, lineHeight: 1.5,
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              Calificando: <strong>{actividades.find(a => a.id === selectedActividad)?.titulo}</strong>
+                            </div>
+                          )}
+
+                          <div className="table-scroll-wrap" style={{ flex: 1, borderRadius: T.radiusSm, border: `1px solid ${T.border}` }}>
                             {alumnos.length === 0 ? (
                               <EmptyState icon="📋" title="Sin alumnos" message="No se encontraron alumnos matriculados." />
                             ) : (
-                              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                              <table className="alumnos-table">
                                 <thead>
                                   <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
-                                    {["Matrícula", "Nombre", "Asist.", "Calif.", "Acción"].map(h => (
+                                    {["Matrícula", "Nombre", "Entregó", "Calif."].map(h => (
                                       <th key={h} style={{
                                         padding: "9px 10px", textAlign: h === "Matrícula" || h === "Nombre" ? "left" : "center",
                                         fontSize: 10, fontWeight: 700, textTransform: "uppercase",
@@ -478,12 +576,11 @@ const fetchDashboardData = useCallback(async () => {
                                       key={alu.id}
                                       alumno={alu}
                                       idx={i}
-                                      asistencia={asistencia[alu.id] || false}
-                                      calificacion={evaluaciones[alu.id] || ""}
-                                      onToggleAsistencia={() => setAsistencia(prev => ({ ...prev, [alu.id]: !prev[alu.id] }))}
-                                      onCalificacionChange={val => setEvaluaciones(prev => ({ ...prev, [alu.id]: val }))}
-                                      selectedActividad={selectedActividad}
-                                      onSelectActividad={() => setSelectedActividad(selectedActividad === alu.id ? null : alu.id)}
+                                      entrego={entregasActuales[alu.id] || false}
+                                      calificacion={calificacionesActuales[alu.id] || ""}
+                                      disabled={!selectedActividad}
+                                      onToggleEntrega={() => toggleEntrega(alu.id)}
+                                      onCalificacionChange={val => setCalificacion(alu.id, val)}
                                     />
                                   ))}
                                 </tbody>
@@ -624,8 +721,10 @@ function ClassroomCard({ asignacion, isSelected, onClick, actividadesCount }) {
 }
 
 // ─── ActivityCard ───────────────────────────────────────────────────────────────
+// Ahora es seleccionable: al hacer clic se vuelve la única actividad activa
+// para registrar entregas/calificaciones. Un segundo clic la deselecciona.
 
-function ActivityCard({ actividad }) {
+function ActivityCard({ actividad, isSelected, onClick }) {
   const locked = isLocked(actividad.fecha_limite);
   const dias   = actividad.fecha_limite
     ? Math.ceil((new Date(actividad.fecha_limite) - new Date()) / (1000 * 60 * 60 * 24))
@@ -634,25 +733,44 @@ function ActivityCard({ actividad }) {
   const statusColor = locked ? T.dangerText : dias !== null && dias <= 3 ? T.amber : T.emerald;
 
   return (
-    <div style={{
-      padding: "12px 14px", borderRadius: T.radiusXs,
-      background: T.cyanDim, border: `1px solid ${T.border}`,
-      transition: "border-color 0.15s",
-    }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = T.borderStrong}
-      onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      style={{
+        cursor: "pointer",
+        padding: "12px 14px", borderRadius: T.radiusXs,
+        background: isSelected ? "rgba(29,185,84,0.10)" : T.cyanDim,
+        border: `1px solid ${isSelected ? T.borderGreen : T.border}`,
+        boxShadow: isSelected ? `0 0 0 1px rgba(29,185,84,0.25) inset` : "none",
+        transition: "border-color 0.15s, background 0.15s",
+      }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = T.borderStrong; }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = T.border; }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
         <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.textPrimary, flex: 1, lineHeight: 1.4, fontFamily: "'Syne', sans-serif" }}>
           {actividad.titulo}
         </h4>
-        <span style={{
-          padding: "2px 7px", borderRadius: T.radiusXs, flexShrink: 0,
-          background: "rgba(6,182,212,0.08)", border: `1px solid ${T.border}`,
-          fontSize: 9, fontWeight: 700, fontFamily: "monospace", color: T.cyan,
-        }}>
-          S{actividad.semana}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {isSelected && (
+            <span style={{
+              padding: "2px 7px", borderRadius: T.radiusXs,
+              background: "rgba(29,185,84,0.18)", border: `1px solid ${T.borderGreen}`,
+              fontSize: 9, fontWeight: 700, color: T.accent,
+            }}>
+              ✓ Seleccionada
+            </span>
+          )}
+          <span style={{
+            padding: "2px 7px", borderRadius: T.radiusXs,
+            background: "rgba(6,182,212,0.08)", border: `1px solid ${T.border}`,
+            fontSize: 9, fontWeight: 700, fontFamily: "monospace", color: T.cyan,
+          }}>
+            S{actividad.semana}
+          </span>
+        </div>
       </div>
       {actividad.descripcion && (
         <p style={{ margin: "0 0 8px", fontSize: 11, color: T.textSecondary, lineHeight: 1.5,
@@ -676,35 +794,41 @@ function ActivityCard({ actividad }) {
 }
 
 // ─── StudentTableRow ────────────────────────────────────────────────────────────
+// "Entregó" reemplaza al antiguo pase de lista: ✓ = entregó la actividad
+// seleccionada, ✗ = no la entregó. El pase de lista real se hace en otro módulo
+// a la hora de entrada, así que aquí ya no se gestiona asistencia.
 
-function StudentTableRow({ alumno, idx, asistencia, calificacion, onToggleAsistencia, onCalificacionChange, selectedActividad, onSelectActividad }) {
+function StudentTableRow({ alumno, idx, entrego, calificacion, disabled, onToggleEntrega, onCalificacionChange }) {
   const nombre = alumno.nombre_completo || alumno.alumno_nombre ||
     `${alumno.nombre || ""} ${alumno.apellido || ""}`.trim() || "Sin nombre";
   const matricula = alumno.matricula || alumno.id || "—";
 
   return (
-    <tr style={{ borderBottom: `1px solid rgba(6,182,212,0.07)`, background: idx % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent" }}>
+    <tr style={{ borderBottom: `1px solid rgba(6,182,212,0.07)`, background: idx % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent", opacity: disabled ? 0.5 : 1 }}>
       <td style={{ padding: "9px 10px", fontFamily: "monospace", fontSize: 10, color: T.textMuted }}>{matricula}</td>
       <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 600, color: T.textPrimary, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nombre}</td>
       <td style={{ padding: "9px 10px", textAlign: "center" }}>
         <button
-          onClick={onToggleAsistencia}
+          onClick={onToggleEntrega}
+          disabled={disabled}
+          title={disabled ? "Selecciona una actividad primero" : entrego ? "Entregó la actividad" : "No ha entregado"}
           style={{
-            width: 24, height: 24, borderRadius: "50%",
-            background: asistencia ? "rgba(29,185,84,0.20)" : "rgba(255,255,255,0.04)",
-            border: `1px solid ${asistencia ? T.borderGreen : T.border}`,
-            color: asistencia ? T.accent : T.textMuted,
-            fontSize: 12, cursor: "pointer", transition: "all 0.15s",
+            width: 26, height: 26, borderRadius: "50%",
+            background: entrego ? "rgba(29,185,84,0.20)" : "rgba(239,68,68,0.10)",
+            border: `1px solid ${entrego ? T.borderGreen : T.dangerBorder}`,
+            color: entrego ? T.accent : T.dangerText,
+            fontSize: 12, cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.15s",
             display: "inline-flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          {asistencia ? "✓" : "–"}
+          {entrego ? "✓" : "✗"}
         </button>
       </td>
       <td style={{ padding: "9px 10px", textAlign: "center" }}>
         <input
           type="number" min="0" max="10"
           value={calificacion}
+          disabled={disabled}
           onChange={e => onCalificacionChange(e.target.value)}
           placeholder="–"
           style={{
@@ -712,23 +836,9 @@ function StudentTableRow({ alumno, idx, asistencia, calificacion, onToggleAsiste
             background: "rgba(5,18,32,0.55)", border: `1px solid ${T.border}`,
             borderRadius: T.radiusXs, color: T.textPrimary, fontSize: 11,
             fontFamily: "'DM Sans', sans-serif",
+            cursor: disabled ? "not-allowed" : "text",
           }}
         />
-      </td>
-      <td style={{ padding: "9px 10px", textAlign: "center" }}>
-        <button
-          onClick={onSelectActividad}
-          style={{
-            padding: "3px 10px", borderRadius: T.radiusXs,
-            background: selectedActividad ? "rgba(29,185,84,0.18)" : T.cyanDim,
-            border: `1px solid ${selectedActividad ? T.borderGreen : T.border}`,
-            color: selectedActividad ? T.accent : T.cyan,
-            fontSize: 10, fontWeight: 700, cursor: "pointer",
-            fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
-          }}
-        >
-          Reg.
-        </button>
       </td>
     </tr>
   );
@@ -792,7 +902,6 @@ function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) 
     setEnviando(true);
     try {
       const fecha = new Date(formData.fecha_limite + "T00:00:00");
-      // CORRECCIÓN: ruta sin barra inicial
       await api.post(ENDPOINTS.SEGUIMIENTO.ACTIVIDADES, {
         asignacion: typeof asignacion === 'object' ? asignacion.id : asignacion,
         titulo:      formData.titulo.trim(),
@@ -830,6 +939,8 @@ function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) 
         boxShadow: T.shadow,
         backdropFilter: "blur(24px)",
         overflow: "hidden",
+        maxHeight: "calc(100vh - 32px)",
+        overflowY: "auto",
       }}>
         <div style={{ height: 3, background: `linear-gradient(90deg, ${T.accent} 0%, ${T.accentEnd} 100%)` }} />
 
