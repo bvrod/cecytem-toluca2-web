@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import CecytoMascota from "../../imagenes/Cecyto Lab.png";
 
 // ── Ajusta esta URL a la misma que usa tu instancia de axios (api.js) ──────────
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE_URL = "https://cecytem-toluca2-web.onrender.com";
+
 
 const ESTADOS = {
   LIBRE: "LIBRE",
