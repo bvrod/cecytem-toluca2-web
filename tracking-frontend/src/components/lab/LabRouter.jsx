@@ -23,7 +23,7 @@ const ADMINS = [
 ];
 
 // ── Backend SIGART (para alumnos) ─────────────────────────────────────────────
-const API_BASE_URL    = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE_URL = "https://cecytem-toluca2-web.onrender.com";
 const LOGIN_ENDPOINT  = `${API_BASE_URL}/api/auth/login/`;
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
