@@ -47,7 +47,7 @@ import SectionHeading from "./components/SectionHeading";
 import ThemeToggle from "./components/ThemeToggle";
 import FacilityGallery from "./components/FacilityGallery";
 import heroA from "./imagenes/Toluca 2.jpeg";
-import heroB from "./imagenes/cecytem 1.3.jpeg";
+import heroB from "./imagenes/momentos cecytem.jpeg";
 import heroC from "./imagenes/Toluac 2.2.jpeg";
 import {
   admissionSteps,
@@ -612,12 +612,12 @@ export default function App() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ duration: 0.65 }}
-                  className="relative overflow-hidden rounded-[2.2rem]"
+                  className="relative overflow-hidden rounded-[2.2rem] aspect-[4/3] min-h-[280px] sm:min-h-[340px]"
                 >
                   <img
                     src={heroB}
                     alt="Estudiantes en campus"
-                    className="h-full min-h-[420px] w-full object-cover"
+                    className="h-full w-full object-cover object-top sm:object-center"
                     loading="lazy"
                     decoding="async"
                   />
