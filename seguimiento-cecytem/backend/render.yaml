@@ -4,6 +4,7 @@ services:
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn core.wsgi:application"
+    releaseCommand: "python manage.py migrate --noinput && python manage.py createsuperuser_from_env"
     envVars:
       - key: DJANGO_SUPERUSER_USERNAME
         value: admin
