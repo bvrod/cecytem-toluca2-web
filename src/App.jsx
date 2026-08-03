@@ -1014,13 +1014,6 @@ export default function App() {
                   description="Actividades abiertas a aspirantes, estudiantes y familias de la comunidad CECyTEM Toluca II."
                 />
 
-                  <SectionHeading
-                  eyebrow="Estamos ampliando nuestro horizonte"
-                  title="Creciendo con la comunidad"
-                  description="Actividades abiertas a aspirantes, estudiantes y familias de la comunidad CECyTEM Toluca II."
-                />
-                
-
                 <div className="glass-card rounded-[2rem] p-6">
                   <div className="space-y-5">
                     {upcomingEvents.map((event, index) => (

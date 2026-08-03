@@ -303,6 +303,13 @@ export const newsItems = [
     description:
       "La comunidad estudiantil participó en ceremonias cívicas, exposiciones culturales y actividades que reforzaron el sentido de identidad y pertenencia al CECyTEM Toluca II.",
   },
+  {
+    category: "Comunidad",
+    date: "Julio 2026",
+    title: "Creciendo con la comunidad",
+    description:
+      "Actividades abiertas a aspirantes, estudiantes y familias de la comunidad CECyTEM Toluca II.",
+  },
 ];
 
 // ── Próximos eventos ──────────────────────────────────────────

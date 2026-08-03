@@ -1214,12 +1214,13 @@ function GruposSection() {
       const grupoRes = await api.post("/academico/grupos/", { semestre: Number.parseInt(fase1.semestre, 10), carrera: fase1.carrera, grupo_letra: String(fase1.grupo_letra), turno: fase1.turno });
       const grupoId = grupoRes.data.id;
       const validas = asignForm.filter((r) => {
-        if (!r.docente_id || r.docente_id.trim() === "" || isNaN(Number.parseInt(r.docente_id, 10)) || Number.parseInt(r.docente_id, 10) <= 0) return false;
-        const yaExiste = asignaciones.some((a) => a.docente === Number.parseInt(r.docente_id, 10) && a.materia === r.materia_id && a.grupo === grupoId);
+        const docenteId = r.docente_id?.trim();
+        if (!docenteId) return false;
+        const yaExiste = asignaciones.some((a) => a.docente === docenteId && a.materia === r.materia_id && a.grupo === grupoId);
         return !yaExiste;
       });
       if (validas.length > 0) {
-        const results = await Promise.allSettled(validas.map((row) => api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: grupoId })));
+        const results = await Promise.allSettled(validas.map((row) => api.post("/seguimiento/asignaciones/", { docente: row.docente_id.trim(), materia: row.materia_id, grupo: grupoId })));
         const fallos = results.filter((r) => r.status === "rejected");
         if (fallos.length > 0) {
           show(`Grupo creado, pero ${fallos.length} asignación(es) fallaron: ${fallos.map((f) => parseDRFError(f.reason)).join(" | ")}`, "error");
@@ -1242,16 +1243,17 @@ function GruposSection() {
       const asignActuales = getAsignacionesPorGrupo(editGroup.grupoId);
       const ops = asignForm.map(async (row) => {
         const existing = asignActuales.find((a) => a.materia === row.materia_id);
-        const esValida  = row.docente_id && row.docente_id.trim() !== "" && !isNaN(Number.parseInt(row.docente_id, 10));
+        const docenteId = row.docente_id?.trim();
+        const esValida  = Boolean(docenteId);
         if (existing && esValida) {
-          if (Number(existing.docente) !== Number.parseInt(row.docente_id, 10))
-            await api.patch(`/seguimiento/asignaciones/${existing.id}/`, { docente: Number.parseInt(row.docente_id, 10) });
+          if (existing.docente !== docenteId)
+            await api.patch(`/seguimiento/asignaciones/${existing.id}/`, { docente: docenteId });
         } else if (existing && !esValida) {
           await api.delete(`/seguimiento/asignaciones/${existing.id}/`);
         } else if (!existing && esValida) {
-          const yaExiste = asignaciones.some((a) => a.docente === Number.parseInt(row.docente_id, 10) && a.materia === row.materia_id && a.grupo === editGroup.grupoId);
+          const yaExiste = asignaciones.some((a) => a.docente === docenteId && a.materia === row.materia_id && a.grupo === editGroup.grupoId);
           if (!yaExiste)
-            await api.post("/seguimiento/asignaciones/", { docente: Number.parseInt(row.docente_id, 10), materia: row.materia_id, grupo: editGroup.grupoId });
+            await api.post("/seguimiento/asignaciones/", { docente: docenteId, materia: row.materia_id, grupo: editGroup.grupoId });
         }
       });
       const results = await Promise.allSettled(ops);

@@ -59,9 +59,17 @@ class UsuarioSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         
         # 2. Si viene explícitamente como 'DOCENTE', marcamos su propiedad nativa de Django
+        #    y también guardamos el rol real en el modelo de Usuario.
         if rol == 'DOCENTE':
             validated_data['is_staff'] = True
-            
+            validated_data['rol'] = 'DOCENTE'
+        elif rol == 'ADMIN':
+            validated_data['is_staff'] = True
+            validated_data['is_superuser'] = True
+            validated_data['rol'] = 'ADMIN'
+        elif rol == 'ALUMNO':
+            validated_data['rol'] = 'ALUMNO'
+        
         # 3. Creamos la instancia usando el manager nativo (esto evita que el usuario se corrompa)
         user = Usuario.objects.create(**validated_data)
         
