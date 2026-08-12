@@ -71,7 +71,7 @@ const inputStyle = {
 const carreraLabels = {
   LOGISTICA:        "Logistica",
   CIENCIA_DATOS:    "Ciencia de Datos",
-  ANIMACION_DIGITAL:"Animacion Digital",
+  ANIMACION_DIGITAL: "Animación Digital",
 };
 
 const SECTIONS = [
@@ -109,14 +109,14 @@ const groupLabel = (grupo) => {
 };
 
 const CARRERAS_POR_SEMESTRE = (semestre) => {
+  // Keep Animación Digital available as an option (many grupos still exist)
   const n = Number.parseInt(semestre, 10);
   const base = [
     { value: "LOGISTICA",     label: "Técnico en Logística" },
     { value: "CIENCIA_DATOS", label: "Técnico en Ciencia de Datos" },
+    { value: "ANIMACION_DIGITAL", label: "Técnico en Animación Digital" },
   ];
-  if (n === 4 || n === 6) {
-    return [...base, { value: "ANIMACION_DIGITAL", label: "Técnico en Animación Digital" }];
-  }
+  // Additional conditional logic can remain if needed
   return base;
 };
 
@@ -635,6 +635,7 @@ function AlumnosSection() {
 
   const [alumnos, setAlumnos]           = useState([]);
   const [grupos,  setGrupos]            = useState([]);
+  const [groupFilter, setGroupFilter]   = useState("");
   const [loading, setLoading]           = useState(true);
   const [modal,   setModal]             = useState(null);
   const [form,    setForm]              = useState({ grupo: "", semestre: "", turno: "" });
@@ -739,11 +740,19 @@ function AlumnosSection() {
       <Toast toast={toast} />
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 24 }}>
         <SectionTitle title="Alumnos" subtitle="Consulta el padrón y reasigna grupos." />
-        <Btn onClick={() => setAlumnoModalOpen(true)}>+ Nuevo alumno</Btn>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 13, color: T.textMuted }}>Grupo:</label>
+            <StyledSelect value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} style={{ minWidth: 180 }}>
+              <option value="">Todos</option>
+              {grupos.map(g => <option key={g.id} value={g.id}>{groupLabel(g)}</option>)}
+            </StyledSelect>
+          </div>
+          <Btn onClick={() => setAlumnoModalOpen(true)}>+ Nuevo alumno</Btn>
+        </div>
       </div>
-
-      <Table cols={["Matrícula", "Nombre", "Correo", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
-        {alumnos.map((alumno, idx) => {
+      <Table cols={["Matrícula", "Nombre", "Número de control", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
+        {alumnos.filter(a => !groupFilter || String(a.grupo) === String(groupFilter)).map((alumno, idx) => {
           const grupo = grupos.find((g) => g.id === alumno.grupo);
           return (
             <TR key={alumno.id} idx={idx}>
@@ -757,7 +766,7 @@ function AlumnosSection() {
                   </div>
                 </div>
               </TD>
-              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{alumno.email || "—"}</span></TD>
+              <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{alumno.email ? String(alumno.email).split('@')[0] : "—"}</span></TD>
               <TD><Pill>{groupLabel(grupo)}</Pill></TD>
               <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{grupo?.semestre ? `${grupo.semestre}°` : "—"}</span></TD>
               <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{grupo?.turno ?? "—"}</span></TD>
@@ -780,7 +789,7 @@ function AlumnosSection() {
                 <Avatar label={modal.nombre} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{modal.nombre}</div>
-                  <div style={{ fontSize: 12, color: T.textMuted }}>{modal.matricula || "Sin matrícula"} · {modal.email || "Sin correo"}</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>{modal.matricula || "Sin matrícula"} · {modal.email ? String(modal.email).split('@')[0] : "Sin número de control"}</div>
                 </div>
               </div>
             </Card>
@@ -1472,7 +1481,7 @@ function GruposSection() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 360 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                    {["Matrícula", "Nombre", "Correo"].map((h) => <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.cyan, letterSpacing: "0.12em", textTransform: "uppercase" }}>{h}</th>)}
+                    {["Matrícula", "Nombre", "Número de control"].map((h) => <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.cyan, letterSpacing: "0.12em", textTransform: "uppercase" }}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -1485,7 +1494,7 @@ function GruposSection() {
                           <span style={{ color: T.textPrimary }}>{al.nombre_completo || al.user || "—"}</span>
                         </div>
                       </td>
-                      <td style={{ padding: "10px 12px", fontSize: 12, color: T.textSecondary }}>{al.email || "—"}</td>
+                      <td style={{ padding: "10px 12px", fontSize: 12, color: T.textSecondary }}>{al.email ? String(al.email).split('@')[0] : "—"}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,0 +1,53 @@
+2026-05-19 | Initial commit - CECyTEM institutional website
+2026-05-19 | Actualización de contenido y secciones del sitio CECyTEM Toluca II
+2026-05-20 | Rediseño visual premium del sitio CECyTEM Toluca II
+2026-05-21 | Docs: actualizar componentes y contenido del sitio
+2026-05-22 | Fotografias actualizadas del sitio CECyTEM Toluca II
+2026-05-22 | Respaldo antes de corregir despliegue Vercel
+2026-05-22 | Corrección de AnimatePresence y optimización de galerías
+2026-05-22 | Eliminar archivos log del repositorio
+2026-05-27 | Actualización del sitio CECyTEM
+2026-05-27 | Corregir nombres de imágenes para Vercel
+2026-05-28 | Actualizar módulos de seguimiento y dashboards
+2026-05-29 | Actualizacion del frontend, backend
+2026-06-03 | Actualizar sistema de seguimiento
+2026-06-03 | Fix localhost production
+2026-06-03 | Actualizar rutas del sistema
+2026-06-04 | Agregar requirements para Render
+2026-06-04 | Instalar axios
+2026-06-04 | Conectar portal institucional
+2026-06-04 | Actualizar URL backend producción
+2026-06-05 | Corregir URL API producción
+2026-06-05 | Configurar CORS producción
+2026-06-05 | Fix settings producción
+2026-06-05 | fix cors production
+2026-06-05 | Enlace de sistema
+2026-06-08 | Corrección de autenticación y rutas API
+2026-06-08 | Corrección de materias
+2026-06-09 | Corrección de views.py
+2026-06-09 | fix: mostrar docente y cumplimientos reales en materias
+2026-06-09 | Actualiza módulo de docentes en AdminDashboard
+2026-06-09 | Mejora gestión de grupos y asignaciones
+2026-06-09 | Agregar semestre y carrera al catalogo de materias
+2026-06-10 | feat: agrega semestre y carrera a modelo Materia
+2026-06-10 | Agregar semestre y carrera al serializer de Materia
+2026-06-10 | Actualiza dashboards de administrador y docente
+2026-06-12 | Agregar localhost 5174 a CORS
+2026-06-12 | Panel de sala de computo
+2026-06-12 | Sala de computo
+2026-06-12 | Panel de sala en src
+2026-06-18 | Agregando carpeta lab con KioskoAlu y PanelEnc
+2026-06-23 | Actualización: Cambios en index.html, KioskoAlumno y adición de logo institucional
+2026-06-25 | Actualizacion pagina web
+2026-06-25 | feat: agregar LabRouter con login de roles
+2026-06-26 | feat: agregar ruta /sala con LabRouter
+2026-06-26 | corregir labrouter
+2026-06-26 | fix: mover vercel.json dentro de tracking-frontend
+2026-06-29 | fix: corregir capitalización de LabRouter.jsx
+2026-06-30 | Actualizacion Docente Dashboard
+2026-07-03 | fix: corregir URL del backend en LabRouter
+2026-07-03 | Actualizacion del docente dashboard
+2026-07-26 | Actualiza imágenes y configuración para despliegue
+2026-07-31 | Notocia Nueva
+2026-08-03 | Fix: accept UUID docente IDs and save rol on user creation
+2026-08-05 | fix: corregir configuracion de base de datos postgresql y carga de variables de entorno
