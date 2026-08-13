@@ -1569,7 +1569,7 @@ function MateriasSection() {
   const carrerasDisponibles = (semestre) => {
     const s = Number.parseInt(semestre, 10);
     const base = [{ value: "LOGISTICA", label: "Logística" }, { value: "CIENCIA_DATOS", label: "Ciencia de Datos" }];
-    if (!s || s === 4 || s === 6) return [...base, { value: "ANIMACION_DIGITAL", label: "Animación Digital" }];
+    if (!s || s === 5 || s === 6) return [...base, { value: "ANIMACION_DIGITAL", label: "Animación Digital" }];
     return base;
   };
 

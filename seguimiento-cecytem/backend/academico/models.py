@@ -29,10 +29,10 @@ class Grupo(models.Model):
             raise ValidationError(
                 "El semestre 1 solo permite las carreras de Logística y Ciencia de Datos."
             )
-        # RN2: Animación Digital solo en semestres 4 y 6
-        if self.carrera == 'ANIMACION_DIGITAL' and self.semestre not in [4, 6]:
+        # RN2: Animación Digital solo en semestres 5 y 6
+        if self.carrera == 'ANIMACION_DIGITAL' and self.semestre not in [5, 6]:
             raise ValidationError(
-                "Animación Digital solo está disponible en 4to y 6to semestre."
+                "Animación Digital solo está disponible en 5to y 6to semestre."
             )
 
     def save(self, *args, **kwargs):
