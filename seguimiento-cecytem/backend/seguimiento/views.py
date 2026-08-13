@@ -8,6 +8,12 @@ from django.db.models import Count, Q
 
 from .models import AsignacionDocente, Actividad, Cumplimiento
 from .serializers import AsignacionDocenteSerializer, ActividadSerializer, CumplimientoSerializer
+from .models import ComputadoraSala, RegistroAccesoSala
+from .serializers import ComputadoraSalaSerializer, RegistroAccesoSalaSerializer
+from rest_framework import mixins
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 
 class AsignacionDocenteViewSet(viewsets.ModelViewSet):
     queryset = AsignacionDocente.objects.all()
@@ -112,3 +118,66 @@ class CumplimientoViewSet(viewsets.ModelViewSet):
             "errores": errores,
             "timestamp": timezone.now()
         }, status=status.HTTP_200_OK)
+
+
+class ComputadoraSalaViewSet(viewsets.ModelViewSet):
+    queryset = ComputadoraSala.objects.all()
+    serializer_class = ComputadoraSalaSerializer
+    permission_classes = [IsAuthenticated]
+
+    # Allow partial updates for estado/alumno/hora_inicio
+    def perform_broadcast(self, action, instance):
+        try:
+            channel_layer = get_channel_layer()
+            data = ComputadoraSalaSerializer(instance).data
+            async_to_sync(channel_layer.group_send)(
+                'sala',
+                {'type': 'sala.update', 'payload': {'action': action, 'computadora': data}}
+            )
+        except Exception:
+            pass
+
+    def create(self, request, *args, **kwargs):
+        resp = super().create(request, *args, **kwargs)
+        try:
+            instancia = self.get_queryset().get(pk=resp.data.get('id'))
+            self.perform_broadcast('create', instancia)
+        except Exception:
+            pass
+        return resp
+
+    def update(self, request, *args, **kwargs):
+        resp = super().update(request, *args, **kwargs)
+        try:
+            instancia = self.get_object()
+            self.perform_broadcast('update', instancia)
+        except Exception:
+            pass
+        return resp
+
+    def partial_update(self, request, *args, **kwargs):
+        resp = super().partial_update(request, *args, **kwargs)
+        try:
+            instancia = self.get_object()
+            self.perform_broadcast('update', instancia)
+        except Exception:
+            pass
+        return resp
+
+    def destroy(self, request, *args, **kwargs):
+        instancia = self.get_object()
+        pk = instancia.pk
+        resp = super().destroy(request, *args, **kwargs)
+        try:
+            # Broadcast that this computadora was removed
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)('sala', {'type': 'sala.update', 'payload': {'action': 'delete', 'computadora': {'id': pk}}})
+        except Exception:
+            pass
+        return resp
+
+
+class RegistroAccesoSalaViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    queryset = RegistroAccesoSala.objects.all().order_by('-fecha')
+    serializer_class = RegistroAccesoSalaSerializer
+    permission_classes = [IsAuthenticated]

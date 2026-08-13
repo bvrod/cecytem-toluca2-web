@@ -49,6 +49,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
 
+    # Channels
+    'channels',
+
     # Apps del proyecto
     'autenticacion',
     'academico',
@@ -79,6 +82,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
 
 # --------------------------------------------------
 # Templates
@@ -200,6 +204,13 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
 ]
+
+# Django Channels (in-memory for development; use Redis in production)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 # --------------------------------------------------
 # Seguridad extra producción

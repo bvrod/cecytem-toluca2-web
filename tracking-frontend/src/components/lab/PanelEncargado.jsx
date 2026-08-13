@@ -1,5 +1,6 @@
 // src/components/Computo/PanelEncargado.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import api from "../../services/api";
 
 const ESTADOS = {
   LIBRE: "LIBRE",
@@ -208,28 +209,44 @@ export default function PanelEncargado() {
   const [busquedaHistorial, setBusquedaHistorial] = useState("");
   const [cargando, setCargando] = useState(true);
 
-  const cargarTodo = () => {
+  const pollingRef = useRef(null);
+
+  const cargarTodo = async () => {
     setCargando(true);
-
-    let comps = cargarDato("computadoras");
-    if (!comps) {
-      comps = computadorasIniciales;
-      guardarDato("computadoras", comps);
+    try {
+      const res = await api.get("/seguimiento/computadoras/");
+      const apiComps = Array.isArray(res.data) ? res.data : res.data.results || [];
+      let comps = apiComps.map(c => ({
+        id: c.id,
+        estado: c.estado,
+        alumno: c.alumno,
+        horaInicio: c.hora_inicio ?? c.horaInicio ?? null,
+        fecha: c.fecha,
+      }));
+      // Si no hay computadoras en el servidor, inicializamos la sala con 36 equipos
+      if (comps.length === 0) {
+        const inicial = Array.from({ length: 36 }, (_, i) => ({ id: `PC-${String(i + 1).padStart(2, "0")}`, estado: 'LIBRE' }));
+        for (const c of inicial) {
+          try { await api.post('/seguimiento/computadoras/', c); } catch(e) { /* ignore */ }
+        }
+        comps = inicial.map(c => ({ id: c.id, estado: c.estado, alumno: null, horaInicio: null, fecha: null }));
+      }
+      setComputadoras(comps);
+    } catch (e) {
+      // Fallback a localStorage si la API no está disponible
+      let comps = cargarDato("computadoras");
+      if (!comps) {
+        comps = computadorasIniciales;
+        guardarDato("computadoras", comps);
+      }
+      setComputadoras(comps);
     }
 
+    // incidencias y historial siguen en localStorage por ahora
     let incs = cargarDato("incidencias");
-    if (!incs) {
-      incs = [];
-      guardarDato("incidencias", incs);
-    }
-
+    if (!incs) { incs = []; guardarDato("incidencias", incs); }
     let hist = cargarDato("historial");
-    if (!hist) {
-      hist = [];
-      guardarDato("historial", hist);
-    }
-
-    setComputadoras(comps);
+    if (!hist) { hist = []; guardarDato("historial", hist); }
     setIncidencias(incs);
     setHistorial(hist);
     setCargando(false);
@@ -238,57 +255,110 @@ export default function PanelEncargado() {
   useEffect(() => {
     cargarTodo();
 
-    // Si el Kiosko (en otra pestaña del mismo navegador) actualiza
-    // localStorage, refrescamos el panel automáticamente.
+    // Polling simple para sincronizar con otros dispositivos (5s)
+    pollingRef.current = setInterval(() => cargarTodo(), 5000);
+
+    // WebSocket para actualizaciones en tiempo real
+    try {
+      const wsUrl = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
+      const ws = new WebSocket(wsUrl);
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          const { action, computadora } = msg;
+          if (!action || !computadora) return;
+          if (action === 'update' || action === 'create') {
+            setComputadoras(prev => {
+              const exists = prev.find(p => p.id === computadora.id);
+              if (exists) return prev.map(p => p.id === computadora.id ? { id: computadora.id, estado: computadora.estado, alumno: computadora.alumno, horaInicio: computadora.hora_inicio ?? computadora.horaInicio ?? null, fecha: computadora.fecha } : p);
+              return [{ id: computadora.id, estado: computadora.estado, alumno: computadora.alumno, horaInicio: computadora.hora_inicio ?? computadora.horaInicio ?? null, fecha: computadora.fecha }, ...prev];
+            });
+          } else if (action === 'delete') {
+            setComputadoras(prev => prev.filter(p => p.id !== computadora.id));
+          }
+        } catch (e) { /* ignore malformed */ }
+      };
+      ws.onopen = () => {/* no-op */};
+      ws.onerror = () => {/* ignore */};
+      // cleanup
+      window.addEventListener('beforeunload', () => ws.close());
+    } catch (e) { /* ignore websocket errors */ }
+
+    // Mantener compatibilidad: si otra pestaña actualiza localStorage
     const alCambiarStorage = (e) => {
-      if (e.key && e.key.startsWith(PREFIJO_CLAVE)) {
-        cargarTodo();
-      }
+      if (e.key && e.key.startsWith(PREFIJO_CLAVE)) cargarTodo();
     };
     window.addEventListener("storage", alCambiarStorage);
-    return () => window.removeEventListener("storage", alCambiarStorage);
+    return () => {
+      window.removeEventListener("storage", alCambiarStorage);
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
 
   const liberar = (id) => {
     const pc = computadoras.find((p) => p.id === id);
+    if (!pc) return;
 
-    let nuevoHistorial = historial;
-    if (pc?.alumno) {
-      const registro = {
-        id: Date.now(),
-        pcId: pc.id,
-        alumno: pc.alumno,
-        fecha: pc.fecha || fechaActualISO(),
-        horaInicio: pc.horaInicio,
-        horaFin: horaActual(),
-      };
-      nuevoHistorial = [registro, ...historial];
-    }
+    // Crear registro de salida
+    const nuevoRegistro = pc.alumno ? {
+      computadora: id,
+      alumno: pc.alumno,
+      fecha: pc.fecha || undefined,
+      hora_inicio: pc.horaInicio,
+      hora_fin: horaActual(),
+    } : null;
 
-    const nuevasComputadoras = computadoras.map((p) =>
-      p.id === id ? { ...p, estado: ESTADOS.LIBRE, alumno: null, horaInicio: null, fecha: null } : p
-    );
+    const updated = { id: pc.id, estado: "LIBRE", alumno: null, hora_inicio: null, fecha: null };
 
-    setComputadoras(nuevasComputadoras);
-    setHistorial(nuevoHistorial);
-    guardarDato("computadoras", nuevasComputadoras);
-    if (nuevoHistorial !== historial) guardarDato("historial", nuevoHistorial);
+    // Actualizar en servidor
+    (async () => {
+      try {
+        await api.patch(`/seguimiento/computadoras/${encodeURIComponent(id)}/`, updated);
+        if (nuevoRegistro) await api.post('/seguimiento/registros-sala/', nuevoRegistro);
+        cargarTodo();
+      } catch (e) {
+        // Fallback local
+        const nuevasComputadoras = computadoras.map((p) =>
+          p.id === id ? { ...p, estado: ESTADOS.LIBRE, alumno: null, horaInicio: null, fecha: null } : p
+        );
+        let nuevoHistorial = historial;
+        if (pc?.alumno) {
+          const registro = {
+            id: Date.now(),
+            pcId: pc.id,
+            alumno: pc.alumno,
+            fecha: pc.fecha || fechaActualISO(),
+            horaInicio: pc.horaInicio,
+            horaFin: horaActual(),
+          };
+          nuevoHistorial = [registro, ...historial];
+        }
+        setComputadoras(nuevasComputadoras);
+        setHistorial(nuevoHistorial);
+        guardarDato("computadoras", nuevasComputadoras);
+        if (nuevoHistorial !== historial) guardarDato("historial", nuevoHistorial);
+      }
+    })();
   };
 
   const enviarAMantenimiento = (id) => {
-    const nuevasComputadoras = computadoras.map((p) =>
-      p.id === id ? { ...p, estado: ESTADOS.MANTENIMIENTO, alumno: null, horaInicio: null, fecha: null } : p
-    );
-    setComputadoras(nuevasComputadoras);
-    guardarDato("computadoras", nuevasComputadoras);
+    const pc = computadoras.find(p => p.id === id);
+    if (!pc) return;
+    const updated = { id: pc.id, estado: "MANTENIMIENTO", alumno: null, hora_inicio: null, fecha: null };
+    (async () => {
+      try { await api.patch(`/seguimiento/computadoras/${encodeURIComponent(id)}/`, updated); cargarTodo(); }
+      catch (e) { const nuevasComputadoras = computadoras.map((p) => p.id === id ? { ...p, estado: ESTADOS.MANTENIMIENTO, alumno: null, horaInicio: null, fecha: null } : p); setComputadoras(nuevasComputadoras); guardarDato("computadoras", nuevasComputadoras); }
+    })();
   };
 
   const reactivarEquipo = (id) => {
-    const nuevasComputadoras = computadoras.map((p) =>
-      p.id === id ? { ...p, estado: ESTADOS.LIBRE } : p
-    );
-    setComputadoras(nuevasComputadoras);
-    guardarDato("computadoras", nuevasComputadoras);
+    const pc = computadoras.find(p => p.id === id);
+    if (!pc) return;
+    const updated = { id: pc.id, estado: "LIBRE" };
+    (async () => {
+      try { await api.patch(`/seguimiento/computadoras/${encodeURIComponent(id)}/`, updated); cargarTodo(); }
+      catch (e) { const nuevasComputadoras = computadoras.map((p) => p.id === id ? { ...p, estado: ESTADOS.LIBRE } : p); setComputadoras(nuevasComputadoras); guardarDato("computadoras", nuevasComputadoras); }
+    })();
   };
 
   const agregarComputadora = () => {
@@ -306,9 +376,16 @@ export default function PanelEncargado() {
       fecha: null,
     };
 
-    const nuevasComputadoras = [...computadoras, nuevaComputadora];
-    setComputadoras(nuevasComputadoras);
-    guardarDato("computadoras", nuevasComputadoras);
+    (async () => {
+      try {
+        await api.post('/seguimiento/computadoras/', { id: nuevoId, estado: 'LIBRE' });
+        cargarTodo();
+      } catch (e) {
+        const nuevasComputadoras = [...computadoras, nuevaComputadora];
+        setComputadoras(nuevasComputadoras);
+        guardarDato("computadoras", nuevasComputadoras);
+      }
+    })();
   };
 
   const eliminarComputadora = (id) => {
@@ -337,9 +414,16 @@ export default function PanelEncargado() {
       guardarDato("historial", nuevoHistorial);
     }
 
-    const nuevasComputadoras = computadoras.filter((p) => p.id !== id);
-    setComputadoras(nuevasComputadoras);
-    guardarDato("computadoras", nuevasComputadoras);
+    (async () => {
+      try {
+        await api.delete(`/seguimiento/computadoras/${encodeURIComponent(id)}/`);
+        cargarTodo();
+      } catch (e) {
+        const nuevasComputadoras = computadoras.filter((p) => p.id !== id);
+        setComputadoras(nuevasComputadoras);
+        guardarDato("computadoras", nuevasComputadoras);
+      }
+    })();
   };
 
   const toggleIncidencia = (id) => {

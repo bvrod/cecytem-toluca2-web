@@ -1,4 +1,20 @@
 from rest_framework import serializers
+from .models import ComputadoraSala, RegistroAccesoSala
+
+
+class ComputadoraSalaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComputadoraSala
+        fields = ['id', 'estado', 'alumno', 'hora_inicio', 'fecha']
+
+
+class RegistroAccesoSalaSerializer(serializers.ModelSerializer):
+    computadora_detalle = serializers.CharField(source='computadora.__str__', read_only=True)
+
+    class Meta:
+        model = RegistroAccesoSala
+        fields = ['id', 'computadora', 'computadora_detalle', 'alumno', 'fecha', 'hora_inicio', 'hora_fin', 'creado_por']
+from rest_framework import serializers
 from .models import AsignacionDocente, Actividad, Cumplimiento
 from academico.models import Grupo, Materia
 from academico.serializers import AlumnoSerializer

@@ -1,13 +1,11 @@
 // src/components/lab/KioskoAlumno.jsx
 import { useState, useEffect } from "react";
+import api from "../../services/api";
 
 // Mascota institucional — ajusta la ruta según tu proyecto
 import CecytoMascota from "../../imagenes/Cecyto Lab.png";
 
-// ── Ajusta esta URL a la misma que usa tu instancia de axios (api.js) ──────────
-const API_BASE_URL = "https://cecytem-toluca2-web.onrender.com";
-
-
+// API_BASE_URL is handled by src/services/api.js (dev vs prod)
 const ESTADOS = {
   LIBRE: "LIBRE",
   OCUPADO: "OCUPADO",
@@ -168,33 +166,19 @@ function guardarDato(clave, valor) {
 const LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login/`;
 async function autenticarAlumno(username, password) {
   try {
-    const res = await fetch(LOGIN_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    if (res.status === 401 || res.status === 400)
-      return { ok: false, mensaje: "Usuario o contraseña incorrectos. Verifica tus datos." };
-    if (!res.ok)
-      return { ok: false, mensaje: "Error al conectar con el servidor. Intenta de nuevo." };
-
-    const data = await res.json();
+    const res = await api.post('/auth/login/', { username, password });
+    const data = res.data;
     let payload = {};
     try {
       const base64 = data.access.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
       payload = JSON.parse(atob(base64));
-    } catch { /* sigue */ }
-
+    } catch {}
     const rol = (payload.rol ?? payload.role ?? payload.tipo ?? "").toUpperCase();
-    if (rol && rol !== "ALUMNO")
-      return { ok: false, mensaje: "Solo los alumnos pueden registrarse en la sala de cómputo." };
-
-    const nombre =
-      [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
-      payload.username || username;
-
+    if (rol && rol !== "ALUMNO") return { ok: false, mensaje: "Solo los alumnos pueden registrarse en la sala de cómputo." };
+    const nombre = [payload.first_name, payload.last_name].filter(Boolean).join(" ") || payload.username || username;
+    try { localStorage.setItem('access_token', data.access); } catch {}
     return { ok: true, nombre, username: payload.username ?? username, accessToken: data.access };
-  } catch {
+  } catch (e) {
     return { ok: false, mensaje: "No se pudo conectar con el servidor. Verifica la red." };
   }
 }
@@ -337,17 +321,42 @@ export default function KioskoAlumno() {
   const [shakeKey,           setShakeKey]           = useState(0);
 
   const cargarComputadorasLibres = () => {
-    const pcs = cargarDato("computadoras") ?? [];
-    setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
+    (async () => {
+      try {
+        const res = await api.get('/seguimiento/computadoras/');
+        const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
+      } catch (e) {
+        const pcs = cargarDato("computadoras") ?? [];
+        setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
+      }
+    })();
   };
 
   useEffect(() => {
     cargarComputadorasLibres();
-    const onChange = e => {
-      if (e.key === PREFIJO_CLAVE + "computadoras") cargarComputadorasLibres();
-    };
+    const onChange = e => { if (e.key === PREFIJO_CLAVE + "computadoras") cargarComputadorasLibres(); };
     window.addEventListener("storage", onChange);
-    return () => window.removeEventListener("storage", onChange);
+    const polling = setInterval(() => cargarComputadorasLibres(), 5000);
+
+    // WebSocket para actualizaciones en tiempo real (fallback polling mantiene la compatibilidad)
+    let ws;
+    try {
+      const wsUrl = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          const { action, computadora } = msg;
+          if (!action || !computadora) return;
+          // Siempre recargamos la lista de libres para reflejar cambios
+          cargarComputadorasLibres();
+        } catch (e) { /* ignore */ }
+      };
+      ws.onerror = () => { /* ignore */ };
+    } catch (e) { /* ignore websocket setup */ }
+
+    return () => { window.removeEventListener("storage", onChange); clearInterval(polling); if (ws) try { ws.close(); } catch {} };
   }, []);
 
   const validate = () => {
@@ -373,30 +382,38 @@ export default function KioskoAlumno() {
 
     const hora = horaActual();
     const fecha = fechaActualISO();
-    const pcs = cargarDato("computadoras") ?? [];
-    const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
 
-    if (pcActual && pcActual.estado !== ESTADOS.LIBRE) {
-      setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra.");
-      cargarComputadorasLibres(); setAutenticando(false); return;
+    try {
+      // Get current state from server
+      const res = await api.get('/seguimiento/computadoras/');
+      const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
+      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+      if (pcActual && pcActual.estado !== ESTADOS.LIBRE) {
+        setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); cargarComputadorasLibres(); setAutenticando(false); return;
+      }
+
+      const nombreAlumno = auth.nombre || matricula.trim();
+      const actualizado = { ... (pcActual || { id: pcSeleccionada }), estado: 'OCUPADO', alumno: nombreAlumno, hora_inicio: hora, fecha };
+
+      await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, actualizado);
+      // crear registro de inicio
+      await api.post('/seguimiento/registros-sala/', { computadora: pcSeleccionada, alumno: nombreAlumno, hora_inicio: hora });
+
+      setNombreReal(nombreAlumno);
+      setHoraRegistro(hora);
+      setSubmitted(true);
+      setAutenticando(false);
+      cargarComputadorasLibres();
+    } catch (e) {
+      // Fallback a localStorage
+      const pcs = cargarDato("computadoras") ?? [];
+      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+      if (pcActual && pcActual.estado !== ESTADOS.LIBRE) { setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); cargarComputadorasLibres(); setAutenticando(false); return; }
+      const nombreAlumno = auth.nombre || matricula.trim();
+      const actualizadoArr  = pcs.map(pc => pc.id === pcSeleccionada ? { ...pc, estado: ESTADOS.OCUPADO, alumno: nombreAlumno, horaInicio: hora, fecha } : pc);
+      if (!guardarDato("computadoras", actualizadoArr)) { setErrorEnvio("No se pudo registrar el acceso. Intenta de nuevo."); setAutenticando(false); return; }
+      setNombreReal(nombreAlumno); setHoraRegistro(hora); setSubmitted(true); setAutenticando(false);
     }
-
-    const nombreAlumno = auth.nombre || matricula.trim();
-    const actualizado  = pcs.map(pc =>
-      pc.id === pcSeleccionada
-        ? { ...pc, estado: ESTADOS.OCUPADO, alumno: nombreAlumno, horaInicio: hora, fecha }
-        : pc
-    );
-
-    if (!guardarDato("computadoras", actualizado)) {
-      setErrorEnvio("No se pudo registrar el acceso. Intenta de nuevo.");
-      setAutenticando(false); return;
-    }
-
-    setNombreReal(nombreAlumno);
-    setHoraRegistro(hora);
-    setSubmitted(true);
-    setAutenticando(false);
   };
 
   const handleReset = () => {

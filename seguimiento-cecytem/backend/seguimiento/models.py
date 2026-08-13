@@ -78,3 +78,36 @@ class Cumplimiento(models.Model):
     def __str__(self):
         estado = "CUMPLIÓ" if self.entregado else "NO CUMPLIÓ"
         return f"{self.alumno.user.username} - {self.actividad.titulo}: {estado}"
+
+
+# ---------------------- Sala de Cómputo (persistencia server-side) ----------------------
+class ComputadoraSala(models.Model):
+    ESTADOS = [
+        ("LIBRE", "Libre"),
+        ("OCUPADO", "Ocupado"),
+        ("MANTENIMIENTO", "Mantenimiento"),
+    ]
+
+    id = models.CharField(primary_key=True, max_length=50)  # p.ej. PC-01
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="LIBRE")
+    alumno = models.CharField(max_length=150, null=True, blank=True)
+    hora_inicio = models.CharField(max_length=20, null=True, blank=True)
+    fecha = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.id} - {self.estado}"
+
+
+class RegistroAccesoSala(models.Model):
+    computadora = models.ForeignKey(ComputadoraSala, on_delete=models.SET_NULL, null=True, related_name='registros')
+    alumno = models.CharField(max_length=150)
+    fecha = models.DateField(auto_now_add=True)
+    hora_inicio = models.CharField(max_length=20, null=True, blank=True)
+    hora_fin = models.CharField(max_length=20, null=True, blank=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f"{self.alumno} @ {self.computadora_id} ({self.fecha})"
