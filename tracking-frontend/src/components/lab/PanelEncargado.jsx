@@ -210,6 +210,8 @@ export default function PanelEncargado() {
   const [cargando, setCargando] = useState(true);
 
   const pollingRef = useRef(null);
+  const wsRef = useRef(null);
+  const backoffRef = useRef(1000);
 
   const cargarTodo = async () => {
     setCargando(true);
@@ -258,31 +260,58 @@ export default function PanelEncargado() {
     // Polling simple para sincronizar con otros dispositivos (5s)
     pollingRef.current = setInterval(() => cargarTodo(), 5000);
 
-    // WebSocket para actualizaciones en tiempo real
-    try {
-      const wsUrl = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
-      const ws = new WebSocket(wsUrl);
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(ev.data);
-          const { action, computadora } = msg;
-          if (!action || !computadora) return;
-          if (action === 'update' || action === 'create') {
-            setComputadoras(prev => {
-              const exists = prev.find(p => p.id === computadora.id);
-              if (exists) return prev.map(p => p.id === computadora.id ? { id: computadora.id, estado: computadora.estado, alumno: computadora.alumno, horaInicio: computadora.hora_inicio ?? computadora.horaInicio ?? null, fecha: computadora.fecha } : p);
-              return [{ id: computadora.id, estado: computadora.estado, alumno: computadora.alumno, horaInicio: computadora.hora_inicio ?? computadora.horaInicio ?? null, fecha: computadora.fecha }, ...prev];
-            });
-          } else if (action === 'delete') {
-            setComputadoras(prev => prev.filter(p => p.id !== computadora.id));
-          }
-        } catch (e) { /* ignore malformed */ }
-      };
-      ws.onopen = () => {/* no-op */};
-      ws.onerror = () => {/* ignore */};
-      // cleanup
-      window.addEventListener('beforeunload', () => ws.close());
-    } catch (e) { /* ignore websocket errors */ }
+    // WebSocket con reconexión exponencial y token (si está en localStorage)
+    const connectWS = () => {
+      try {
+        const base = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
+        const token = localStorage.getItem('access_token');
+        const wsUrl = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+        const socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
+
+        socket.onopen = () => { backoffRef.current = 1000; };
+
+        socket.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            const { action, computadora } = msg;
+            if (!action) return;
+            if (action === 'update' || action === 'create') {
+              if (!computadora) return;
+              setComputadoras(prev => {
+                const exists = prev.find(p => p.id === computadora.id);
+                const item = { id: computadora.id, estado: computadora.estado, alumno: computadora.alumno, horaInicio: computadora.hora_start ?? computadora.hora_inicio ?? computadora.horaInicio ?? null, fecha: computadora.fecha };
+                if (exists) return prev.map(p => p.id === computadora.id ? item : p);
+                return [item, ...prev];
+              });
+            } else if (action === 'delete') {
+              if (!computadora) return;
+              setComputadoras(prev => prev.filter(p => p.id !== computadora.id));
+            } else if (action === 'registro_create') {
+              // nuevo registro: recargar historial/contador mínimo
+              cargarTodo();
+            }
+          } catch (e) { /* ignore malformed */ }
+        };
+
+        socket.onerror = () => { try { socket.close(); } catch {} };
+
+        socket.onclose = () => {
+          // intentar reconectar con backoff exponencial
+          setTimeout(() => {
+            backoffRef.current = Math.min(backoffRef.current * 2, 30000);
+            connectWS();
+          }, backoffRef.current);
+        };
+
+        // cerrar al recargar página
+        window.addEventListener('beforeunload', () => { try { socket.close(); } catch {} });
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    connectWS();
 
     // Mantener compatibilidad: si otra pestaña actualiza localStorage
     const alCambiarStorage = (e) => {
@@ -292,6 +321,7 @@ export default function PanelEncargado() {
     return () => {
       window.removeEventListener("storage", alCambiarStorage);
       if (pollingRef.current) clearInterval(pollingRef.current);
+      try { if (wsRef.current) wsRef.current.close(); } catch {}
     };
   }, []);
 

@@ -5,7 +5,7 @@ import api from "../../services/api";
 // Mascota institucional — ajusta la ruta según tu proyecto
 import CecytoMascota from "../../imagenes/Cecyto Lab.png";
 
-// API_BASE_URL is handled by src/services/api.js (dev vs prod)
+// API client is in src/services/api.js (dev vs prod)
 const ESTADOS = {
   LIBRE: "LIBRE",
   OCUPADO: "OCUPADO",
@@ -163,7 +163,6 @@ function guardarDato(clave, valor) {
 }
 
 // ── Autenticación contra SIGART ───────────────────────────────────────────────
-const LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login/`;
 async function autenticarAlumno(username, password) {
   try {
     const res = await api.post('/auth/login/', { username, password });
@@ -338,25 +337,32 @@ export default function KioskoAlumno() {
     const onChange = e => { if (e.key === PREFIJO_CLAVE + "computadoras") cargarComputadorasLibres(); };
     window.addEventListener("storage", onChange);
     const polling = setInterval(() => cargarComputadorasLibres(), 5000);
+    // WebSocket con reconexión
+    let wsRef = null;
+    let backoff = 1000;
+    const connectWS = () => {
+      try {
+        const base = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
+        const token = localStorage.getItem('access_token');
+        const wsUrl = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+        const socket = new WebSocket(wsUrl);
+        wsRef = socket;
+        socket.onopen = () => { backoff = 1000; };
+        socket.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            const { action } = msg;
+            if (!action) return;
+            cargarComputadorasLibres();
+          } catch (e) { }
+        };
+        socket.onerror = () => { try { socket.close(); } catch {} };
+        socket.onclose = () => { setTimeout(() => { backoff = Math.min(backoff * 2, 30000); connectWS(); }, backoff); };
+      } catch (e) { /* ignore */ }
+    };
+    connectWS();
 
-    // WebSocket para actualizaciones en tiempo real (fallback polling mantiene la compatibilidad)
-    let ws;
-    try {
-      const wsUrl = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
-      ws = new WebSocket(wsUrl);
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(ev.data);
-          const { action, computadora } = msg;
-          if (!action || !computadora) return;
-          // Siempre recargamos la lista de libres para reflejar cambios
-          cargarComputadorasLibres();
-        } catch (e) { /* ignore */ }
-      };
-      ws.onerror = () => { /* ignore */ };
-    } catch (e) { /* ignore websocket setup */ }
-
-    return () => { window.removeEventListener("storage", onChange); clearInterval(polling); if (ws) try { ws.close(); } catch {} };
+    return () => { window.removeEventListener("storage", onChange); clearInterval(polling); try { if (wsRef) wsRef.close(); } catch {} };
   }, []);
 
   const validate = () => {
