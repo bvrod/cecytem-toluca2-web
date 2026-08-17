@@ -10,7 +10,7 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Fuerza la lectura explícita del archivo .env en la raíz
+# Carga explícita del archivo .env en la raíz del proyecto
 load_dotenv(BASE_DIR / ".env")
 
 # --------------------------------------------------
@@ -22,7 +22,7 @@ SECRET_KEY = os.getenv(
     "django-insecure-fallback-only-dev-key-change-this"
 )
 
-# Detecta si DEBUG está en True desde el .env
+# Detecta si DEBUG está activo desde el .env
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
 ALLOWED_HOSTS = [
@@ -77,7 +77,7 @@ MIDDLEWARE = [
 ]
 
 # --------------------------------------------------
-# URLs y WSGI
+# URLs y WSGI / ASGI
 # --------------------------------------------------
 
 ROOT_URLCONF = 'core.urls'
@@ -104,24 +104,31 @@ TEMPLATES = [
 ]
 
 # --------------------------------------------------
-# Base de datos (PostgreSQL Obligatorio)
+# Base de datos (Híbrida: SQLite local / PostgreSQL producción)
 # --------------------------------------------------
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    raise RuntimeError("CRÍTICO: La variable DATABASE_URL no está configurada en el archivo .env")
-
-DATABASES = {
-    'default': dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,
-        ssl_require=True
-    )
-}
+if DEBUG or not DATABASE_URL:
+    # SQLite local en desarrollo para evitar cortes de conexión SSL en Windows
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    # PostgreSQL para entorno de producción en Render/Vercel
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
 
 # --------------------------------------------------
-# Password validation
+# Password Validation
 # --------------------------------------------------
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -151,7 +158,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # --------------------------------------------------
-# Django REST Framework
+# Django REST Framework & JWT
 # --------------------------------------------------
 
 REST_FRAMEWORK = {
@@ -159,10 +166,6 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
-
-# --------------------------------------------------
-# JWT
-# --------------------------------------------------
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
@@ -172,15 +175,18 @@ SIMPLE_JWT = {
 }
 
 # --------------------------------------------------
-# CORS (PRODUCCIÓN ESTABLE)
+# CORS
 # --------------------------------------------------
 
 CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:5174",
+    "http://127.0.0.1:5174",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "https://cecytem-toluca2-web-2xap.vercel.app",
 ]
 
@@ -205,7 +211,7 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-# Django Channels (in-memory for development; use Redis in production)
+# Django Channels
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer'
@@ -213,14 +219,14 @@ CHANNEL_LAYERS = {
 }
 
 # --------------------------------------------------
-# Seguridad extra producción
+# Seguridad adicional para producción
 # --------------------------------------------------
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 X_FRAME_OPTIONS = 'DENY'
 
 # --------------------------------------------------
-# Modelo de usuario
+# Modelo de usuario personalizado
 # --------------------------------------------------
 
 AUTH_USER_MODEL = 'autenticacion.Usuario'
