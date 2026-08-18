@@ -55,8 +55,8 @@ export default function MomentsGallery() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              {/* Hover Info */}
-              <div className="absolute inset-x-0 bottom-0 p-4 translate-y-2 group-hover:translate-y-0 transition-transform duration-300 z-10">
+              {/* Hover Info oculto para evitar títulos bajo la imagen */}
+              <div className="absolute inset-x-0 bottom-0 p-4 translate-y-2 group-hover:translate-y-0 transition-transform duration-300 z-10 opacity-0 pointer-events-none">
                 <p className="text-xs sm:text-sm font-semibold text-white line-clamp-2">
                   {item.caption}
                 </p>
