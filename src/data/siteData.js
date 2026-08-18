@@ -343,25 +343,28 @@ export const upcomingEvents = [
 // ── Testimonios ───────────────────────────────────────────────
 export const testimonials = [
   {
-    name: "Sofía Ramírez",
-    role: "Egresada · Técnico en Logística",
+    name: "Jessica Laurencio Medina",
     quote:
-      "La especialidad me dio herramientas reales: aprendí a gestionar cadenas de suministro y al terminar pude incorporarme a una empresa distribuidora sin necesitar otra capacitación.",
-    avatar: alumA,
+      "Es una escuela qué te conviene por que tiene certificaciones qué te ayudan y carreras qué tiene campo laboral y ganas bastante conocimiento.",
+    role: "Recomendación Toluca 2",
   },
   {
-    name: "Diego Hernández",
-    role: "Egresado · Técnico en Ciencia de Datos",
+    name: "Luis Manuel Duarte Salinas",
     quote:
-      "Aprendí programación, bases de datos y análisis de datos desde preparatoria. Eso me abrió puertas en la universidad y me permitió entrar a ingeniería con ventaja real.",
-    avatar: alumB,
+      "Por qué si, por qué los maestros enseñan bien y siempre están cuando necesitas apoyo",
+    role: "Recomendación Toluca 2",
   },
   {
-    name: "Valeria Torres",
-    role: "Estudiante activa · Ciencia de Datos",
+    name: "Valeria Dominguez Marquez",
     quote:
-      "Los maestros se involucran de verdad. No es solo dar clase: te acompañan, resuelven dudas y hacen que aprendas aplicando lo que ves en clase a proyectos reales.",
-    avatar: cecytem5img,
+      "Obtienes buenos conocimientos y en algunos casos ya experiencia en una empresa",
+    role: "Recomendación Toluca 2",
+  },
+  {
+    name: "karol juliet córdoba Hernández",
+    quote:
+      "porque tienen varias certificaciones que te ayudan al final de la carrera técnica",
+    role: "Recomendación Toluca 2",
   },
 ];
 

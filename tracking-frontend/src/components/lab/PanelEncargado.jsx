@@ -213,8 +213,10 @@ export default function PanelEncargado() {
   const wsRef = useRef(null);
   const backoffRef = useRef(1000);
 
-  const cargarTodo = async () => {
-    setCargando(true);
+  const cargarTodo = async (options = {}) => {
+    const { silent = false } = options;
+    if (!silent) setCargando(true);
+
     try {
       const res = await api.get("/seguimiento/computadoras/");
       const apiComps = Array.isArray(res.data) ? res.data : res.data.results || [];
@@ -225,40 +227,36 @@ export default function PanelEncargado() {
         horaInicio: c.hora_inicio ?? c.horaInicio ?? null,
         fecha: c.fecha,
       }));
-      // Si no hay computadoras en el servidor, inicializamos la sala con 36 equipos
+
       if (comps.length === 0) {
         const inicial = Array.from({ length: 36 }, (_, i) => ({ id: `PC-${String(i + 1).padStart(2, "0")}`, estado: 'LIBRE' }));
         for (const c of inicial) {
-          try { await api.post('/seguimiento/computadoras/', c); } catch(e) { /* ignore */ }
+          try { await api.post('/seguimiento/computadoras/', c); } catch (e) { /* noop */ }
         }
         comps = inicial.map(c => ({ id: c.id, estado: c.estado, alumno: null, horaInicio: null, fecha: null }));
       }
+
       setComputadoras(comps);
     } catch (e) {
-      // Fallback a localStorage si la API no está disponible
-      let comps = cargarDato("computadoras");
-      if (!comps) {
-        comps = computadorasIniciales;
-        guardarDato("computadoras", comps);
-      }
-      setComputadoras(comps);
+      setComputadoras([]);
     }
 
-    // incidencias y historial siguen en localStorage por ahora
-    let incs = cargarDato("incidencias");
-    if (!incs) { incs = []; guardarDato("incidencias", incs); }
-    let hist = cargarDato("historial");
-    if (!hist) { hist = []; guardarDato("historial", hist); }
-    setIncidencias(incs);
-    setHistorial(hist);
-    setCargando(false);
+    try {
+      const historialRes = await api.get('/seguimiento/registros-sala/');
+      setHistorial(Array.isArray(historialRes.data) ? historialRes.data : historialRes.data?.results || []);
+    } catch (e) {
+      setHistorial([]);
+    }
+
+    setIncidencias([]);
+
+    if (!silent) setCargando(false);
   };
 
   useEffect(() => {
-    cargarTodo();
+    cargarTodo({ silent: true });
 
-    // Polling simple para sincronizar con otros dispositivos (5s)
-    pollingRef.current = setInterval(() => cargarTodo(), 5000);
+    pollingRef.current = setInterval(() => cargarTodo({ silent: true }), 6000);
 
     // WebSocket con reconexión exponencial y token (si está en localStorage)
     const connectWS = () => {
@@ -314,12 +312,7 @@ export default function PanelEncargado() {
     connectWS();
 
     // Mantener compatibilidad: si otra pestaña actualiza localStorage
-    const alCambiarStorage = (e) => {
-      if (e.key && e.key.startsWith(PREFIJO_CLAVE)) cargarTodo();
-    };
-    window.addEventListener("storage", alCambiarStorage);
     return () => {
-      window.removeEventListener("storage", alCambiarStorage);
       if (pollingRef.current) clearInterval(pollingRef.current);
       try { if (wsRef.current) wsRef.current.close(); } catch {}
     };

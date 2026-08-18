@@ -247,7 +247,6 @@ function LoginGate({ onSuccess }) {
 
     if (esAdmin) {
       // ── Verificar contra lista local de admins ──────────────────────────
-      await new Promise(r => setTimeout(r, 420)); // pequeño delay visual
       const match = ADMINS.find(
         a => a.username === username.trim() && a.password === password
       );

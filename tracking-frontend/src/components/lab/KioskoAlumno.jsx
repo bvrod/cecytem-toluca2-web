@@ -149,19 +149,6 @@ function fechaActualISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-function cargarDato(clave) {
-  try {
-    const v = window.localStorage.getItem(PREFIJO_CLAVE + clave);
-    return v ? JSON.parse(v) : null;
-  } catch(e) { return null; }
-}
-function guardarDato(clave, valor) {
-  try {
-    window.localStorage.setItem(PREFIJO_CLAVE + clave, JSON.stringify(valor));
-    return true;
-  } catch(e) { return false; }
-}
-
 // ── Autenticación contra SIGART ───────────────────────────────────────────────
 async function autenticarAlumno(username, password) {
   try {
@@ -326,16 +313,13 @@ export default function KioskoAlumno() {
         const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
         setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
       } catch (e) {
-        const pcs = cargarDato("computadoras") ?? [];
-        setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
+        setComputadorasLibres([]);
       }
     })();
   };
 
   useEffect(() => {
     cargarComputadorasLibres();
-    const onChange = e => { if (e.key === PREFIJO_CLAVE + "computadoras") cargarComputadorasLibres(); };
-    window.addEventListener("storage", onChange);
     const polling = setInterval(() => cargarComputadorasLibres(), 5000);
     // WebSocket con reconexión
     let wsRef = null;
@@ -362,7 +346,7 @@ export default function KioskoAlumno() {
     };
     connectWS();
 
-    return () => { window.removeEventListener("storage", onChange); clearInterval(polling); try { if (wsRef) wsRef.close(); } catch {} };
+    return () => { clearInterval(polling); try { if (wsRef) wsRef.close(); } catch {} };
   }, []);
 
   const validate = () => {
@@ -411,38 +395,41 @@ export default function KioskoAlumno() {
       setAutenticando(false);
       cargarComputadorasLibres();
     } catch (e) {
-      // Fallback a localStorage
-      const pcs = cargarDato("computadoras") ?? [];
-      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
-      if (pcActual && pcActual.estado !== ESTADOS.LIBRE) { setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); cargarComputadorasLibres(); setAutenticando(false); return; }
-      const nombreAlumno = auth.nombre || matricula.trim();
-      const actualizadoArr  = pcs.map(pc => pc.id === pcSeleccionada ? { ...pc, estado: ESTADOS.OCUPADO, alumno: nombreAlumno, horaInicio: hora, fecha } : pc);
-      if (!guardarDato("computadoras", actualizadoArr)) { setErrorEnvio("No se pudo registrar el acceso. Intenta de nuevo."); setAutenticando(false); return; }
-      setNombreReal(nombreAlumno); setHoraRegistro(hora); setSubmitted(true); setAutenticando(false);
+      setErrorEnvio("No se pudo registrar el acceso en el servidor. Intenta de nuevo.");
+      setAutenticando(false);
     }
   };
 
-  const handleReset = () => {
-    const pcs = cargarDato("computadoras") ?? [];
-    const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
-    if (pcActual?.alumno) {
-      const historial = cargarDato("historial") ?? [];
-      guardarDato("historial", [{
-        id: Date.now(), pcId: pcActual.id, alumno: pcActual.alumno,
-        fecha: pcActual.fecha || fechaActualISO(),
-        horaInicio: pcActual.horaInicio, horaFin: horaActual(),
-      }, ...historial]);
+  const handleReset = async () => {
+    try {
+      const res = await api.get('/seguimiento/computadoras/');
+      const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
+      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+
+      if (pcActual?.alumno) {
+        await api.post('/seguimiento/registros-sala/', {
+          computadora: pcSeleccionada,
+          alumno: pcActual.alumno,
+          fecha: pcActual.fecha || fechaActualISO(),
+          hora_inicio: pcActual.hora_inicio ?? pcActual.horaInicio,
+          hora_fin: horaActual(),
+        });
+      }
+
+      await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, {
+        estado: ESTADOS.LIBRE,
+        alumno: null,
+        hora_inicio: null,
+        fecha: null,
+      });
+
+      cargarComputadorasLibres();
+      setMatricula(""); setPassword(""); setPcSeleccionada("");
+      setErrors({}); setErrorEnvio(""); setHoraRegistro(null);
+      setSubmitted(false); setNombreReal("");
+    } catch (e) {
+      setErrorEnvio("No se pudo liberar la computadora en el servidor.");
     }
-    const actualizado = pcs.map(pc =>
-      pc.id === pcSeleccionada
-        ? { ...pc, estado: ESTADOS.LIBRE, alumno: null, horaInicio: null, fecha: null }
-        : pc
-    );
-    guardarDato("computadoras", actualizado);
-    cargarComputadorasLibres();
-    setMatricula(""); setPassword(""); setPcSeleccionada("");
-    setErrors({}); setErrorEnvio(""); setHoraRegistro(null);
-    setSubmitted(false); setNombreReal("");
   };
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
