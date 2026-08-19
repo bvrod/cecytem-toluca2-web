@@ -116,9 +116,6 @@ export default function ComunidadSection({ posts = [], onPreview = () => {} }) {
               className="h-full w-full object-cover"
               loading="lazy"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 text-white">
-              <p className="text-sm font-semibold">{photo.caption}</p>
-            </div>
           </motion.button>
         ))}
       </div>
@@ -150,20 +147,8 @@ export default function ComunidadSection({ posts = [], onPreview = () => {} }) {
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-5 text-white">
-                    <p className="text-sm font-semibold">{photo.caption}</p>
-                  </div>
                   {isTop && showHint && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/25 px-4 text-center text-sm font-semibold text-white backdrop-blur-sm">
-                      <div className="rounded-3xl border border-white/20 bg-black/60 px-4 py-3">
-                        Pulsa la foto para cambiar a la siguiente imagen
-                      </div>
-                    </div>
-                  )}
-                  {isTop && (
-                    <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-black/50 px-3 py-2 text-xs uppercase tracking-[0.24em] text-white">
-                      {`Foto ${stackIndex + 1} / ${currentItems.length}`}
-                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 px-4 text-center text-sm font-semibold text-white backdrop-blur-[1px]" />
                   )}
                 </motion.button>
               );

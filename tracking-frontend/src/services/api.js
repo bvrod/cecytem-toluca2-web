@@ -1,8 +1,11 @@
 import axios from 'axios';
 
-const DEFAULT_PROD = 'https://cecytem-toluca2-web.onrender.com/api/';
-const LOCAL_DEV = 'http://127.0.0.1:8000/api/';
-const baseURL = (process.env.NODE_ENV === 'development') ? LOCAL_DEV : DEFAULT_PROD;
+const resolveApiBase = () => {
+  const configured = import.meta.env.VITE_API_URL || 'https://cecytem-toluca2-web.onrender.com/api/';
+  return configured.endsWith('/') ? configured : `${configured}/`;
+};
+
+const baseURL = resolveApiBase();
 
 const api = axios.create({ baseURL });
 api.interceptors.request.use((config) => {

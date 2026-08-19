@@ -22,8 +22,9 @@ const ADMINS = [
   { username: "admin",     password: "admin1234",   nombre: "Administrador"      },
 ];
 
-// ── Backend SIGART (para alumnos) ─────────────────────────────────────────────
-const API_BASE_URL = "https://cecytem-toluca2-web.onrender.com";
+// ── Backend real de la sala (Render) ────────────────────────────────────────
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://cecytem-toluca2-web.onrender.com/api/")
+  .replace(/\/api\/?$/, "");
 const LOGIN_ENDPOINT  = `${API_BASE_URL}/api/auth/login/`;
 
 // ── Roles ─────────────────────────────────────────────────────────────────────

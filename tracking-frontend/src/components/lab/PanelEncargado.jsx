@@ -261,9 +261,10 @@ export default function PanelEncargado() {
     // WebSocket con reconexión exponencial y token (si está en localStorage)
     const connectWS = () => {
       try {
-        const base = (process.env.NODE_ENV === 'development') ? 'ws://127.0.0.1:8000/ws/sala/' : `${(window.location.protocol === 'https:' ? 'wss' : 'ws')}://${window.location.host}/ws/sala/`;
+        const configuredBase = import.meta.env.VITE_WS_URL || 'wss://cecytem-toluca2-web.onrender.com';
+        const base = configuredBase.replace(/\/$/, '');
         const token = localStorage.getItem('access_token');
-        const wsUrl = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+        const wsUrl = token ? `${base}/ws/sala/?token=${encodeURIComponent(token)}` : `${base}/ws/sala/`;
         const socket = new WebSocket(wsUrl);
         wsRef.current = socket;
 

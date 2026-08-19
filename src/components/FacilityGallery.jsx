@@ -90,12 +90,7 @@ export default function FacilityGallery({ photos = [], title = "" }) {
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
-                {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                {/* Caption oculto para evitar nombres de fotos */}
-                <div className="absolute inset-x-0 bottom-0 p-3 text-white text-xs font-semibold line-clamp-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 opacity-0 pointer-events-none">
-                  {photo.caption}
-                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
               </motion.div>
             ))}
           </AnimatePresence>
