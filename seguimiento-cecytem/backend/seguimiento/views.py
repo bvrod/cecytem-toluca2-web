@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Count, Q
@@ -123,7 +123,11 @@ class CumplimientoViewSet(viewsets.ModelViewSet):
 class ComputadoraSalaViewSet(viewsets.ModelViewSet):
     queryset = ComputadoraSala.objects.all()
     serializer_class = ComputadoraSalaSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     # Allow partial updates for estado/alumno/hora_inicio
     def perform_broadcast(self, action, instance):
