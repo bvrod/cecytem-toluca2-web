@@ -245,6 +245,8 @@ export default function DocenteDashboard() {
         asistencias:   entregasAct,
         evaluaciones:  califAct,
       });
+
+      
       // Mover al historial y marcar como calificada
       setHistorial(prev => ({
         ...prev,
@@ -266,6 +268,47 @@ export default function DocenteDashboard() {
     }
   };
 
+    // ── Eliminar Actividad ───────────────────────────────────────────────────────
+  const eliminarActividad = async (actividadId) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta actividad? Esta acción no se puede deshacer.")) {
+      return;
+    }
+
+    try {
+      // Petición DELETE a la API
+      await api.delete(`${ENDPOINTS.SEGUIMIENTO.ACTIVIDADES}${actividadId}/`);
+
+      // Actualizar el estado local quitando la actividad
+      setActividades((prev) => prev.filter((act) => act.id !== actividadId));
+
+      // Si la actividad eliminada estaba seleccionada, limpiar la selección
+      if (selectedActividad === actividadId) {
+        setSelectedActividad(null);
+      }
+
+      // Limpiar datos del historial o estado de edición
+      setHistorial((prev) => {
+        const copy = { ...prev };
+        delete copy[actividadId];
+        return copy;
+      });
+      setEntregas((prev) => {
+        const copy = { ...prev };
+        delete copy[actividadId];
+        return copy;
+      });
+      setCalificaciones((prev) => {
+        const copy = { ...prev };
+        delete copy[actividadId];
+        return copy;
+      });
+
+    } catch (err) {
+      alert(`❌ ${err.response?.data?.detail || "No se pudo eliminar la actividad"}`);
+    }
+  };
+
+  
   // ── Iniciar re-edición ───────────────────────────────────────────────────────
   const iniciarEdicion = () => {
     if (!selectedActividad || !estaCalificada(selectedActividad)) return;
