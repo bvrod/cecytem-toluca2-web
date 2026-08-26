@@ -1,5 +1,5 @@
 // src/components/lab/KioskoAlumno.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
 
 // Mascota institucional — ajusta la ruta según tu proyecto
@@ -306,48 +306,73 @@ export default function KioskoAlumno() {
   const [autenticando,       setAutenticando]       = useState(false);
   const [shakeKey,           setShakeKey]           = useState(0);
 
-  const cargarComputadorasLibres = () => {
-    (async () => {
-      try {
-        const res = await api.get('/seguimiento/computadoras/');
-        const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
-        setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
-      } catch (e) {
-        setComputadorasLibres([]);
-      }
-    })();
-  };
+  const cargarComputadorasLibres = useCallback(async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setComputadorasLibres([]);
+      return;
+    }
+
+    try {
+      const res = await api.get('/seguimiento/computadoras/');
+      const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
+      setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
+    } catch (e) {
+      console.error('Error cargando computadoras libres:', e);
+      setComputadorasLibres([]);
+    }
+  }, []);
 
   useEffect(() => {
-    cargarComputadorasLibres();
-    const polling = setInterval(() => cargarComputadorasLibres(), 5000);
-    // WebSocket con reconexión
-    let wsRef = null;
+    let active = true;
+    let socket = null;
     let backoff = 1000;
+
     const connectWS = () => {
-      try {
-        const configuredBase = import.meta.env.VITE_WS_URL || 'wss://cecytem-toluca2-web.onrender.com';
-        const base = configuredBase.replace(/\/$/, '');
-        const wsUrl = `${base}/ws/sala/?token=${encodeURIComponent(localStorage.getItem('access_token') || '')}`;
-        const socket = new WebSocket(wsUrl);
-        wsRef = socket;
-        socket.onopen = () => { backoff = 1000; };
-        socket.onmessage = (ev) => {
-          try {
-            const msg = JSON.parse(ev.data);
-            const { action } = msg;
-            if (!action) return;
-            cargarComputadorasLibres();
-          } catch (e) { }
-        };
-        socket.onerror = () => { try { socket.close(); } catch {} };
-        socket.onclose = () => { setTimeout(() => { backoff = Math.min(backoff * 2, 30000); connectWS(); }, backoff); };
-      } catch (e) { /* ignore */ }
+      if (!active) return;
+
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const configuredBase = import.meta.env.VITE_WS_URL || 'wss://cecytem-toluca2-web.onrender.com';
+      const base = configuredBase.replace(/\/$/, '');
+      const wsUrl = `${base}/ws/sala/?token=${encodeURIComponent(token)}`;
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => { backoff = 1000; };
+
+      socket.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg?.action) cargarComputadorasLibres();
+        } catch (error) {
+          console.warn('WS malformed message', error);
+        }
+      };
+
+      socket.onerror = () => {
+        try { socket.close(); } catch {}
+      };
+
+      socket.onclose = () => {
+        if (!active) return;
+        setTimeout(() => {
+          backoff = Math.min(backoff * 2, 30000);
+          connectWS();
+        }, backoff);
+      };
     };
+
+    cargarComputadorasLibres();
+    const polling = setInterval(cargarComputadorasLibres, 5000);
     connectWS();
 
-    return () => { clearInterval(polling); try { if (wsRef) wsRef.close(); } catch {} };
-  }, []);
+    return () => {
+      active = false;
+      clearInterval(polling);
+      if (socket) socket.close();
+    };
+  }, [cargarComputadorasLibres]);
 
   const validate = () => {
     const e = {};

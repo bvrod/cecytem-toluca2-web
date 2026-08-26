@@ -847,6 +847,7 @@ function AlumnosSection() {
                   <option value="">Seleccionar carrera</option>
                   <option value="LOGISTICA">Técnico en Logística</option>
                   <option value="CIENCIA_DATOS">Técnico en Ciencia de Datos</option>
+                  <option value="ANIMACION_DIGITAL">Técnico en Animación Digital</option>
                 </StyledSelect>
               </Field>
               <Field label="Semestre" required>
