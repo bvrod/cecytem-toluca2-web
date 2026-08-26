@@ -308,7 +308,7 @@ export default function DocenteDashboard() {
     }
   };
 
-  
+
   // ── Iniciar re-edición ───────────────────────────────────────────────────────
   const iniciarEdicion = () => {
     if (!selectedActividad || !estaCalificada(selectedActividad)) return;
@@ -409,215 +409,221 @@ export default function DocenteDashboard() {
 
           <main className="docente-main">
 
-            {/* ── PANEL IZQUIERDO ── */}
-            <aside className="docente-aside">
-              <Card accentColor={T.cyan}>
-                <div style={{ padding: "18px 18px 16px" }}>
-                  <div style={{ marginBottom: 14 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: T.textMuted }}>Portal Docente · CECyTEM</p>
-                    <h1 style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2, marginTop: 2 }}>
-                      {user?.nombre || user?.username || "Docente"}
-                    </h1>
-                    <p style={{ marginTop: 4, fontSize: 11, color: T.textMuted }}>
-                      {loadingDashboard ? "Cargando..." : `${asignaciones.length} asignación${asignaciones.length !== 1 ? "es" : ""} activa${asignaciones.length !== 1 ? "s" : ""}`}
-                    </p>
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: T.textMuted, pointerEvents: "none" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-                    </svg>
-                    <input type="text" placeholder="Buscar materia, grupo o aula..."
-                      value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                      style={{ ...inputStyle, paddingLeft: 32 }} />
-                  </div>
-                </div>
-              </Card>
+        {/* ── PANEL IZQUIERDO ── */}
+        <aside className="docente-aside">
+          <Card accentColor={T.cyan}>
+            <div style={{ padding: "18px 18px 16px" }}>
+              <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: T.textMuted }}>Portal Docente · CECyTEM</p>
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2, marginTop: 2 }}>
+                {user?.nombre || user?.username || "Docente"}
+              </h1>
+              <p style={{ marginTop: 4, fontSize: 11, color: T.textMuted }}>
+                {loadingDashboard ? "Cargando..." : `${asignaciones.length} asignación${asignaciones.length !== 1 ? "es" : ""} activa${asignaciones.length !== 1 ? "s" : ""}`}
+              </p>
+            </div>
+            <div style={{ position: "relative" }}>
+              <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: T.textMuted, pointerEvents: "none" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input type="text" placeholder="Buscar materia, grupo o aula..."
+                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                style={{ ...inputStyle, paddingLeft: 32 }} />
+            </div>
+          </div>
+        </Card>
 
-              <div className="aside-list">
-                {loadingDashboard ? <LoadingSpinner message="Cargando tus clases del CECyTEM..." />
-                  : error ? <ErrorBanner message={error} />
-                  : filteredAsignaciones.length === 0 ? <EmptyState icon="📋" title="Sin asignaciones" message={searchQuery ? "Ninguna clase coincide." : "Ninguna asignación disponible."} />
-                  : filteredAsignaciones.map(a => (
-                    <ClassroomCard key={a.id} asignacion={a}
-                      isSelected={selectedAsignacion?.id === a.id}
-                      onClick={() => setSelectedAsignacion(a)}
-                      actividadesCount={a.actividades_count || 0} />
+        <div className="aside-list">
+          {loadingDashboard ? <LoadingSpinner message="Cargando tus clases del CECyTEM..." />
+          : error ? <ErrorBanner message={error} />
+          : filteredAsignaciones.length === 0 ? <EmptyState icon="📋" title="Sin asignaciones" message={searchQuery ? "Ninguna clase coincide." : "Ninguna asignación disponible."} />
+          : filteredAsignaciones.map(a => (
+            <ClassroomCard key={a.id} asignacion={a}
+              isSelected={selectedAsignacion?.id === a.id}
+              onClick={() => setSelectedAsignacion(a)}
+              actividadesCount={a.actividades_count || 0} />
+          ))}
+      </div>
+  </aside>
+
+{/* ── PANEL DERECHO ── */}
+<Card className="docente-right-panel">
+  <div className="right-inner">
+    {selectedAsignacion ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Header */}
+        <div className="header-row">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: T.cyan, background: T.cyanDim, border: `1px solid ${T.border}`, padding: "3px 10px", borderRadius: T.radiusXs }}>Clase seleccionada</span>
+              <span style={{ fontSize: 10, fontFamily: "monospace", color: T.textMuted }}>ID: {selectedAsignacion.id}</span>
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2, marginBottom: 6 }}>
+              {extractNombreMateria(selectedAsignacion)}
+            </h2>
+            <div className="class-meta">
+              <span>Grupo: <strong style={{ color: T.cyan }}>{extractNombreGrupo(selectedAsignacion)}</strong></span>
+              <span>Aula: <strong style={{ color: T.cyan }}>{extractAula(selectedAsignacion)}</strong></span>
+              <span style={{ color: T.textMuted }}>{selectedAsignacion.total_alumnos || alumnos.length || 0} alumnos</span>
+            </div>
+          </div>
+          <button className="nueva-act-btn" onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: T.radiusSm, background: `linear-gradient(135deg, ${T.accent} 0%, ${T.accentEnd} 100%)`, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: `0 4px 20px ${T.accentGlow}`, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
+            + Nueva actividad
+          </button>
+        </div>
+
+        {loadingDetalles ? <LoadingSpinner message="Cargando detalles..." /> : (
+          <div className="detail-grid">
+
+            {/* Columna A: Planeaciones */}
+            <div className="detail-col">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>Planeaciones</h3>
+                <span style={{ padding: "2px 10px", borderRadius: 100, background: T.cyanDim, border: `1px solid ${T.border}`, fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: T.cyan }}>{actividades.length}</span>
+              </div>
+              {actividades.length > 0 && (
+                <p style={{ fontSize: 10, color: T.textMuted, lineHeight: 1.5 }}>
+                  Toca una actividad para ver o registrar entregas. Las actividades ya calificadas muestran 🔒.
+                </p>
+              )}
+              <div className="detail-col-scroll">
+                {actividades.length === 0
+                  ? <EmptyState icon="📚" title="Sin planeaciones" message="Crea la primera actividad para este grupo." />
+                  : actividades.map(act => (
+                    <ActivityCard 
+                      key={act.id} 
+                      actividad={act}
+                      isSelected={selectedActividad === act.id}
+                      isCalificada={estaCalificada(act.id)}
+                      enEdicion={estaEnEdicion(act.id)}
+                      onClick={() => toggleActividad(act.id)}
+                      onDelete={(e) => {
+                        e.stopPropagation(); // Previene que la tarjeta se seleccione al intentar borrar
+                        eliminarActividad(act.id);
+                      }} 
+                    />
                   ))}
               </div>
-            </aside>
+            </div>
 
-            {/* ── PANEL DERECHO ── */}
-            <Card className="docente-right-panel">
-              <div className="right-inner">
-                {selectedAsignacion ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Columna B: Alumnos */}
+            <div className="detail-col">
+              {/* Header de la columna */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>Alumnos matriculados</h3>
+                <span style={{ padding: "2px 10px", borderRadius: 100, background: T.cyanDim, border: `1px solid ${T.border}`, fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: T.cyan }}>{alumnos.length}</span>
+              </div>
 
-                    {/* Header */}
-                    <div className="header-row">
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: T.cyan, background: T.cyanDim, border: `1px solid ${T.border}`, padding: "3px 10px", borderRadius: T.radiusXs }}>Clase seleccionada</span>
-                          <span style={{ fontSize: 10, fontFamily: "monospace", color: T.textMuted }}>ID: {selectedAsignacion.id}</span>
-                        </div>
-                        <h2 style={{ fontSize: 20, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2, marginBottom: 6 }}>
-                          {extractNombreMateria(selectedAsignacion)}
-                        </h2>
-                        <div className="class-meta">
-                          <span>Grupo: <strong style={{ color: T.cyan }}>{extractNombreGrupo(selectedAsignacion)}</strong></span>
-                          <span>Aula: <strong style={{ color: T.cyan }}>{extractAula(selectedAsignacion)}</strong></span>
-                          <span style={{ color: T.textMuted }}>{selectedAsignacion.total_alumnos || alumnos.length || 0} alumnos</span>
-                        </div>
+              {/* Banner de estado según el caso */}
+              {!selectedActividad ? (
+                <div className="status-banner" style={{ padding: "10px 14px", borderRadius: T.radiusXs, background: T.amberDim, border: `1px solid ${T.amberBorder}`, fontSize: 11, color: T.amber, lineHeight: 1.5 }}>
+                  Selecciona una actividad en "Planeaciones" para ver o registrar entregas.
+                </div>
+              ) : bloqueada ? (
+                /* ── Actividad YA CALIFICADA y bloqueada ── */
+                <div className="status-banner" style={{ borderRadius: T.radiusXs, border: `1px solid ${T.borderGreen}`, overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", background: "rgba(29,185,84,0.10)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 13 }}>🔒</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: T.accent }}>Actividad calificada</span>
                       </div>
-                      <button className="nueva-act-btn" onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: T.radiusSm, background: `linear-gradient(135deg, ${T.accent} 0%, ${T.accentEnd} 100%)`, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: `0 4px 20px ${T.accentGlow}`, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
-                        + Nueva actividad
+                      <p style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.4 }}>
+                        <strong style={{ color: T.textPrimary }}>{actividadSeleccionadaInfo?.titulo}</strong>
+                        {histActual && <> · Guardado el {histActual.fecha} · {histActual.registros} registro{histActual.registros !== 1 ? "s" : ""}</>}
+                      </p>
+                    </div>
+                    <button onClick={iniciarEdicion} style={{ padding: "5px 14px", borderRadius: T.radiusXs, background: "rgba(6,182,212,0.12)", border: `1px solid ${T.border}`, color: T.cyan, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
+                      ✏️ Editar calificaciones
+                    </button>
+                  </div>
+                </div>
+              ) : enEdicion ? (
+                /* ── En modo RE-EDICIÓN ── */
+                <div className="status-banner" style={{ padding: "10px 14px", borderRadius: T.radiusXs, background: T.amberDim, border: `1px solid ${T.amberBorder}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber }}>✏️ Modo edición</span>
+                      <p style={{ fontSize: 10, color: T.textMuted, marginTop: 2, lineHeight: 1.4 }}>
+                        Modifica las calificaciones y guarda para actualizar.
+                      </p>
+                    </div>
+                    <div className="action-row">
+                      <button onClick={cancelarEdicion} style={{ padding: "5px 12px", borderRadius: T.radiusXs, background: "transparent", border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                        Cancelar
+                      </button>
+                      <button onClick={guardarRegistros} disabled={guardando} style={{ padding: "5px 14px", borderRadius: T.radiusXs, background: `linear-gradient(135deg, ${T.accent}, ${T.accentEnd})`, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer", opacity: guardando ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+                        {guardando ? "Guardando..." : "💾 Guardar cambios"}
                       </button>
                     </div>
-
-                    {loadingDetalles ? <LoadingSpinner message="Cargando detalles..." /> : (
-                      <div className="detail-grid">
-
-                        {/* Columna A: Planeaciones */}
-                        <div className="detail-col">
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>Planeaciones</h3>
-                            <span style={{ padding: "2px 10px", borderRadius: 100, background: T.cyanDim, border: `1px solid ${T.border}`, fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: T.cyan }}>{actividades.length}</span>
-                          </div>
-                          {actividades.length > 0 && (
-                            <p style={{ fontSize: 10, color: T.textMuted, lineHeight: 1.5 }}>
-                              Toca una actividad para ver o registrar entregas. Las actividades ya calificadas muestran 🔒.
-                            </p>
-                          )}
-                          <div className="detail-col-scroll">
-                            {actividades.length === 0
-                              ? <EmptyState icon="📚" title="Sin planeaciones" message="Crea la primera actividad para este grupo." />
-                              : actividades.map(act => (
-                                <ActivityCard key={act.id} actividad={act}
-                                  isSelected={selectedActividad === act.id}
-                                  isCalificada={estaCalificada(act.id)}
-                                  enEdicion={estaEnEdicion(act.id)}
-                                  onClick={() => toggleActividad(act.id)} />
-                              ))}
-                          </div>
-                        </div>
-
-                        {/* Columna B: Alumnos */}
-                        <div className="detail-col">
-                          {/* Header de la columna */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                            <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted }}>Alumnos matriculados</h3>
-                            <span style={{ padding: "2px 10px", borderRadius: 100, background: T.cyanDim, border: `1px solid ${T.border}`, fontSize: 10, fontWeight: 700, fontFamily: "monospace", color: T.cyan }}>{alumnos.length}</span>
-                          </div>
-
-                          {/* Banner de estado según el caso */}
-                          {!selectedActividad ? (
-                            <div className="status-banner" style={{ padding: "10px 14px", borderRadius: T.radiusXs, background: T.amberDim, border: `1px solid ${T.amberBorder}`, fontSize: 11, color: T.amber, lineHeight: 1.5 }}>
-                              Selecciona una actividad en "Planeaciones" para ver o registrar entregas.
-                            </div>
-                          ) : bloqueada ? (
-                            /* ── Actividad YA CALIFICADA y bloqueada ── */
-                            <div className="status-banner" style={{ borderRadius: T.radiusXs, border: `1px solid ${T.borderGreen}`, overflow: "hidden" }}>
-                              <div style={{ padding: "10px 14px", background: "rgba(29,185,84,0.10)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                                <div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                    <span style={{ fontSize: 13 }}>🔒</span>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: T.accent }}>Actividad calificada</span>
-                                  </div>
-                                  <p style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.4 }}>
-                                    <strong style={{ color: T.textPrimary }}>{actividadSeleccionadaInfo?.titulo}</strong>
-                                    {histActual && <> · Guardado el {histActual.fecha} · {histActual.registros} registro{histActual.registros !== 1 ? "s" : ""}</>}
-                                  </p>
-                                </div>
-                                <button onClick={iniciarEdicion} style={{ padding: "5px 14px", borderRadius: T.radiusXs, background: "rgba(6,182,212,0.12)", border: `1px solid ${T.border}`, color: T.cyan, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
-                                  ✏️ Editar calificaciones
-                                </button>
-                              </div>
-                            </div>
-                          ) : enEdicion ? (
-                            /* ── En modo RE-EDICIÓN ── */
-                            <div className="status-banner" style={{ padding: "10px 14px", borderRadius: T.radiusXs, background: T.amberDim, border: `1px solid ${T.amberBorder}` }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                                <div>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: T.amber }}>✏️ Modo edición</span>
-                                  <p style={{ fontSize: 10, color: T.textMuted, marginTop: 2, lineHeight: 1.4 }}>
-                                    Modifica las calificaciones y guarda para actualizar.
-                                  </p>
-                                </div>
-                                <div className="action-row">
-                                  <button onClick={cancelarEdicion} style={{ padding: "5px 12px", borderRadius: T.radiusXs, background: "transparent", border: `1px solid ${T.border}`, color: T.textMuted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-                                    Cancelar
-                                  </button>
-                                  <button onClick={guardarRegistros} disabled={guardando} style={{ padding: "5px 14px", borderRadius: T.radiusXs, background: `linear-gradient(135deg, ${T.accent}, ${T.accentEnd})`, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer", opacity: guardando ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
-                                    {guardando ? "Guardando..." : "💾 Guardar cambios"}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            /* ── Actividad seleccionada, lista para calificar ── */
-                            <div className="status-banner" style={{ padding: "10px 14px", borderRadius: T.radiusXs, background: T.cyanDim, border: `1px solid ${T.border}` }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                                <div style={{ minWidth: 0 }}>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: T.cyan }}>📝 Calificando</span>
-                                  <p style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {actividadSeleccionadaInfo?.titulo}
-                                  </p>
-                                </div>
-                                {hayCambiosPendientes && (
-                                  <button onClick={guardarRegistros} disabled={guardando} style={{ padding: "6px 16px", borderRadius: T.radiusXs, background: `linear-gradient(135deg, ${T.accent}, ${T.accentEnd})`, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer", opacity: guardando ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
-                                    {guardando ? "Guardando..." : "💾 Guardar"}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Tabla de alumnos */}
-                          <div className="table-wrap">
-                            {alumnos.length === 0 ? (
-                              <EmptyState icon="📋" title="Sin alumnos" message="No se encontraron alumnos matriculados." />
-                            ) : (
-                              <table className="alumnos-table">
-                                <thead>
-                                  <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
-                                    {["Matrícula", "Nombre", "Entregó", "Calif."].map(h => (
-                                      <th key={h} style={{ padding: "9px 10px", textAlign: h === "Matrícula" || h === "Nombre" ? "left" : "center", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: T.cyan, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>{h}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {alumnos.map((alu, i) => (
-                                    <StudentTableRow key={alu.id} alumno={alu} idx={i}
-                                      entrego={entregasActuales[alu.id] || false}
-                                      calificacion={calificacionesActuales[alu.id] || ""}
-                                      disabled={!selectedActividad}
-                                      readonly={bloqueada}
-                                      onToggleEntrega={() => toggleEntrega(alu.id)}
-                                      onCalificacionChange={val => setCalificacion(alu.id, val)} />
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </div>
-                        </div>
-
-                      </div>
+                  </div>
+                </div>
+              ) : (
+                /* ── Actividad seleccionada, lista para calificar ── */
+                <div className="status-banner" style={{ padding: "10px 14px", borderRadius: T.radiusXs, background: T.cyanDim, border: `1px solid ${T.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.cyan }}>📝 Calificando</span>
+                      <p style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {actividadSeleccionadaInfo?.titulo}
+                      </p>
+                    </div>
+                    {hayCambiosPendientes && (
+                      <button onClick={guardarRegistros} disabled={guardando} style={{ padding: "6px 16px", borderRadius: T.radiusXs, background: `linear-gradient(135deg, ${T.accent}, ${T.accentEnd})`, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer", opacity: guardando ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
+                        {guardando ? "Guardando..." : "💾 Guardar"}
+                      </button>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Tabla de alumnos */}
+              <div className="table-wrap">
+                {alumnos.length === 0 ? (
+                  <EmptyState icon="📋" title="Sin alumnos" message="No se encontraron alumnos matriculados." />
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 40, minHeight: 300 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: T.radiusSm, marginBottom: 20, background: T.cyanDim, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🏫</div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: "'Syne', sans-serif", marginBottom: 8 }}>Panel de control del docente</h3>
-                    <p style={{ fontSize: 12, color: T.textMuted, maxWidth: 340, lineHeight: 1.7 }}>Selecciona una de tus materias en la barra lateral para gestionar planeaciones y alumnos.</p>
-                    {asignaciones.length === 0 && (
-                      <div style={{ marginTop: 20, padding: "12px 20px", borderRadius: T.radiusXs, border: `1px dashed ${T.border}`, background: T.cyanDim, fontSize: 11, color: T.textMuted }}>
-                        Parece que no tienes asignaciones aún. Contacta a Dirección.
-                      </div>
-                    )}
-                  </div>
+                  <table className="alumnos-table">
+                    <thead>
+                      <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
+                        {["Matrícula", "Nombre", "Entregó", "Calif."].map(h => (
+                          <th key={h} style={{ padding: "9px 10px", textAlign: h === "Matrícula" || h === "Nombre" ? "left" : "center", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: T.cyan, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {alumnos.map((alu, i) => (
+                        <StudentTableRow key={alu.id} alumno={alu} idx={i}
+                          entrego={entregasActuales[alu.id] || false}
+                          calificacion={calificacionesActuales[alu.id] || ""}
+                          disabled={!selectedActividad}
+                          readonly={bloqueada}
+                          onToggleEntrega={() => toggleEntrega(alu.id)}
+                          onCalificacionChange={val => setCalificacion(alu.id, val)} />
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
-            </Card>
+            </div>
 
+          </div>
+        )}
+      </div>
+    ) : (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 40, minHeight: 300 }}>
+        <div style={{ width: 64, height: 64, borderRadius: T.radiusSm, marginBottom: 20, background: T.cyanDim, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🏫</div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary, fontFamily: "'Syne', sans-serif", marginBottom: 8 }}>Panel de control del docente</h3>
+        <p style={{ fontSize: 12, color: T.textMuted, maxWidth: 340, lineHeight: 1.7 }}>Selecciona una de tus materias en la barra lateral para gestionar planeaciones y alumnos.</p>
+        {asignaciones.length === 0 && (
+          <div style={{ marginTop: 20, padding: "12px 20px", borderRadius: T.radiusXs, border: `1px dashed ${T.border}`, background: T.cyanDim, fontSize: 11, color: T.textMuted }}>
+            Parece que no tienes asignaciones aún. Contacta a Dirección.
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+  </Card>
           </main>
         </div>
       </div>
@@ -670,7 +676,7 @@ function ClassroomCard({ asignacion, isSelected, onClick, actividadesCount }) {
 }
 
 // ─── ActivityCard ─────────────────────────────────────────────────────────────────
-function ActivityCard({ actividad, isSelected, isCalificada, enEdicion, onClick }) {
+function ActivityCard({ actividad, isSelected, isCalificada, enEdicion, onClick, onDelete }) {
   const locked = isLocked(actividad.fecha_limite);
   const dias   = actividad.fecha_limite
     ? Math.ceil((new Date(actividad.fecha_limite) - new Date()) / (1000 * 60 * 60 * 24))
@@ -718,6 +724,27 @@ function ActivityCard({ actividad, isSelected, isCalificada, enEdicion, onClick 
           <span style={{ padding: "2px 7px", borderRadius: T.radiusXs, background: "rgba(6,182,212,0.08)", border: `1px solid ${T.border}`, fontSize: 9, fontWeight: 700, fontFamily: "monospace", color: T.cyan }}>
             S{actividad.semana}
           </span>
+
+          {/* Botón de Eliminar */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Evita seleccionar la tarjeta al hacer clic en eliminar
+              if (onDelete) onDelete(e);
+            }}
+            title="Eliminar actividad"
+            style={{
+              background: "rgba(239, 68, 68, 0.15)",
+              border: `1px solid ${T.dangerBorder || "rgba(239, 68, 68, 0.3)"}`,
+              color: T.dangerText || "#f87171",
+              borderRadius: T.radiusXs,
+              padding: "2px 6px",
+              fontSize: 10,
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            🗑️
+          </button>
         </div>
       </div>
 
