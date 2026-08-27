@@ -75,10 +75,11 @@ const carreraLabels = {
 };
 
 const SECTIONS = [
-  { id: "alumnos",  label: "Alumnos",  desc: "Consulta y grupos",  icon: "A" },
-  { id: "docentes", label: "Docentes", desc: "Plantilla activa",   icon: "D" },
-  { id: "grupos",   label: "Grupos",   desc: "Oferta académica",   icon: "G" },
-  { id: "materias", label: "Materias", desc: "Catálogo base",      icon: "M" },
+  { id: "alumnos",      label: "Alumnos",      desc: "Consulta y grupos",       icon: "A" },
+  { id: "docentes",     label: "Docentes",     desc: "Plantilla activa",        icon: "D" },
+  { id: "grupos",       label: "Grupos",       desc: "Oferta académica",        icon: "G" },
+  { id: "materias",     label: "Materias",     desc: "Catálogo base",           icon: "M" },
+  { id: "estadisticas", label: "Estadísticas", desc: "Rendimiento académico",   icon: "E" },
 ];
 
 const SIDEBAR_WIDTH = 272;
@@ -847,7 +848,6 @@ function AlumnosSection() {
                   <option value="">Seleccionar carrera</option>
                   <option value="LOGISTICA">Técnico en Logística</option>
                   <option value="CIENCIA_DATOS">Técnico en Ciencia de Datos</option>
-                  <option value="ANIMACION_DIGITAL">Técnico en Animación Digital</option>
                 </StyledSelect>
               </Field>
               <Field label="Semestre" required>
@@ -1637,6 +1637,418 @@ function MateriasSection() {
   );
 }
 
+// ─── EstadisticasSection ────────────────────────────────────────────────────────
+// Basada en Cumplimiento (seguimiento/cumplimiento) resuelto vía Actividad -> AsignacionDocente
+// (que ya trae materia_detalle / grupo_detalle / nombre_docente anidados).
+
+function pctValue(entregados, total) {
+  return total > 0 ? Math.round((entregados / total) * 100) : 0;
+}
+
+function barColor(p) {
+  if (p >= 80) return T.accent;
+  if (p >= 50) return T.cyan;
+  return "#f87171";
+}
+
+function ProgressBar({ value }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 140 }}>
+      <div style={{ flex: 1, height: 6, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <div style={{ width: `${value}%`, height: "100%", background: barColor(value), borderRadius: 999, transition: "width 0.3s" }} />
+      </div>
+      <span style={{ fontSize: 12, fontWeight: 700, color: barColor(value), minWidth: 34, textAlign: "right", fontFamily: "monospace" }}>{value}%</span>
+    </div>
+  );
+}
+
+function EstadisticasSection() {
+  const width = useWindowWidth();
+  const isMobile = width < 640;
+
+  const [alumnos, setAlumnos]             = useState([]);
+  const [grupos, setGrupos]               = useState([]);
+  const [asignaciones, setAsignaciones]   = useState([]);
+  const [actividades, setActividades]     = useState([]);
+  const [cumplimientos, setCumplimientos] = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [vista, setVista]                 = useState("global"); // global | grupo | alumno
+  const [grupoSel, setGrupoSel]           = useState("");
+  const [alumnoSel, setAlumnoSel]         = useState("");
+  const { toast, show } = useToast();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [al, gr, asig, act, cum] = await Promise.allSettled([
+      api.get("/academico/alumnos/"),
+      api.get("/academico/grupos/"),
+      api.get("/seguimiento/asignaciones/"),
+      api.get("/seguimiento/actividades/"),
+      api.get("/seguimiento/cumplimiento/"),
+    ]);
+    setAlumnos(al.status === "fulfilled" ? extractList(al.value.data) : []);
+    setGrupos(gr.status === "fulfilled" ? extractList(gr.value.data) : []);
+    setAsignaciones(asig.status === "fulfilled" ? extractList(asig.value.data) : []);
+    setActividades(act.status === "fulfilled" ? extractList(act.value.data) : []);
+    setCumplimientos(cum.status === "fulfilled" ? extractList(cum.value.data) : []);
+    if (cum.status !== "fulfilled") show("No se pudieron cargar los datos de cumplimiento.", "error");
+    setLoading(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { load(); }, [load]);
+
+  // ── Enriquecer cada registro de cumplimiento con grupo/materia/docente,
+  //    resolviendo actividad -> asignación (los cumplimientos solo traen el id de actividad) ──
+  const asignacionMap = React.useMemo(() => {
+    const m = new Map();
+    asignaciones.forEach((a) => m.set(a.id, a));
+    return m;
+  }, [asignaciones]);
+
+  const actividadMap = React.useMemo(() => {
+    const m = new Map();
+    actividades.forEach((a) => m.set(a.id, a));
+    return m;
+  }, [actividades]);
+
+  const registros = React.useMemo(() => {
+    return cumplimientos.map((c) => {
+      const actividad = actividadMap.get(c.actividad);
+      const asignacion = actividad ? asignacionMap.get(actividad.asignacion) : null;
+      return {
+        ...c,
+        actividadDetalle: actividad ?? null,
+        grupoId: asignacion?.grupo ?? null,
+        grupoDetalle: asignacion?.grupo_detalle ?? null,
+        materiaId: asignacion?.materia ?? null,
+        materiaDetalle: asignacion?.materia_detalle ?? null,
+        docenteNombre: asignacion?.nombre_docente ?? null,
+      };
+    });
+  }, [cumplimientos, actividadMap, asignacionMap]);
+
+  // ── Global ──
+  const global = React.useMemo(() => {
+    const total = registros.length;
+    const entregados = registros.filter((r) => r.entregado).length;
+
+    const porGrupo = new Map();
+    registros.forEach((r) => {
+      const key = r.grupoId ?? "sin_grupo";
+      if (!porGrupo.has(key)) porGrupo.set(key, { grupo: r.grupoDetalle, total: 0, entregados: 0 });
+      const bucket = porGrupo.get(key);
+      bucket.total += 1;
+      if (r.entregado) bucket.entregados += 1;
+    });
+
+    const porCarrera = new Map();
+    registros.forEach((r) => {
+      const key = r.grupoDetalle?.carrera ?? "SIN_CARRERA";
+      if (!porCarrera.has(key)) porCarrera.set(key, { total: 0, entregados: 0 });
+      const bucket = porCarrera.get(key);
+      bucket.total += 1;
+      if (r.entregado) bucket.entregados += 1;
+    });
+
+    return {
+      total, entregados, pct: pctValue(entregados, total),
+      porGrupo: [...porGrupo.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => pctValue(b.entregados, b.total) - pctValue(a.entregados, a.total)),
+      porCarrera: [...porCarrera.entries()].map(([carrera, v]) => ({ carrera, ...v })),
+    };
+  }, [registros]);
+
+  // ── Por grupo ──
+  const statsGrupo = React.useMemo(() => {
+    if (!grupoSel) return null;
+    const regs = registros.filter((r) => String(r.grupoId) === String(grupoSel));
+    const total = regs.length;
+    const entregados = regs.filter((r) => r.entregado).length;
+
+    const porAlumno = new Map();
+    regs.forEach((r) => {
+      const key = r.alumno;
+      if (!porAlumno.has(key)) porAlumno.set(key, { alumno: r.alumno_detalle, total: 0, entregados: 0 });
+      const bucket = porAlumno.get(key);
+      bucket.total += 1;
+      if (r.entregado) bucket.entregados += 1;
+    });
+
+    const porMateria = new Map();
+    regs.forEach((r) => {
+      const key = r.materiaId ?? "sin_materia";
+      if (!porMateria.has(key)) porMateria.set(key, { materia: r.materiaDetalle, docente: r.docenteNombre, total: 0, entregados: 0 });
+      const bucket = porMateria.get(key);
+      bucket.total += 1;
+      if (r.entregado) bucket.entregados += 1;
+    });
+
+    // Incluir alumnos del grupo que aún no tienen ningún registro (0/0)
+    const idsConRegistro = new Set(porAlumno.keys());
+    alumnos.filter((a) => String(a.grupo) === String(grupoSel) && !idsConRegistro.has(a.id)).forEach((a) => {
+      porAlumno.set(a.id, { alumno: { id: a.id, nombre_completo: a.nombre_completo, matricula: a.matricula }, total: 0, entregados: 0 });
+    });
+
+    return {
+      total, entregados, pct: pctValue(entregados, total),
+      porAlumno: [...porAlumno.values()].sort((a, b) => pctValue(b.entregados, b.total) - pctValue(a.entregados, a.total)),
+      porMateria: [...porMateria.values()].sort((a, b) => pctValue(b.entregados, b.total) - pctValue(a.entregados, a.total)),
+    };
+  }, [registros, grupoSel, alumnos]);
+
+  // ── Individual ──
+  const statsAlumno = React.useMemo(() => {
+    if (!alumnoSel) return null;
+    const alumno = alumnos.find((a) => String(a.id) === String(alumnoSel));
+    const grupo = grupos.find((g) => g.id === alumno?.grupo);
+    const regs = registros.filter((r) => String(r.alumno) === String(alumnoSel));
+    const total = regs.length;
+    const entregados = regs.filter((r) => r.entregado).length;
+
+    const porMateria = new Map();
+    regs.forEach((r) => {
+      const key = r.materiaId ?? "sin_materia";
+      if (!porMateria.has(key)) porMateria.set(key, { materia: r.materiaDetalle, docente: r.docenteNombre, total: 0, entregados: 0 });
+      const bucket = porMateria.get(key);
+      bucket.total += 1;
+      if (r.entregado) bucket.entregados += 1;
+    });
+
+    return {
+      alumno, grupo, total, entregados, pct: pctValue(entregados, total),
+      porMateria: [...porMateria.values()].sort((a, b) => pctValue(b.entregados, b.total) - pctValue(a.entregados, a.total)),
+      detalle: regs.slice().sort((a, b) => new Date(b.fecha_registro || 0) - new Date(a.fecha_registro || 0)).slice(0, 30),
+    };
+  }, [registros, alumnoSel, alumnos, grupos]);
+
+  const alumnosDelGrupoSel = alumnos.filter((a) => !grupoSel || String(a.grupo) === String(grupoSel));
+
+  const tabs = [
+    { id: "global", label: "Global" },
+    { id: "grupo",  label: "Por grupo" },
+    { id: "alumno", label: "Individual" },
+  ];
+
+  return (
+    <>
+      <Toast toast={toast} />
+      <SectionTitle title="Estadísticas" subtitle="Rendimiento académico basado en el cumplimiento de actividades registradas por los docentes." />
+
+      {/* Selector de vista */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {tabs.map((t) => {
+          const isActive = vista === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setVista(t.id)}
+              style={{
+                all: "unset", cursor: "pointer",
+                padding: "8px 16px", borderRadius: T.radiusSm,
+                fontSize: 13, fontWeight: 600, fontFamily: T.fontBody,
+                border: `1px solid ${isActive ? T.borderGreen : T.border}`,
+                background: isActive
+                  ? "linear-gradient(135deg, rgba(29,185,84,0.15) 0%, rgba(6,182,212,0.10) 100%)"
+                  : T.surface,
+                color: isActive ? "#d1fae5" : T.textSecondary,
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading ? (
+        <Card style={{ padding: 48, textAlign: "center" }}>
+          <span style={{ fontSize: 12, color: T.textMuted }}>Cargando estadísticas...</span>
+        </Card>
+      ) : (
+        <>
+          {/* ── VISTA GLOBAL ── */}
+          {vista === "global" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 12 }}>
+                <StatCard label="Actividades evaluadas" value={global.total} icon="Σ" />
+                <StatCard label="Entregadas" value={global.entregados} icon="✓" />
+                <StatCard label="Cumplimiento global" value={`${global.pct}%`} icon="%" />
+                <StatCard label="Grupos con datos" value={global.porGrupo.length} icon="G" />
+              </div>
+
+              <div>
+                <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Cumplimiento por carrera</h4>
+                <Table cols={["Carrera", "Entregadas / Total", "% Cumplimiento"]} loading={false} emptyText="Aún no hay actividades registradas">
+                  {global.porCarrera.map((row, idx) => (
+                    <TR key={row.carrera} idx={idx}>
+                      <TD><span style={{ fontWeight: 600, color: T.textPrimary }}>{carreraLabels[row.carrera] ?? row.carrera}</span></TD>
+                      <TD><span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.entregados} / {row.total}</span></TD>
+                      <TD><ProgressBar value={pctValue(row.entregados, row.total)} /></TD>
+                    </TR>
+                  ))}
+                </Table>
+              </div>
+
+              <div>
+                <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Cumplimiento por grupo</h4>
+                <Table cols={["Grupo", "Carrera", "Turno", "Entregadas / Total", "% Cumplimiento"]} loading={false} emptyText="Aún no hay actividades registradas">
+                  {global.porGrupo.map((row, idx) => (
+                    <TR key={row.id} idx={idx}>
+                      <TD><span style={{ fontFamily: "monospace", fontWeight: 700, color: T.cyan }}>{groupCode(row.grupo)}</span></TD>
+                      <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{carreraLabels[row.grupo?.carrera] ?? row.grupo?.carrera ?? "—"}</span></TD>
+                      <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{row.grupo?.turno ?? "—"}</span></TD>
+                      <TD><span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.entregados} / {row.total}</span></TD>
+                      <TD><ProgressBar value={pctValue(row.entregados, row.total)} /></TD>
+                    </TR>
+                  ))}
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {/* ── VISTA POR GRUPO ── */}
+          {vista === "grupo" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <Field label="Selecciona un grupo">
+                <StyledSelect value={grupoSel} onChange={(e) => setGrupoSel(e.target.value)}>
+                  <option value="">Seleccionar grupo</option>
+                  {grupos.map((g) => <option key={g.id} value={g.id}>{groupLabel(g)} ({g.turno})</option>)}
+                </StyledSelect>
+              </Field>
+
+              {!grupoSel ? (
+                <Card style={{ padding: 32, textAlign: "center" }}>
+                  <span style={{ fontSize: 12, color: T.textMuted }}>Selecciona un grupo para ver sus estadísticas.</span>
+                </Card>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: 12 }}>
+                    <StatCard label="Actividades evaluadas" value={statsGrupo?.total ?? 0} icon="Σ" />
+                    <StatCard label="Entregadas" value={statsGrupo?.entregados ?? 0} icon="✓" />
+                    <StatCard label="Cumplimiento del grupo" value={`${statsGrupo?.pct ?? 0}%`} icon="%" />
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Cumplimiento por materia</h4>
+                    <Table cols={["Materia", "Docente", "Entregadas / Total", "% Cumplimiento"]} loading={false} emptyText="Este grupo aún no tiene actividades registradas">
+                      {(statsGrupo?.porMateria ?? []).map((row, idx) => (
+                        <TR key={idx} idx={idx}>
+                          <TD>
+                            <span style={{ fontFamily: "monospace", fontWeight: 700, color: T.cyan }}>{row.materia?.clave ?? "—"}</span>
+                            <span style={{ marginLeft: 8, fontSize: 12, color: T.textSecondary }}>{row.materia?.nombre ?? ""}</span>
+                          </TD>
+                          <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{row.docente ?? "—"}</span></TD>
+                          <TD><span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.entregados} / {row.total}</span></TD>
+                          <TD><ProgressBar value={pctValue(row.entregados, row.total)} /></TD>
+                        </TR>
+                      ))}
+                    </Table>
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Cumplimiento por alumno</h4>
+                    <Table cols={["Alumno", "Matrícula", "Entregadas / Total", "% Cumplimiento"]} loading={false} emptyText="Sin alumnos en este grupo">
+                      {(statsGrupo?.porAlumno ?? []).map((row, idx) => (
+                        <TR key={idx} idx={idx}>
+                          <TD>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <Avatar label={row.alumno?.nombre_completo ?? ""} />
+                              <span style={{ fontWeight: 600, color: T.textPrimary, fontSize: 13 }}>{row.alumno?.nombre_completo ?? "—"}</span>
+                            </div>
+                          </TD>
+                          <TD><span style={{ fontFamily: "monospace", fontSize: 12, color: T.cyan }}>{row.alumno?.matricula ?? "—"}</span></TD>
+                          <TD><span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.entregados} / {row.total}</span></TD>
+                          <TD><ProgressBar value={pctValue(row.entregados, row.total)} /></TD>
+                        </TR>
+                      ))}
+                    </Table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── VISTA INDIVIDUAL ── */}
+          {vista === "alumno" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+                <Field label="Filtrar por grupo (opcional)">
+                  <StyledSelect value={grupoSel} onChange={(e) => { setGrupoSel(e.target.value); setAlumnoSel(""); }}>
+                    <option value="">Todos los grupos</option>
+                    {grupos.map((g) => <option key={g.id} value={g.id}>{groupLabel(g)} ({g.turno})</option>)}
+                  </StyledSelect>
+                </Field>
+                <Field label="Selecciona un alumno">
+                  <StyledSelect value={alumnoSel} onChange={(e) => setAlumnoSel(e.target.value)}>
+                    <option value="">Seleccionar alumno</option>
+                    {alumnosDelGrupoSel.map((a) => <option key={a.id} value={a.id}>{a.nombre_completo} ({a.matricula ?? "s/matrícula"})</option>)}
+                  </StyledSelect>
+                </Field>
+              </div>
+
+              {!alumnoSel ? (
+                <Card style={{ padding: 32, textAlign: "center" }}>
+                  <span style={{ fontSize: 12, color: T.textMuted }}>Selecciona un alumno para ver su rendimiento.</span>
+                </Card>
+              ) : (
+                <>
+                  <Card style={{ padding: 16 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <Avatar label={statsAlumno?.alumno?.nombre_completo ?? ""} />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{statsAlumno?.alumno?.nombre_completo}</div>
+                          <div style={{ fontSize: 12, color: T.textMuted }}>
+                            {statsAlumno?.alumno?.matricula || "Sin matrícula"} · {groupLabel(statsAlumno?.grupo)} · {statsAlumno?.grupo?.turno ?? "—"}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ minWidth: 180 }}>
+                        <ProgressBar value={statsAlumno?.pct ?? 0} />
+                        <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4, textAlign: "right" }}>{statsAlumno?.entregados ?? 0} / {statsAlumno?.total ?? 0} entregadas</div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Cumplimiento por materia</h4>
+                    <Table cols={["Materia", "Docente", "Entregadas / Total", "% Cumplimiento"]} loading={false} emptyText="Este alumno aún no tiene actividades registradas">
+                      {(statsAlumno?.porMateria ?? []).map((row, idx) => (
+                        <TR key={idx} idx={idx}>
+                          <TD>
+                            <span style={{ fontFamily: "monospace", fontWeight: 700, color: T.cyan }}>{row.materia?.clave ?? "—"}</span>
+                            <span style={{ marginLeft: 8, fontSize: 12, color: T.textSecondary }}>{row.materia?.nombre ?? ""}</span>
+                          </TD>
+                          <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{row.docente ?? "—"}</span></TD>
+                          <TD><span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.entregados} / {row.total}</span></TD>
+                          <TD><ProgressBar value={pctValue(row.entregados, row.total)} /></TD>
+                        </TR>
+                      ))}
+                    </Table>
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.fontHeading }}>Actividades recientes</h4>
+                    <Table cols={["Actividad", "Materia", "Semana", "Estado"]} loading={false} emptyText="Sin actividades registradas">
+                      {(statsAlumno?.detalle ?? []).map((r, idx) => (
+                        <TR key={r.id} idx={idx}>
+                          <TD><span style={{ fontSize: 13, color: T.textPrimary }}>{r.actividadDetalle?.titulo ?? "—"}</span></TD>
+                          <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{r.materiaDetalle?.clave ?? "—"}</span></TD>
+                          <TD><span style={{ fontSize: 12, color: T.textSecondary }}>{r.actividadDetalle?.semana ?? "—"}</span></TD>
+                          <TD>{r.entregado ? <Pill color="green">Entregada</Pill> : <Pill color="gray">Pendiente</Pill>}</TD>
+                        </TR>
+                      ))}
+                    </Table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
 // ─── DashboardLoader ────────────────────────────────────────────────────────────
 
 function DashboardLoader() {
@@ -1709,9 +2121,10 @@ export default function AdminDashboard() {
     switch (section) {
       case "alumnos":  return <AlumnosSection />;
       case "docentes": return <DocentesSection />;
-      case "grupos":   return <GruposSection />;
-      case "materias": return <MateriasSection />;
-      default:         return null;
+      case "grupos":       return <GruposSection />;
+      case "materias":     return <MateriasSection />;
+      case "estadisticas": return <EstadisticasSection />;
+      default:             return null;
     }
   };
 
