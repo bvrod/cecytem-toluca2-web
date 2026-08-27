@@ -382,48 +382,65 @@ export default function KioskoAlumno() {
     return e;
   };
 
-  const handleSubmit = async ev => {
-    ev.preventDefault();
-    const ve = validate();
-    if (Object.keys(ve).length) { setErrors(ve); return; }
-    setErrors({}); setErrorEnvio(""); setAutenticando(true);
+const handleSubmit = async ev => {
+  ev.preventDefault();
+  const ve = validate();
+  if (Object.keys(ve).length) { setErrors(ve); return; }
+  setErrors({}); setErrorEnvio(""); setAutenticando(true);
 
-    const auth = await autenticarAlumno(matricula.trim(), password);
-    if (!auth.ok) {
-      setErrorEnvio(auth.mensaje);
-      setShakeKey(k => k + 1);
-      setAutenticando(false); return;
+  const auth = await autenticarAlumno(matricula.trim(), password);
+  if (!auth.ok) {
+    setErrorEnvio(auth.mensaje);
+    setShakeKey(k => k + 1);
+    setAutenticando(false); return;
+  }
+
+  const hora = horaActual();
+  const fecha = fechaActualISO();
+
+  try {
+    const res = await api.get('/seguimiento/computadoras/');
+    const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
+    const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+    
+    if (pcActual && pcActual.estado !== ESTADOS.LIBRE) {
+      setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); 
+      cargarComputadorasLibres(); 
+      setAutenticando(false); 
+      return;
     }
 
-    const hora = horaActual();
-    const fecha = fechaActualISO();
+    // Priorizar auth.nombre (Nombre obtenido de SIGART) en lugar de la matrícula
+    const nombreAlumno = auth.nombre || matricula.trim(); 
 
-    try {
-      // Get current state from server
-      const res = await api.get('/seguimiento/computadoras/');
-      const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
-      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
-      if (pcActual && pcActual.estado !== ESTADOS.LIBRE) {
-        setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); cargarComputadorasLibres(); setAutenticando(false); return;
-      }
+    const actualizado = { 
+      ... (pcActual || { id: pcSeleccionada }), 
+      estado: 'OCUPADO', 
+      alumno: nombreAlumno, // Se guarda con el nombre completo
+      hora_inicio: hora, 
+      fecha 
+    };
 
-      const nombreAlumno = auth.nombre || matricula.trim();
-      const actualizado = { ... (pcActual || { id: pcSeleccionada }), estado: 'OCUPADO', alumno: nombreAlumno, hora_inicio: hora, fecha };
+    await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, actualizado);
+    
+    // Crear registro en la tabla de registros con el nombre
+    await api.post('/seguimiento/registros-sala/', { 
+      computadora: pcSeleccionada, 
+      alumno: nombreAlumno, 
+      hora_inicio: hora,
+      fecha: fecha
+    });
 
-      await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, actualizado);
-      // crear registro de inicio
-      await api.post('/seguimiento/registros-sala/', { computadora: pcSeleccionada, alumno: nombreAlumno, hora_inicio: hora });
-
-      setNombreReal(nombreAlumno);
-      setHoraRegistro(hora);
-      setSubmitted(true);
-      setAutenticando(false);
-      cargarComputadorasLibres();
-    } catch (e) {
-      setErrorEnvio("No se pudo registrar el acceso en el servidor. Intenta de nuevo.");
-      setAutenticando(false);
-    }
-  };
+    setNombreReal(nombreAlumno);
+    setHoraRegistro(hora);
+    setSubmitted(true);
+    setAutenticando(false);
+    cargarComputadorasLibres();
+  } catch (e) {
+    setErrorEnvio("No se pudo registrar el acceso en el servidor. Intenta de nuevo.");
+    setAutenticando(false);
+  }
+};
 
   const handleReset = async () => {
     try {

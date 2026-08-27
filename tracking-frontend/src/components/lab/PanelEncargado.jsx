@@ -213,45 +213,47 @@ export default function PanelEncargado() {
   const wsRef = useRef(null);
   const backoffRef = useRef(1000);
 
-  const cargarTodo = async (options = {}) => {
-    const { silent = false } = options;
-    if (!silent) setCargando(true);
+const cargarTodo = async (options = {}) => {
+  const { silent = false } = options;
+  if (!silent) setCargando(true);
 
-    try {
-      const res = await api.get("/seguimiento/computadoras/");
-      const apiComps = Array.isArray(res.data) ? res.data : res.data.results || [];
-      let comps = apiComps.map(c => ({
+  try {
+    const res = await api.get("/seguimiento/computadoras/");
+    const apiComps = Array.isArray(res.data) ? res.data : res.data.results || [];
+    
+    if (apiComps.length > 0) {
+      const comps = apiComps.map(c => ({
         id: c.id,
         estado: c.estado,
-        alumno: c.alumno,
+        // Garantiza mostrar el nombre del alumno si existe o fallback a la matrícula
+        alumno: c.nombre_alumno || c.alumno || null, 
         horaInicio: c.hora_inicio ?? c.horaInicio ?? null,
         fecha: c.fecha,
       }));
-
-      if (comps.length === 0) {
-        const inicial = Array.from({ length: 36 }, (_, i) => ({ id: `PC-${String(i + 1).padStart(2, "0")}`, estado: 'LIBRE' }));
-        for (const c of inicial) {
-          try { await api.post('/seguimiento/computadoras/', c); } catch (e) { /* noop */ }
-        }
-        comps = inicial.map(c => ({ id: c.id, estado: c.estado, alumno: null, horaInicio: null, fecha: null }));
-      }
-
       setComputadoras(comps);
-    } catch (e) {
-      setComputadoras([]);
     }
+  } catch (e) {
+    console.error("Error cargando computadoras:", e);
+  }
 
-    try {
-      const historialRes = await api.get('/seguimiento/registros-sala/');
-      setHistorial(Array.isArray(historialRes.data) ? historialRes.data : historialRes.data?.results || []);
-    } catch (e) {
-      setHistorial([]);
-    }
+  try {
+    const historialRes = await api.get('/seguimiento/registros-sala/');
+    const dataHistorial = Array.isArray(historialRes.data) ? historialRes.data : historialRes.data?.results || [];
+    
+    // Mapea para forzar el despliegue del nombre completo
+    const historialFormateado = dataHistorial.map(reg => ({
+      ...reg,
+      alumno: reg.nombre_alumno || reg.nombre || reg.alumno || "Sin nombre"
+    }));
+    
+    setHistorial(historialFormateado);
+  } catch (e) {
+    console.error("Error cargando historial:", e);
+  }
 
-    setIncidencias([]);
-
-    if (!silent) setCargando(false);
-  };
+  setIncidencias([]);
+  if (!silent) setCargando(false);
+};
 
   useEffect(() => {
     let active = true;
@@ -848,3 +850,4 @@ export default function PanelEncargado() {
     </div>
   );
 }
+
