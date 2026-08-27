@@ -382,97 +382,123 @@ export default function KioskoAlumno() {
     return e;
   };
 
-const handleSubmit = async ev => {
+const handleSubmit = async (ev) => {
   ev.preventDefault();
   const ve = validate();
   if (Object.keys(ve).length) { setErrors(ve); return; }
   setErrors({}); setErrorEnvio(""); setAutenticando(true);
 
+  // 1. Autenticación del alumno
   const auth = await autenticarAlumno(matricula.trim(), password);
   if (!auth.ok) {
     setErrorEnvio(auth.mensaje);
     setShakeKey(k => k + 1);
-    setAutenticando(false); return;
+    setAutenticando(false); 
+    return;
   }
 
-  const hora = horaActual();
-  const fecha = fechaActualISO();
+  // Obtenemos el nombre completo retornado por SIGART o usamos la matrícula de respaldo
+  const nombreAlumno = auth.nombre || auth.usuario?.nombre || matricula.trim();
+
+  // Generar fechas y horas en formatos de texto/ISO estándar
+  const ahora = new Date();
+  const horaLocal = typeof horaActual === 'function' ? horaActual() : ahora.toLocaleTimeString('es-MX', { hour12: false });
+  const fechaISO = typeof fechaActualISO === 'function' ? fechaActualISO() : ahora.toISOString().split('T')[0];
 
   try {
     const res = await api.get('/seguimiento/computadoras/');
-    const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
+    const pcs = Array.isArray(res.data) ? res.data : (res.data.results || []);
     const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
     
-    if (pcActual && pcActual.estado !== ESTADOS.LIBRE) {
+    // Validar estado exacto tolerando mayúsculas/minúsculas
+    const estadoActual = (pcActual?.estado || '').toUpperCase();
+    const estadoLibre = (typeof ESTADOS !== 'undefined' && ESTADOS.LIBRE) ? ESTADOS.LIBRE : 'LIBRE';
+
+    if (pcActual && estadoActual !== 'LIBRE' && estadoActual !== estadoLibre) {
       setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); 
       cargarComputadorasLibres(); 
       setAutenticando(false); 
       return;
     }
 
-    // Priorizar auth.nombre (Nombre obtenido de SIGART) en lugar de la matrícula
-    const nombreAlumno = auth.nombre || matricula.trim(); 
-
+    // Payload limpio enviado a la computadora
     const actualizado = { 
-      ... (pcActual || { id: pcSeleccionada }), 
+      id: pcSeleccionada,
       estado: 'OCUPADO', 
-      alumno: nombreAlumno, // Se guarda con el nombre completo
-      hora_inicio: hora, 
-      fecha 
+      alumno: nombreAlumno, 
+      hora_inicio: horaLocal, 
+      fecha: fechaISO 
     };
 
+    // Actualizar estado del equipo
     await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, actualizado);
     
-    // Crear registro en la tabla de registros con el nombre
+    // Crear registro en la tabla de historial con todos los posibles nombres de campo soportados por el backend
     await api.post('/seguimiento/registros-sala/', { 
       computadora: pcSeleccionada, 
       alumno: nombreAlumno, 
-      hora_inicio: hora,
-      fecha: fecha
+      nombre_alumno: nombreAlumno,
+      hora_inicio: horaLocal,
+      hora_entrada: horaLocal,
+      fecha: fechaISO
     });
 
     setNombreReal(nombreAlumno);
-    setHoraRegistro(hora);
+    setHoraRegistro(horaLocal);
     setSubmitted(true);
     setAutenticando(false);
     cargarComputadorasLibres();
   } catch (e) {
+    console.error("Error en handleSubmit:", e);
     setErrorEnvio("No se pudo registrar el acceso en el servidor. Intenta de nuevo.");
     setAutenticando(false);
   }
 };
 
-  const handleReset = async () => {
-    try {
-      const res = await api.get('/seguimiento/computadoras/');
-      const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
-      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+const handleReset = async () => {
+  try {
+    const res = await api.get('/seguimiento/computadoras/');
+    const pcs = Array.isArray(res.data) ? res.data : (res.data.results || []);
+    const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
 
-      if (pcActual?.alumno) {
-        await api.post('/seguimiento/registros-sala/', {
-          computadora: pcSeleccionada,
-          alumno: pcActual.alumno,
-          fecha: pcActual.fecha || fechaActualISO(),
-          hora_inicio: pcActual.hora_inicio ?? pcActual.horaInicio,
-          hora_fin: horaActual(),
-        });
-      }
+    const ahora = new Date();
+    const horaFin = typeof horaActual === 'function' ? horaActual() : ahora.toLocaleTimeString('es-MX', { hour12: false });
+    const fechaISO = typeof fechaActualISO === 'function' ? fechaActualISO() : ahora.toISOString().split('T')[0];
 
-      await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, {
-        estado: ESTADOS.LIBRE,
-        alumno: null,
-        hora_inicio: null,
-        fecha: null,
+    // Si había un alumno en la PC, registramos su salida en la bitácora
+    if (pcActual?.alumno) {
+      await api.post('/seguimiento/registros-sala/', {
+        computadora: pcSeleccionada,
+        alumno: pcActual.alumno,
+        nombre_alumno: pcActual.alumno,
+        fecha: pcActual.fecha || fechaISO,
+        hora_inicio: pcActual.hora_inicio || pcActual.horaInicio || horaFin,
+        hora_fin: horaFin,
+        hora_salida: horaFin
       });
-
-      cargarComputadorasLibres();
-      setMatricula(""); setPassword(""); setPcSeleccionada("");
-      setErrors({}); setErrorEnvio(""); setHoraRegistro(null);
-      setSubmitted(false); setNombreReal("");
-    } catch (e) {
-      setErrorEnvio("No se pudo liberar la computadora en el servidor.");
     }
-  };
+
+    // Definir estado libre resolviendo constantes
+    const valorLibre = (typeof ESTADOS !== 'undefined' && ESTADOS.LIBRE) ? ESTADOS.LIBRE : 'LIBRE';
+
+    // Liberar la computadora limpia en la base de datos
+    await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, {
+      estado: valorLibre,
+      alumno: null,
+      hora_inicio: null,
+      fecha: null,
+    });
+
+    // Resetear estados locales
+    cargarComputadorasLibres();
+    setMatricula(""); setPassword(""); setPcSeleccionada("");
+    setErrors({}); setErrorEnvio(""); setHoraRegistro(null);
+    setSubmitted(false); setNombreReal("");
+  } catch (e) {
+    console.error("Error en handleReset:", e);
+    setErrorEnvio("No se pudo liberar la computadora en el servidor.");
+  }
+};
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
   return (

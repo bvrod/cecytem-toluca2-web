@@ -136,6 +136,7 @@ export default function DocenteDashboard() {
   const [error,              setError]              = useState(null);
   const [guardando,          setGuardando]          = useState(false);
   const [selectedActividad,  setSelectedActividad]  = useState(null);
+  const [vistaPrincipal,     setVistaPrincipal]     = useState("clases"); // 'clases' | 'estadisticas'
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -362,6 +363,10 @@ export default function DocenteDashboard() {
         .alumnos-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 320px; }
         .status-banner { animation: fadeIn 0.2s ease; }
         .action-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .modo-toggle { display: flex; gap: 6px; padding: 4px; border-radius: 12px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .stats-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 320px; }
 
         @media (max-width: 1024px) {
           .docente-main { grid-template-columns: 260px 1fr; gap: 14px; padding: 16px; }
@@ -379,6 +384,8 @@ export default function DocenteDashboard() {
           .nueva-act-btn { width: 100%; justify-content: center !important; }
           .action-row { flex-direction: column; align-items: stretch; }
           .action-row button { width: 100%; justify-content: center !important; }
+          .stats-grid { grid-template-columns: repeat(2, 1fr); }
+          .stats-scroll { overflow: visible; }
         }
         @media (max-width: 480px) {
           .docente-main { padding: 8px; gap: 10px; }
@@ -422,34 +429,57 @@ export default function DocenteDashboard() {
                 {loadingDashboard ? "Cargando..." : `${asignaciones.length} asignación${asignaciones.length !== 1 ? "es" : ""} activa${asignaciones.length !== 1 ? "s" : ""}`}
               </p>
             </div>
-            <div style={{ position: "relative" }}>
-              <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: T.textMuted, pointerEvents: "none" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-              <input type="text" placeholder="Buscar materia, grupo o aula..."
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                style={{ ...inputStyle, paddingLeft: 32 }} />
+
+            {/* Toggle: Mis clases / Estadísticas */}
+            <div className="modo-toggle" style={{ marginBottom: 12, background: "rgba(5,18,32,0.55)", border: `1px solid ${T.border}` }}>
+              {[{ id: "clases", label: "📋 Mis clases" }, { id: "estadisticas", label: "📊 Estadísticas" }].map(opt => (
+                <button key={opt.id} type="button" onClick={() => setVistaPrincipal(opt.id)}
+                  style={{
+                    flex: 1, padding: "8px 10px", borderRadius: T.radiusXs, border: "none", cursor: "pointer",
+                    fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
+                    background: vistaPrincipal === opt.id ? `linear-gradient(135deg, ${T.accent} 0%, ${T.accentEnd} 100%)` : "transparent",
+                    color: vistaPrincipal === opt.id ? "#fff" : T.textMuted,
+                    transition: "all 0.15s",
+                  }}>
+                  {opt.label}
+                </button>
+              ))}
             </div>
+
+            {vistaPrincipal === "clases" && (
+              <div style={{ position: "relative" }}>
+                <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: T.textMuted, pointerEvents: "none" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input type="text" placeholder="Buscar materia, grupo o aula..."
+                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  style={{ ...inputStyle, paddingLeft: 32 }} />
+              </div>
+            )}
           </div>
         </Card>
 
-        <div className="aside-list">
-          {loadingDashboard ? <LoadingSpinner message="Cargando tus clases del CECyTEM..." />
-          : error ? <ErrorBanner message={error} />
-          : filteredAsignaciones.length === 0 ? <EmptyState icon="📋" title="Sin asignaciones" message={searchQuery ? "Ninguna clase coincide." : "Ninguna asignación disponible."} />
-          : filteredAsignaciones.map(a => (
-            <ClassroomCard key={a.id} asignacion={a}
-              isSelected={selectedAsignacion?.id === a.id}
-              onClick={() => setSelectedAsignacion(a)}
-              actividadesCount={a.actividades_count || 0} />
-          ))}
-      </div>
+        {vistaPrincipal === "clases" && (
+          <div className="aside-list">
+            {loadingDashboard ? <LoadingSpinner message="Cargando tus clases del CECyTEM..." />
+            : error ? <ErrorBanner message={error} />
+            : filteredAsignaciones.length === 0 ? <EmptyState icon="📋" title="Sin asignaciones" message={searchQuery ? "Ninguna clase coincide." : "Ninguna asignación disponible."} />
+            : filteredAsignaciones.map(a => (
+              <ClassroomCard key={a.id} asignacion={a}
+                isSelected={selectedAsignacion?.id === a.id}
+                onClick={() => setSelectedAsignacion(a)}
+                actividadesCount={a.actividades_count || 0} />
+            ))}
+          </div>
+        )}
   </aside>
 
 {/* ── PANEL DERECHO ── */}
 <Card className="docente-right-panel">
   <div className="right-inner">
-    {selectedAsignacion ? (
+    {vistaPrincipal === "estadisticas" ? (
+      <EstadisticasDocente asignaciones={asignaciones} />
+    ) : selectedAsignacion ? (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* Header */}
@@ -930,6 +960,403 @@ function ModalNuevaActividad({ asignacion, nombreMateria, onClose, onCreated }) 
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Estadísticas (Docente) ─────────────────────────────────────────────────────
+// Basadas en Cumplimiento (seguimiento/cumplimiento), acotadas SOLO a las asignaciones
+// (materia + grupo) que pertenecen a este docente. No requiere endpoints nuevos:
+// cruza /seguimiento/actividades/?asignacion=X (por cada clase del docente) con
+// /seguimiento/cumplimiento/ (filtrado en el cliente por las actividades propias).
+
+function pctValue(entregados, total) {
+  return total > 0 ? Math.round((entregados / total) * 100) : 0;
+}
+
+function pctColor(p) {
+  if (p >= 80) return T.accent;
+  if (p >= 50) return T.cyan;
+  return T.dangerText;
+}
+
+function StatsProgressBar({ value }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 130 }}>
+      <div style={{ flex: 1, height: 6, borderRadius: 999, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <div style={{ width: `${value}%`, height: "100%", background: pctColor(value), borderRadius: 999, transition: "width 0.3s" }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, color: pctColor(value), minWidth: 32, textAlign: "right", fontFamily: "monospace" }}>{value}%</span>
+    </div>
+  );
+}
+
+function StatMini({ label, value }) {
+  return (
+    <div style={{ borderRadius: T.radiusSm, background: T.cyanDim, border: `1px solid ${T.border}`, padding: "12px 14px" }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+    </div>
+  );
+}
+
+function StatsEmpty({ message }) {
+  return (
+    <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 11, color: T.textMuted, border: `1px dashed ${T.border}`, borderRadius: T.radiusSm, background: T.cyanDim }}>
+      {message}
+    </div>
+  );
+}
+
+function EstadisticasDocente({ asignaciones }) {
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
+  const [porAsignacion, setPorAsignacion] = useState([]); // [{ asignacion, actividades, alumnos }]
+  const [cumplimientos, setCumplimientos] = useState([]);
+  const [vista, setVista]       = useState("general"); // general | clase | alumno
+  const [claseSel, setClaseSel] = useState("");
+  const [alumnoSel, setAlumnoSel] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!asignaciones || asignaciones.length === 0) { setLoading(false); return; }
+      setLoading(true); setError(null);
+      try {
+        const perAsignacion = await Promise.all(asignaciones.map(async (a) => {
+          const [resAct, resAlu] = await Promise.allSettled([
+            api.get(`${ENDPOINTS.SEGUIMIENTO.ACTIVIDADES}?asignacion=${a.id}`),
+            api.get(`${ENDPOINTS.ACADEMICO.ALUMNOS}?asignacion=${a.id}`),
+          ]);
+          return {
+            asignacion: a,
+            actividades: resAct.status === "fulfilled" ? normalizeArrayResponse(resAct.value.data) : [],
+            alumnos:     resAlu.status === "fulfilled" ? normalizeArrayResponse(resAlu.value.data) : [],
+          };
+        }));
+
+        let cumplimientoData = [];
+        try {
+          const resCum = await api.get("/seguimiento/cumplimiento/");
+          cumplimientoData = normalizeArrayResponse(resCum.data);
+        } catch {
+          // Si falla, seguimos mostrando conteos de actividades/alumnos aunque sin % de cumplimiento
+        }
+
+        if (!cancelled) {
+          setPorAsignacion(perAsignacion);
+          setCumplimientos(cumplimientoData);
+        }
+      } catch {
+        if (!cancelled) setError("No se pudieron cargar las estadísticas.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [asignaciones]);
+
+  // ── Enriquecer cada registro de cumplimiento con su asignación/actividad (solo las propias) ──
+  const registros = useMemo(() => {
+    const actividadMap = new Map();
+    porAsignacion.forEach(p => p.actividades.forEach(act => actividadMap.set(act.id, { actividad: act, asignacion: p.asignacion })));
+    return cumplimientos
+      .filter(c => actividadMap.has(c.actividad))
+      .map(c => {
+        const { actividad, asignacion } = actividadMap.get(c.actividad);
+        return { ...c, actividad_detalle: actividad, asignacion };
+      });
+  }, [cumplimientos, porAsignacion]);
+
+  // ── General: todas mis clases ──
+  const general = useMemo(() => {
+    const total = registros.length;
+    const entregados = registros.filter(r => r.entregado).length;
+    const porClase = porAsignacion.map(p => {
+      const regs = registros.filter(r => r.asignacion.id === p.asignacion.id);
+      const t = regs.length;
+      const e = regs.filter(r => r.entregado).length;
+      return { asignacion: p.asignacion, total: t, entregados: e };
+    }).sort((a, b) => pctValue(b.entregados, b.total) - pctValue(a.entregados, a.total));
+    return { total, entregados, pct: pctValue(entregados, total), porClase };
+  }, [registros, porAsignacion]);
+
+  // ── Por clase seleccionada ──
+  const statsClase = useMemo(() => {
+    if (!claseSel) return null;
+    const p = porAsignacion.find(x => String(x.asignacion.id) === String(claseSel));
+    if (!p) return null;
+    const regs = registros.filter(r => String(r.asignacion.id) === String(claseSel));
+    const total = regs.length;
+    const entregados = regs.filter(r => r.entregado).length;
+
+    const porAlumno = new Map();
+    regs.forEach(r => {
+      const key = r.alumno;
+      if (!porAlumno.has(key)) porAlumno.set(key, { alumno: r.alumno_detalle, total: 0, entregados: 0 });
+      const b = porAlumno.get(key);
+      b.total += 1;
+      if (r.entregado) b.entregados += 1;
+    });
+    // Incluir alumnos sin ningún registro (0/0)
+    const idsConRegistro = new Set(porAlumno.keys());
+    p.alumnos.forEach(al => {
+      if (!idsConRegistro.has(al.id)) {
+        porAlumno.set(al.id, {
+          alumno: { id: al.id, nombre_completo: al.nombre_completo || al.alumno_nombre || `${al.nombre || ""} ${al.apellido || ""}`.trim(), matricula: al.matricula },
+          total: 0, entregados: 0,
+        });
+      }
+    });
+
+    return {
+      asignacion: p.asignacion, alumnos: p.alumnos,
+      total, entregados, pct: pctValue(entregados, total),
+      porAlumno: [...porAlumno.values()].sort((a, b) => pctValue(b.entregados, b.total) - pctValue(a.entregados, a.total)),
+    };
+  }, [registros, porAsignacion, claseSel]);
+
+  // ── Individual ──
+  const statsAlumno = useMemo(() => {
+    if (!claseSel || !alumnoSel) return null;
+    const p = porAsignacion.find(x => String(x.asignacion.id) === String(claseSel));
+    const alumno = p?.alumnos.find(a => String(a.id) === String(alumnoSel));
+    const regs = registros.filter(r => String(r.asignacion.id) === String(claseSel) && String(r.alumno) === String(alumnoSel));
+    const total = regs.length;
+    const entregados = regs.filter(r => r.entregado).length;
+    return {
+      alumno, total, entregados, pct: pctValue(entregados, total),
+      detalle: regs.slice().sort((a, b) => new Date(b.fecha_registro || 0) - new Date(a.fecha_registro || 0)).slice(0, 30),
+    };
+  }, [registros, porAsignacion, claseSel, alumnoSel]);
+
+  const alumnosDeClaseSel = porAsignacion.find(x => String(x.asignacion.id) === String(claseSel))?.alumnos || [];
+
+  const tabs = [
+    { id: "general", label: "General" },
+    { id: "clase",   label: "Por clase" },
+    { id: "alumno",  label: "Individual" },
+  ];
+
+  if (!asignaciones || asignaciones.length === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif" }}>Estadísticas</h2>
+        <StatsEmpty message="Aún no tienes asignaciones registradas." />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
+      <div>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: T.textPrimary, fontFamily: "'Syne', sans-serif", marginBottom: 4 }}>Estadísticas</h2>
+        <p style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.6 }}>Rendimiento (cumplimiento de actividades) de tus grupos y alumnos.</p>
+      </div>
+
+      {/* Selector de vista */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {tabs.map(t => {
+          const active = vista === t.id;
+          return (
+            <button key={t.id} type="button" onClick={() => setVista(t.id)}
+              style={{
+                padding: "7px 14px", borderRadius: T.radiusXs, cursor: "pointer",
+                fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
+                border: `1px solid ${active ? T.borderGreen : T.border}`,
+                background: active ? "linear-gradient(135deg, rgba(29,185,84,0.15) 0%, rgba(6,182,212,0.10) 100%)" : T.cyanDim,
+                color: active ? T.accent : T.textSecondary,
+              }}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading ? <LoadingSpinner message="Calculando estadísticas..." />
+      : error ? <ErrorBanner message={error} />
+      : (
+        <div className="stats-scroll">
+
+          {/* ── GENERAL ── */}
+          {vista === "general" && (
+            <>
+              <div className="stats-grid">
+                <StatMini label="Actividades evaluadas" value={general.total} />
+                <StatMini label="Entregadas" value={general.entregados} />
+                <StatMini label="Cumplimiento global" value={`${general.pct}%`} />
+                <StatMini label="Clases con datos" value={general.porClase.filter(c => c.total > 0).length} />
+              </div>
+
+              <div>
+                <h4 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted, marginBottom: 10 }}>Cumplimiento por clase</h4>
+                {general.porClase.length === 0 ? <StatsEmpty message="Aún no hay actividades con registros." /> : (
+                  <div className="table-wrap">
+                    <table className="stats-table">
+                      <thead>
+                        <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
+                          {["Materia", "Grupo", "Entregadas / Total", "% Cumplimiento"].map(h => (
+                            <th key={h} style={{ padding: "9px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: T.cyan, whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {general.porClase.map((row, idx) => (
+                          <tr key={row.asignacion.id} style={{ borderBottom: `1px solid rgba(6,182,212,0.07)`, background: idx % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent" }}>
+                            <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 600, color: T.textPrimary, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{extractNombreMateria(row.asignacion)}</td>
+                            <td style={{ padding: "9px 10px", fontSize: 11, color: T.cyan, fontWeight: 600, whiteSpace: "nowrap" }}>{extractNombreGrupo(row.asignacion)}</td>
+                            <td style={{ padding: "9px 10px", fontSize: 11, fontFamily: "monospace", color: T.textSecondary }}>{row.entregados} / {row.total}</td>
+                            <td style={{ padding: "9px 10px" }}><StatsProgressBar value={pctValue(row.entregados, row.total)} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── POR CLASE ── */}
+          {vista === "clase" && (
+            <>
+              <div>
+                <FieldLabel>Selecciona una clase</FieldLabel>
+                <select value={claseSel} onChange={e => { setClaseSel(e.target.value); setAlumnoSel(""); }} style={{ ...inputStyle, colorScheme: "dark" }}>
+                  <option value="">Seleccionar clase</option>
+                  {asignaciones.map(a => (
+                    <option key={a.id} value={a.id} style={{ background: "#04141e" }}>
+                      {extractNombreMateria(a)} · Gr. {extractNombreGrupo(a)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {!claseSel ? <StatsEmpty message="Selecciona una clase para ver sus estadísticas." /> : !statsClase ? (
+                <LoadingSpinner message="Cargando..." />
+              ) : (
+                <>
+                  <div className="stats-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    <StatMini label="Actividades evaluadas" value={statsClase.total} />
+                    <StatMini label="Entregadas" value={statsClase.entregados} />
+                    <StatMini label="Cumplimiento" value={`${statsClase.pct}%`} />
+                  </div>
+
+                  <div>
+                    <h4 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted, marginBottom: 10 }}>Cumplimiento por alumno</h4>
+                    {statsClase.porAlumno.length === 0 ? <StatsEmpty message="Sin alumnos en esta clase." /> : (
+                      <div className="table-wrap">
+                        <table className="stats-table">
+                          <thead>
+                            <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
+                              {["Matrícula", "Nombre", "Entregadas / Total", "% Cumplimiento"].map(h => (
+                                <th key={h} style={{ padding: "9px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: T.cyan, whiteSpace: "nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {statsClase.porAlumno.map((row, idx) => (
+                              <tr key={row.alumno?.id ?? idx} style={{ borderBottom: `1px solid rgba(6,182,212,0.07)`, background: idx % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent" }}>
+                                <td style={{ padding: "9px 10px", fontFamily: "monospace", fontSize: 10, color: T.textMuted, whiteSpace: "nowrap" }}>{row.alumno?.matricula ?? "—"}</td>
+                                <td style={{ padding: "9px 10px", fontSize: 11, fontWeight: 600, color: T.textPrimary, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.alumno?.nombre_completo ?? "—"}</td>
+                                <td style={{ padding: "9px 10px", fontSize: 11, fontFamily: "monospace", color: T.textSecondary }}>{row.entregados} / {row.total}</td>
+                                <td style={{ padding: "9px 10px" }}><StatsProgressBar value={pctValue(row.entregados, row.total)} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* ── INDIVIDUAL ── */}
+          {vista === "alumno" && (
+            <>
+              <div className="modal-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <FieldLabel>Clase</FieldLabel>
+                  <select value={claseSel} onChange={e => { setClaseSel(e.target.value); setAlumnoSel(""); }} style={{ ...inputStyle, colorScheme: "dark" }}>
+                    <option value="">Seleccionar clase</option>
+                    {asignaciones.map(a => (
+                      <option key={a.id} value={a.id} style={{ background: "#04141e" }}>
+                        {extractNombreMateria(a)} · Gr. {extractNombreGrupo(a)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel>Alumno</FieldLabel>
+                  <select value={alumnoSel} onChange={e => setAlumnoSel(e.target.value)} disabled={!claseSel} style={{ ...inputStyle, colorScheme: "dark", opacity: claseSel ? 1 : 0.5 }}>
+                    <option value="">{claseSel ? "Seleccionar alumno" : "Elige una clase primero"}</option>
+                    {alumnosDeClaseSel.map(al => (
+                      <option key={al.id} value={al.id} style={{ background: "#04141e" }}>
+                        {al.nombre_completo || al.alumno_nombre || `${al.nombre || ""} ${al.apellido || ""}`.trim()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {!alumnoSel ? <StatsEmpty message="Selecciona una clase y un alumno para ver su rendimiento." /> : !statsAlumno ? (
+                <LoadingSpinner message="Cargando..." />
+              ) : (
+                <>
+                  <Card style={{ padding: 14 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: "'Syne', sans-serif" }}>
+                          {statsAlumno.alumno?.nombre_completo || statsAlumno.alumno?.alumno_nombre || "Alumno"}
+                        </div>
+                        <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>{statsAlumno.alumno?.matricula || "Sin matrícula"}</div>
+                      </div>
+                      <div style={{ minWidth: 160 }}>
+                        <StatsProgressBar value={statsAlumno.pct} />
+                        <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4, textAlign: "right" }}>{statsAlumno.entregados} / {statsAlumno.total} entregadas</div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <div>
+                    <h4 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: T.textMuted, marginBottom: 10 }}>Actividades recientes</h4>
+                    {statsAlumno.detalle.length === 0 ? <StatsEmpty message="Sin actividades registradas para este alumno." /> : (
+                      <div className="table-wrap">
+                        <table className="stats-table">
+                          <thead>
+                            <tr style={{ background: T.cyanDim, borderBottom: `1px solid ${T.border}` }}>
+                              {["Actividad", "Semana", "Estado"].map(h => (
+                                <th key={h} style={{ padding: "9px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: T.cyan, whiteSpace: "nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {statsAlumno.detalle.map((r, idx) => (
+                              <tr key={r.id} style={{ borderBottom: `1px solid rgba(6,182,212,0.07)`, background: idx % 2 === 0 ? "rgba(6,182,212,0.02)" : "transparent" }}>
+                                <td style={{ padding: "9px 10px", fontSize: 11, color: T.textPrimary, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.actividad_detalle?.titulo ?? "—"}</td>
+                                <td style={{ padding: "9px 10px", fontSize: 11, color: T.textSecondary }}>{r.actividad_detalle?.semana ?? "—"}</td>
+                                <td style={{ padding: "9px 10px" }}>
+                                  {r.entregado
+                                    ? <span style={{ padding: "2px 8px", borderRadius: 100, background: "rgba(29,185,84,0.15)", border: `1px solid ${T.borderGreen}`, fontSize: 10, fontWeight: 700, color: T.accent }}>Entregada</span>
+                                    : <span style={{ padding: "2px 8px", borderRadius: 100, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 10, fontWeight: 700, color: T.textSecondary }}>Pendiente</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+        </div>
+      )}
     </div>
   );
 }
