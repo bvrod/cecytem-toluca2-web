@@ -1,6 +1,17 @@
 from rest_framework import serializers
-from .models import ComputadoraSala, RegistroAccesoSala
+from django.contrib.auth import get_user_model
 
+from .models import (
+    AsignacionDocente, Actividad, Cumplimiento,
+    ComputadoraSala, RegistroAccesoSala, Incidencia,
+)
+from academico.models import Grupo, Materia
+from academico.serializers import AlumnoSerializer
+
+Usuario = get_user_model()
+
+
+# ── Sala de cómputo ──────────────────────────────────────────────────────────
 
 class ComputadoraSalaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,28 +25,34 @@ class RegistroAccesoSalaSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistroAccesoSala
         fields = ['id', 'computadora', 'computadora_detalle', 'alumno', 'fecha', 'hora_inicio', 'hora_fin', 'creado_por']
-from rest_framework import serializers
-from .models import AsignacionDocente, Actividad, Cumplimiento
-from academico.models import Grupo, Materia
-from academico.serializers import AlumnoSerializer
-from django.contrib.auth import get_user_model
 
-Usuario = get_user_model()
+
+class IncidenciaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Incidencia
+        fields = ['id', 'computadora', 'alumno', 'tipo', 'descripcion', 'estado', 'fecha', 'hora']
+        read_only_fields = ['fecha']
+
+
+# ── Académico / seguimiento docente ──────────────────────────────────────────
 
 class DocenteSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
 
+
 class MateriaSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Materia
         fields = ['id', 'nombre', 'clave', 'creditos']
 
+
 class GrupoSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Grupo
         fields = ['id', 'semestre', 'grupo_letra', 'carrera', 'turno']
+
 
 class AsignacionDocenteSerializer(serializers.ModelSerializer):
     docente_detalle = DocenteSimpleSerializer(source='docente', read_only=True)
@@ -49,13 +66,13 @@ class AsignacionDocenteSerializer(serializers.ModelSerializer):
     class Meta:
         model = AsignacionDocente
         fields = [
-            'id', 
+            'id',
             'docente', 'nombre_docente', 'docente_detalle',
             'materia', 'nombre_materia', 'materia_detalle',
             'grupo', 'nombre_grupo', 'detalle_grupo', 'grupo_detalle',
             'fecha_asignacion'
         ]
-    
+
     def get_nombre_grupo(self, obj):
         """Retorna un nombre legible del grupo: ej. '202 Logística' o '401'"""
         grupo = obj.grupo

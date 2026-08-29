@@ -268,7 +268,21 @@ export default function PanelEncargado() {
       console.error("Error cargando historial:", e);
     }
 
-    setIncidencias([]);
+    // FIX: antes esto se dejaba fijo en [] — las incidencias nunca se
+    // cargaban del servidor porque no existía el endpoint. Ahora sí se
+    // consultan de /seguimiento/incidencias/.
+    try {
+      const incidenciasRes = await api.get('/seguimiento/incidencias/');
+      const dataIncidencias = Array.isArray(incidenciasRes.data) ? incidenciasRes.data : incidenciasRes.data?.results || [];
+      const incidenciasFormateadas = dataIncidencias.map(inc => ({
+        ...inc,
+        pcId: inc.computadora ?? inc.pcId ?? "—",
+      }));
+      setIncidencias(incidenciasFormateadas);
+    } catch (e) {
+      console.error("Error cargando incidencias:", e);
+    }
+
     if (!silent) setCargando(false);
   };
 
@@ -484,13 +498,24 @@ export default function PanelEncargado() {
   };
 
   const toggleIncidencia = (id) => {
-    const nuevasIncidencias = incidencias.map((inc) =>
-      inc.id === id
-        ? { ...inc, estado: inc.estado === "pendiente" ? "resuelto" : "pendiente" }
-        : inc
-    );
-    setIncidencias(nuevasIncidencias);
-    guardarDato("incidencias", nuevasIncidencias);
+    const inc = incidencias.find((i) => i.id === id);
+    if (!inc) return;
+    const nuevoEstado = inc.estado === "pendiente" ? "resuelto" : "pendiente";
+
+    // Optimista: actualizamos la UI de inmediato...
+    setIncidencias(prev => prev.map((i) => i.id === id ? { ...i, estado: nuevoEstado } : i));
+
+    // ...y confirmamos contra el servidor (antes esto solo tocaba localStorage
+    // y nunca se enteraba nadie más).
+    (async () => {
+      try {
+        await api.patch(`/seguimiento/incidencias/${id}/`, { estado: nuevoEstado });
+      } catch (e) {
+        console.error("No se pudo actualizar la incidencia en el servidor:", e.response?.data || e);
+        // Revertimos si falló
+        setIncidencias(prev => prev.map((i) => i.id === id ? { ...i, estado: inc.estado } : i));
+      }
+    })();
   };
 
   const conteo = {

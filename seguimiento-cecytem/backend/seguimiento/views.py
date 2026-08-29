@@ -1,18 +1,21 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Count, Q
-
-from .models import AsignacionDocente, Actividad, Cumplimiento
-from .serializers import AsignacionDocenteSerializer, ActividadSerializer, CumplimientoSerializer
-from .models import ComputadoraSala, RegistroAccesoSala
-from .serializers import ComputadoraSalaSerializer, RegistroAccesoSalaSerializer
-from rest_framework import mixins
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+from .models import (
+    AsignacionDocente, Actividad, Cumplimiento,
+    ComputadoraSala, RegistroAccesoSala, Incidencia,
+)
+from .serializers import (
+    AsignacionDocenteSerializer, ActividadSerializer, CumplimientoSerializer,
+    ComputadoraSalaSerializer, RegistroAccesoSalaSerializer, IncidenciaSerializer,
+)
 
 
 class AsignacionDocenteViewSet(viewsets.ModelViewSet):
@@ -44,7 +47,7 @@ class CumplimientoViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='registrar_lote')
     def registrar_lote(self, request):
         actividad_id = request.data.get('actividad_id')
-        evaluaciones = request.data.get('evaluaciones', []) # Arreglo de {alumno_id, entregado}
+        evaluaciones = request.data.get('evaluaciones', [])  # Arreglo de {alumno_id, entregado}
 
         if not actividad_id or not evaluaciones:
             return Response({"error": "Faltan parámetros requeridos: actividad_id o evaluaciones."}, status=status.HTTP_400_BAD_REQUEST)
@@ -123,13 +126,13 @@ class CumplimientoViewSet(viewsets.ModelViewSet):
 class ComputadoraSalaViewSet(viewsets.ModelViewSet):
     queryset = ComputadoraSala.objects.all()
     serializer_class = ComputadoraSalaSerializer
+    # CAMBIO: antes usaba get_permissions() para exigir IsAuthenticated en
+    # escritura (PATCH/POST/DELETE) y solo dejaba GET libre. El encargado
+    # todavía no tiene un login que autentique de verdad contra este backend,
+    # así que esas escrituras fallaban con 401. Lo dejamos abierto por ahora
+    # (ver nota de seguridad que te mandé en el mensaje anterior).
+    permission_classes = [AllowAny]
 
-    def get_permissions(self):
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
-
-    # Allow partial updates for estado/alumno/hora_inicio
     def perform_broadcast(self, action, instance):
         try:
             channel_layer = get_channel_layer()
@@ -173,7 +176,6 @@ class ComputadoraSalaViewSet(viewsets.ModelViewSet):
         pk = instancia.pk
         resp = super().destroy(request, *args, **kwargs)
         try:
-            # Broadcast that this computadora was removed
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)('sala', {'type': 'sala.update', 'payload': {'action': 'delete', 'computadora': {'id': pk}}})
         except Exception:
@@ -184,4 +186,16 @@ class ComputadoraSalaViewSet(viewsets.ModelViewSet):
 class RegistroAccesoSalaViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = RegistroAccesoSala.objects.all().order_by('-fecha')
     serializer_class = RegistroAccesoSalaSerializer
-    permission_classes = [IsAuthenticated]
+    # CAMBIO: antes era IsAuthenticated (incluso para el GET, que es lo que
+    # el PanelEncargado consulta cada 6 segundos) — por eso veías 401
+    # repetidos en consola y el historial nunca cargaba.
+    permission_classes = [AllowAny]
+
+
+class IncidenciaViewSet(viewsets.ModelViewSet):
+    queryset = Incidencia.objects.all()
+    serializer_class = IncidenciaSerializer
+    # Nuevo endpoint: los alumnos reportan desde el kiosko (a veces sin haber
+    # iniciado sesión) y el encargado necesita leer/actualizar sin tener aún
+    # un login real contra este backend — por eso AllowAny en las 4 acciones.
+    permission_classes = [AllowAny]
