@@ -674,7 +674,7 @@ function AlumnosSection() {
       semestre: grupo?.semestre ? String(grupo.semestre) : "",
       turno:    grupo?.turno ?? "",
     });
-    setModal({ id: alumno.id, userId: alumno.user, matricula: alumno.matricula ?? "", nombre: alumno.nombre_completo ?? "", email: alumno.email ?? "" });
+    setModal({ id: alumno.id, userId: alumno.user, curp: alumno.curp ?? "", nombre: alumno.nombre_completo ?? "", email: alumno.email ?? "" });
   };
 
   const handleSave = async (e) => {
@@ -752,12 +752,12 @@ function AlumnosSection() {
           <Btn onClick={() => setAlumnoModalOpen(true)}>+ Nuevo alumno</Btn>
         </div>
       </div>
-      <Table cols={["Matrícula", "Nombre", "Número de control", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
+      <Table cols={["CURP", "Nombre", "Número de control", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
         {alumnos.filter(a => !groupFilter || String(a.grupo) === String(groupFilter)).map((alumno, idx) => {
           const grupo = grupos.find((g) => g.id === alumno.grupo);
           return (
             <TR key={alumno.id} idx={idx}>
-              <TD><span style={{ fontFamily: "monospace", fontSize: 12, color: T.cyan }}>{alumno.matricula ?? "—"}</span></TD>
+              <TD><span style={{ fontFamily: "monospace", fontSize: 12, color: T.cyan }}>{alumno.curp ?? "—"}</span></TD>
               <TD>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Avatar label={alumno.nombre_completo ?? ""} />
@@ -790,7 +790,7 @@ function AlumnosSection() {
                 <Avatar label={modal.nombre} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{modal.nombre}</div>
-                  <div style={{ fontSize: 12, color: T.textMuted }}>{modal.matricula || "Sin matrícula"} · {modal.email ? String(modal.email).split('@')[0] : "Sin número de control"}</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>{modal.curp || "Sin CURP"} · {modal.email ? String(modal.email).split('@')[0] : "Sin número de control"}</div>
                 </div>
               </div>
             </Card>
