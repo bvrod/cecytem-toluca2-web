@@ -55,8 +55,16 @@ const tipoIncidenciaConfig = {
 
 // ---------------------- Utilidades de fecha/hora ----------------------
 
+// Igual que en KioskoAlumno.jsx: horaActual() es SOLO para mostrar en
+// pantalla; horaISO() (24h, "HH:mm:ss") es lo que se manda al backend, para
+// que el formato nunca dependa del locale del navegador del encargado.
 function horaActual() {
   return new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+}
+
+function horaISO() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 }
 
 function fechaActualISO() {
@@ -67,10 +75,14 @@ function fechaActualISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function normalizaEstado(estado) {
+  return String(estado || "").trim().toUpperCase();
+}
+
 function aMinutos(horaTexto) {
   if (!horaTexto) return null;
-  // Acepta tanto "07:14" (24h) como "07:14 a.m." / "07:14 p.m." (12h, es-MX).
-  const match = horaTexto.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]\.?\s?m\.?)?$/i);
+  // Acepta "07:14", "07:14:00" (24h) y "07:14 a.m." / "07:14 p.m." (12h, es-MX).
+  const match = horaTexto.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]\.?\s?m\.?)?$/i);
   if (!match) return null;
 
   let h = parseInt(match[1], 10);
@@ -103,14 +115,9 @@ function fechaLegible(iso) {
   return d.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" });
 }
 
-// ---------------------- Almacenamiento compartido ----------------------
-// La misma información (computadoras, incidencias, historial) se comparte
-// con el Kiosko del alumno mediante localStorage del navegador, para que
-// las horas de registro queden enlazadas entre ambas pantallas.
-// Nota: localStorage solo sincroniza entre pestañas/ventanas del MISMO
-// navegador y MISMO origen (dominio). Si el Kiosko y el Panel se abren en
-// dispositivos distintos, esto no sincronizará entre sí; en ese caso se
-// necesitaría un backend real (API + base de datos) en vez de localStorage.
+// ---------------------- Almacenamiento compartido (fallback local) ----------------------
+// Solo se usa como respaldo si una petición al backend falla, para no perder
+// el cambio localmente. La fuente de verdad real es siempre la API.
 
 const PREFIJO_CLAVE = "salaComputo:";
 
@@ -213,47 +220,57 @@ export default function PanelEncargado() {
   const wsRef = useRef(null);
   const backoffRef = useRef(1000);
 
-const cargarTodo = async (options = {}) => {
-  const { silent = false } = options;
-  if (!silent) setCargando(true);
+  const cargarTodo = async (options = {}) => {
+    const { silent = false } = options;
+    if (!silent) setCargando(true);
 
-  try {
-    const res = await api.get("/seguimiento/computadoras/");
-    const apiComps = Array.isArray(res.data) ? res.data : res.data.results || [];
-    
-    if (apiComps.length > 0) {
-      const comps = apiComps.map(c => ({
-        id: c.id,
-        estado: c.estado,
-        // Garantiza mostrar el nombre del alumno si existe o fallback a la matrícula
-        alumno: c.nombre_alumno || c.alumno || null, 
-        horaInicio: c.hora_inicio ?? c.horaInicio ?? null,
-        fecha: c.fecha,
-      }));
-      setComputadoras(comps);
+    try {
+      const res = await api.get("/seguimiento/computadoras/");
+      const apiComps = Array.isArray(res.data) ? res.data : res.data.results || [];
+
+      if (apiComps.length > 0) {
+        const comps = apiComps.map(c => ({
+          id: c.id,
+          // Normalizamos el estado (mayúsculas/espacios) para que las
+          // comparaciones contra ESTADOS.* y el lookup en estadoConfig
+          // nunca fallen por una diferencia de formato.
+          estado: normalizaEstado(c.estado),
+          alumno: c.alumno || c.nombre_alumno || null,
+          horaInicio: c.hora_inicio ?? c.horaInicio ?? null,
+          fecha: c.fecha,
+        }));
+        setComputadoras(comps);
+      }
+    } catch (e) {
+      console.error("Error cargando computadoras:", e);
     }
-  } catch (e) {
-    console.error("Error cargando computadoras:", e);
-  }
 
-  try {
-    const historialRes = await api.get('/seguimiento/registros-sala/');
-    const dataHistorial = Array.isArray(historialRes.data) ? historialRes.data : historialRes.data?.results || [];
-    
-    // Mapea para forzar el despliegue del nombre completo
-    const historialFormateado = dataHistorial.map(reg => ({
-      ...reg,
-      alumno: reg.nombre_alumno || reg.nombre || reg.alumno || "Sin nombre"
-    }));
-    
-    setHistorial(historialFormateado);
-  } catch (e) {
-    console.error("Error cargando historial:", e);
-  }
+    try {
+      const historialRes = await api.get('/seguimiento/registros-sala/');
+      const dataHistorial = Array.isArray(historialRes.data) ? historialRes.data : historialRes.data?.results || [];
 
-  setIncidencias([]);
-  if (!silent) setCargando(false);
-};
+      // FIX: el serializer del backend (RegistroAccesoSalaSerializer) regresa
+      // los campos en snake_case: "computadora", "hora_inicio", "hora_fin".
+      // Este mapeo ANTES solo copiaba "alumno" y dejaba el resto tal cual,
+      // pero la tabla más abajo lee "s.pcId", "s.horaInicio" y "s.horaFin"
+      // (camelCase) — por eso Entrada/Salida/Equipo salían siempre vacíos.
+      const historialFormateado = dataHistorial.map(reg => ({
+        ...reg,
+        pcId: reg.computadora ?? reg.pcId ?? reg.computadora_detalle ?? "—",
+        alumno: reg.alumno || reg.nombre_alumno || reg.nombre || "Sin nombre",
+        horaInicio: reg.hora_inicio ?? reg.horaInicio ?? null,
+        horaFin: reg.hora_fin ?? reg.horaFin ?? null,
+        fecha: reg.fecha ?? null,
+      }));
+
+      setHistorial(historialFormateado);
+    } catch (e) {
+      console.error("Error cargando historial:", e);
+    }
+
+    setIncidencias([]);
+    if (!silent) setCargando(false);
+  };
 
   useEffect(() => {
     let active = true;
@@ -284,7 +301,7 @@ const cargarTodo = async (options = {}) => {
               const exists = prev.find(p => p.id === computadora.id);
               const item = {
                 id: computadora.id,
-                estado: computadora.estado,
+                estado: normalizaEstado(computadora.estado),
                 alumno: computadora.alumno,
                 horaInicio: computadora.hora_start ?? computadora.hora_inicio ?? computadora.horaInicio ?? null,
                 fecha: computadora.fecha,
@@ -335,61 +352,68 @@ const cargarTodo = async (options = {}) => {
     const nuevoRegistro = pc.alumno ? {
       computadora: id,
       alumno: pc.alumno,
-      fecha: pc.fecha || undefined,
       hora_inicio: pc.horaInicio,
-      hora_fin: horaActual(),
+      hora_fin: horaISO(),
     } : null;
 
-    const updated = { id: pc.id, estado: "LIBRE", alumno: null, hora_inicio: null, fecha: null };
+    // FIX: ya no mandamos "id" en el body del PATCH — la URL ya identifica el
+    // recurso y reenviar la primary key en el payload es innecesario y
+    // arriesgado (podría intentar reescribirla).
+    const updated = { estado: "LIBRE", alumno: null, hora_inicio: null, fecha: null };
 
     // Actualizar en servidor
     (async () => {
       try {
         await api.patch(`/seguimiento/computadoras/${encodeURIComponent(id)}/`, updated);
-        if (nuevoRegistro) await api.post('/seguimiento/registros-sala/', nuevoRegistro);
-        cargarTodo();
       } catch (e) {
-        // Fallback local
+        console.error("Error liberando computadora en el servidor:", e.response?.data || e);
+        // Fallback local para no perder el cambio visualmente
         const nuevasComputadoras = computadoras.map((p) =>
           p.id === id ? { ...p, estado: ESTADOS.LIBRE, alumno: null, horaInicio: null, fecha: null } : p
         );
-        let nuevoHistorial = historial;
-        if (pc?.alumno) {
-          const registro = {
-            id: Date.now(),
-            pcId: pc.id,
-            alumno: pc.alumno,
-            fecha: pc.fecha || fechaActualISO(),
-            horaInicio: pc.horaInicio,
-            horaFin: horaActual(),
-          };
-          nuevoHistorial = [registro, ...historial];
-        }
         setComputadoras(nuevasComputadoras);
-        setHistorial(nuevoHistorial);
         guardarDato("computadoras", nuevasComputadoras);
-        if (nuevoHistorial !== historial) guardarDato("historial", nuevoHistorial);
       }
+
+      // El registro de historial es independiente: si falla, no debe impedir
+      // que el equipo quede liberado.
+      if (nuevoRegistro) {
+        try {
+          await api.post('/seguimiento/registros-sala/', nuevoRegistro);
+        } catch (e) {
+          console.error("No se pudo registrar la salida en el historial (no crítico):", e.response?.data || e);
+        }
+      }
+
+      cargarTodo();
     })();
   };
 
   const enviarAMantenimiento = (id) => {
     const pc = computadoras.find(p => p.id === id);
     if (!pc) return;
-    const updated = { id: pc.id, estado: "MANTENIMIENTO", alumno: null, hora_inicio: null, fecha: null };
+    const updated = { estado: "MANTENIMIENTO", alumno: null, hora_inicio: null, fecha: null };
     (async () => {
       try { await api.patch(`/seguimiento/computadoras/${encodeURIComponent(id)}/`, updated); cargarTodo(); }
-      catch (e) { const nuevasComputadoras = computadoras.map((p) => p.id === id ? { ...p, estado: ESTADOS.MANTENIMIENTO, alumno: null, horaInicio: null, fecha: null } : p); setComputadoras(nuevasComputadoras); guardarDato("computadoras", nuevasComputadoras); }
+      catch (e) {
+        console.error("Error enviando a mantenimiento:", e.response?.data || e);
+        const nuevasComputadoras = computadoras.map((p) => p.id === id ? { ...p, estado: ESTADOS.MANTENIMIENTO, alumno: null, horaInicio: null, fecha: null } : p);
+        setComputadoras(nuevasComputadoras); guardarDato("computadoras", nuevasComputadoras);
+      }
     })();
   };
 
   const reactivarEquipo = (id) => {
     const pc = computadoras.find(p => p.id === id);
     if (!pc) return;
-    const updated = { id: pc.id, estado: "LIBRE" };
+    const updated = { estado: "LIBRE" };
     (async () => {
       try { await api.patch(`/seguimiento/computadoras/${encodeURIComponent(id)}/`, updated); cargarTodo(); }
-      catch (e) { const nuevasComputadoras = computadoras.map((p) => p.id === id ? { ...p, estado: ESTADOS.LIBRE } : p); setComputadoras(nuevasComputadoras); guardarDato("computadoras", nuevasComputadoras); }
+      catch (e) {
+        console.error("Error reactivando equipo:", e.response?.data || e);
+        const nuevasComputadoras = computadoras.map((p) => p.id === id ? { ...p, estado: ESTADOS.LIBRE } : p);
+        setComputadoras(nuevasComputadoras); guardarDato("computadoras", nuevasComputadoras);
+      }
     })();
   };
 
@@ -413,6 +437,7 @@ const cargarTodo = async (options = {}) => {
         await api.post('/seguimiento/computadoras/', { id: nuevoId, estado: 'LIBRE' });
         cargarTodo();
       } catch (e) {
+        console.error("Error agregando computadora:", e.response?.data || e);
         const nuevasComputadoras = [...computadoras, nuevaComputadora];
         setComputadoras(nuevasComputadoras);
         guardarDato("computadoras", nuevasComputadoras);
@@ -431,26 +456,26 @@ const cargarTodo = async (options = {}) => {
     );
     if (!confirmar) return;
 
-    let nuevoHistorial = historial;
+    let registroSalida = null;
     if (pc.estado === ESTADOS.OCUPADO && pc.alumno) {
-      const registro = {
-        id: Date.now(),
-        pcId: pc.id,
+      registroSalida = {
+        computadora: pc.id,
         alumno: pc.alumno,
-        fecha: pc.fecha || fechaActualISO(),
-        horaInicio: pc.horaInicio,
-        horaFin: horaActual(),
+        hora_inicio: pc.horaInicio,
+        hora_fin: horaISO(),
       };
-      nuevoHistorial = [registro, ...historial];
-      setHistorial(nuevoHistorial);
-      guardarDato("historial", nuevoHistorial);
     }
 
     (async () => {
+      if (registroSalida) {
+        try { await api.post('/seguimiento/registros-sala/', registroSalida); }
+        catch (e) { console.error("No se pudo guardar el historial antes de eliminar (no crítico):", e.response?.data || e); }
+      }
       try {
         await api.delete(`/seguimiento/computadoras/${encodeURIComponent(id)}/`);
         cargarTodo();
       } catch (e) {
+        console.error("Error eliminando computadora:", e.response?.data || e);
         const nuevasComputadoras = computadoras.filter((p) => p.id !== id);
         setComputadoras(nuevasComputadoras);
         guardarDato("computadoras", nuevasComputadoras);
@@ -469,9 +494,9 @@ const cargarTodo = async (options = {}) => {
   };
 
   const conteo = {
-    libres: computadoras.filter((pc) => pc.estado === ESTADOS.LIBRE).length,
-    ocupadas: computadoras.filter((pc) => pc.estado === ESTADOS.OCUPADO).length,
-    mantenimiento: computadoras.filter((pc) => pc.estado === ESTADOS.MANTENIMIENTO).length,
+    libres: computadoras.filter((pc) => normalizaEstado(pc.estado) === ESTADOS.LIBRE).length,
+    ocupadas: computadoras.filter((pc) => normalizaEstado(pc.estado) === ESTADOS.OCUPADO).length,
+    mantenimiento: computadoras.filter((pc) => normalizaEstado(pc.estado) === ESTADOS.MANTENIMIENTO).length,
   };
 
   const incidenciasPendientes = incidencias.filter((i) => i.estado === "pendiente").length;
@@ -623,7 +648,11 @@ const cargarTodo = async (options = {}) => {
                 ) : (
                   <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                     {computadoras.map((pc) => {
-                      const cfg = estadoConfig[pc.estado];
+                      // FIX: fallback defensivo — si por alguna razón llega un
+                      // estado que no está en estadoConfig (dato corrupto,
+                      // nuevo estado agregado en el backend, etc.), usamos
+                      // "LIBRE" en vez de tronar la UI al leer cfg.bg de undefined.
+                      const cfg = estadoConfig[normalizaEstado(pc.estado)] || estadoConfig[ESTADOS.LIBRE];
                       return (
                         <div
                           key={pc.id}
@@ -657,7 +686,7 @@ const cargarTodo = async (options = {}) => {
 
                           {/* Info según estado */}
                           <div className="min-h-[2.5rem] flex flex-col justify-center">
-                            {pc.estado === ESTADOS.OCUPADO && pc.alumno && (
+                            {normalizaEstado(pc.estado) === ESTADOS.OCUPADO && pc.alumno && (
                               <>
                                 <p className="text-rose-200/80 text-xs text-center leading-snug font-medium line-clamp-2">
                                   {pc.alumno}
@@ -669,16 +698,16 @@ const cargarTodo = async (options = {}) => {
                                 )}
                               </>
                             )}
-                            {pc.estado === ESTADOS.LIBRE && (
+                            {normalizaEstado(pc.estado) === ESTADOS.LIBRE && (
                               <p className="text-emerald-400/60 text-xs text-center">Disponible</p>
                             )}
-                            {pc.estado === ESTADOS.MANTENIMIENTO && (
+                            {normalizaEstado(pc.estado) === ESTADOS.MANTENIMIENTO && (
                               <p className="text-amber-400/60 text-xs text-center">Fuera de servicio</p>
                             )}
                           </div>
 
                           {/* Acciones según estado */}
-                          {pc.estado === ESTADOS.OCUPADO && (
+                          {normalizaEstado(pc.estado) === ESTADOS.OCUPADO && (
                             <button
                               onClick={() => liberar(pc.id)}
                               className="mt-auto w-full text-xs font-semibold py-2 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 active:bg-rose-500/50 text-rose-300 border border-rose-500/30 hover:border-rose-400/60 transition-all focus:outline-none focus:ring-2 focus:ring-rose-500/50"
@@ -687,7 +716,7 @@ const cargarTodo = async (options = {}) => {
                             </button>
                           )}
 
-                          {pc.estado === ESTADOS.MANTENIMIENTO && (
+                          {normalizaEstado(pc.estado) === ESTADOS.MANTENIMIENTO && (
                             <button
                               onClick={() => reactivarEquipo(pc.id)}
                               className="mt-auto w-full text-xs font-semibold py-2 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 active:bg-emerald-500/50 text-emerald-300 border border-emerald-500/30 hover:border-emerald-400/60 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
@@ -696,7 +725,7 @@ const cargarTodo = async (options = {}) => {
                             </button>
                           )}
 
-                          {pc.estado === ESTADOS.LIBRE && (
+                          {normalizaEstado(pc.estado) === ESTADOS.LIBRE && (
                             <button
                               onClick={() => enviarAMantenimiento(pc.id)}
                               className="mt-auto w-full text-xs font-medium py-2 px-3 rounded-lg bg-slate-800/40 hover:bg-amber-500/15 text-slate-500 hover:text-amber-300 border border-slate-700/50 hover:border-amber-500/30 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/40"
@@ -850,4 +879,3 @@ const cargarTodo = async (options = {}) => {
     </div>
   );
 }
-

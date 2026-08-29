@@ -141,14 +141,51 @@ const STYLES = `
   }
 `;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers de fecha/hora ──────────────────────────────────────────────────────
+// IMPORTANTE: horaActual() es SOLO para mostrar en pantalla (formato amigable
+// es-MX). Para enviar al backend usamos horaISO(), que siempre produce
+// "HH:mm:ss" en 24h, sin importar el locale del navegador del alumno.
+// Esto evita depender de que Intl.toLocaleTimeString() decida usar 12h/AM-PM
+// según el navegador, lo cual puede variar entre dispositivos del laboratorio.
 function horaActual() {
   return new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+}
+function horaISO() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 }
 function fechaActualISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
+function normalizaEstado(estado) {
+  return String(estado || "").trim().toUpperCase();
+}
+
+// ── Almacenamiento local para incidencias (reportes de equipos) ───────────────
+// PanelIncidencias usa estas funciones pero NUNCA estaban definidas en este
+// archivo (solo existían en PanelEncargado.jsx, que es un componente
+// independiente) — esto causaba un ReferenceError en cuanto un alumno
+// intentaba enviar un reporte. Las agregamos aquí con la misma lógica.
+function cargarDato(clave) {
+  try {
+    const valor = window.localStorage.getItem(PREFIJO_CLAVE + clave);
+    return valor ? JSON.parse(valor) : null;
+  } catch (e) {
+    console.error(`Error leyendo "${clave}":`, e);
+    return null;
+  }
+}
+function guardarDato(clave, valor) {
+  try {
+    window.localStorage.setItem(PREFIJO_CLAVE + clave, JSON.stringify(valor));
+    return true;
+  } catch (e) {
+    console.error(`Error guardando "${clave}":`, e);
+    return false;
+  }
+}
+
 // ── Autenticación contra SIGART ───────────────────────────────────────────────
 async function autenticarAlumno(username, password) {
   try {
@@ -161,7 +198,20 @@ async function autenticarAlumno(username, password) {
     } catch {}
     const rol = (payload.rol ?? payload.role ?? payload.tipo ?? "").toUpperCase();
     if (rol && rol !== "ALUMNO") return { ok: false, mensaje: "Solo los alumnos pueden registrarse en la sala de cómputo." };
-    const nombre = [payload.first_name, payload.last_name].filter(Boolean).join(" ") || payload.username || username;
+
+    // Buscamos el nombre completo en varios lugares posibles: el body de la
+    // respuesta de login (si el backend regresa un objeto "user"), o dentro
+    // del propio payload del JWT. Si tu endpoint /auth/login/ regresa el
+    // nombre en otra llave, agrégala aquí.
+    const nombre =
+      data.user?.nombre_completo ||
+      data.user?.full_name ||
+      [data.user?.first_name, data.user?.last_name].filter(Boolean).join(" ").trim() ||
+      payload.nombre_completo ||
+      payload.full_name ||
+      [payload.first_name, payload.last_name].filter(Boolean).join(" ").trim() ||
+      payload.username || username;
+
     try { localStorage.setItem('access_token', data.access); } catch {}
     return { ok: true, nombre, username: payload.username ?? username, accessToken: data.access };
   } catch (e) {
@@ -306,17 +356,18 @@ export default function KioskoAlumno() {
   const [autenticando,       setAutenticando]       = useState(false);
   const [shakeKey,           setShakeKey]           = useState(0);
 
+  // FIX #1: antes este método salía inmediatamente si no había access_token en
+  // localStorage — pero el alumno todavía NO se ha autenticado en este punto
+  // (está eligiendo su PC antes de loguearse), así que el token nunca existía
+  // y el selector siempre mostraba "No hay computadoras libres" sin importar
+  // el estado real en el servidor. El backend ya permite GET sin autenticar
+  // (AllowAny en ComputadoraSalaViewSet), así que quitamos ese gate.
   const cargarComputadorasLibres = useCallback(async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      setComputadorasLibres([]);
-      return;
-    }
-
     try {
       const res = await api.get('/seguimiento/computadoras/');
       const pcs = Array.isArray(res.data) ? res.data : res.data.results || [];
-      setComputadorasLibres(pcs.filter(pc => pc.estado === ESTADOS.LIBRE));
+      const libres = pcs.filter(pc => normalizaEstado(pc.estado) === ESTADOS.LIBRE);
+      setComputadorasLibres(libres);
     } catch (e) {
       console.error('Error cargando computadoras libres:', e);
       setComputadorasLibres([]);
@@ -331,12 +382,15 @@ export default function KioskoAlumno() {
     const connectWS = () => {
       if (!active) return;
 
+      // El token es opcional: si existe lo mandamos (por si el backend quiere
+      // asociar la conexión a un usuario), pero ya no bloqueamos la conexión
+      // completa si el alumno aún no se ha autenticado.
       const token = localStorage.getItem('access_token');
-      if (!token) return;
-
       const configuredBase = import.meta.env.VITE_WS_URL || 'wss://cecytem-toluca2-web.onrender.com';
       const base = configuredBase.replace(/\/$/, '');
-      const wsUrl = `${base}/ws/sala/?token=${encodeURIComponent(token)}`;
+      const wsUrl = token
+        ? `${base}/ws/sala/?token=${encodeURIComponent(token)}`
+        : `${base}/ws/sala/`;
       socket = new WebSocket(wsUrl);
 
       socket.onopen = () => { backoff = 1000; };
@@ -382,123 +436,134 @@ export default function KioskoAlumno() {
     return e;
   };
 
-const handleSubmit = async (ev) => {
-  ev.preventDefault();
-  const ve = validate();
-  if (Object.keys(ve).length) { setErrors(ve); return; }
-  setErrors({}); setErrorEnvio(""); setAutenticando(true);
+  // FIX #2: separamos cada llamada al backend en su propio try/catch, para
+  // que si UNA falla (por ejemplo, crear el registro de historial) no deje
+  // a la app "congelada" ni le impida al alumno completar su registro si la
+  // parte crítica (marcar la PC como ocupada) sí funcionó.
+  // FIX #3: ya no mandamos "id" dentro del body del PATCH (solo va en la URL,
+  // que es lo único que necesita el backend) y usamos horaISO() (24h,
+  // "HH:mm:ss") en vez del texto localizado es-MX con AM/PM para evitar
+  // cualquier ambigüedad de formato entre el navegador del alumno y el server.
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    const ve = validate();
+    if (Object.keys(ve).length) { setErrors(ve); return; }
+    setErrors({}); setErrorEnvio(""); setAutenticando(true);
 
-  // 1. Autenticación del alumno
-  const auth = await autenticarAlumno(matricula.trim(), password);
-  if (!auth.ok) {
-    setErrorEnvio(auth.mensaje);
-    setShakeKey(k => k + 1);
-    setAutenticando(false); 
-    return;
-  }
-
-  // Obtenemos el nombre completo retornado por SIGART o usamos la matrícula de respaldo
-  const nombreAlumno = auth.nombre || auth.usuario?.nombre || matricula.trim();
-
-  // Generar fechas y horas en formatos de texto/ISO estándar
-  const ahora = new Date();
-  const horaLocal = typeof horaActual === 'function' ? horaActual() : ahora.toLocaleTimeString('es-MX', { hour12: false });
-  const fechaISO = typeof fechaActualISO === 'function' ? fechaActualISO() : ahora.toISOString().split('T')[0];
-
-  try {
-    const res = await api.get('/seguimiento/computadoras/');
-    const pcs = Array.isArray(res.data) ? res.data : (res.data.results || []);
-    const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
-    
-    // Validar estado exacto tolerando mayúsculas/minúsculas
-    const estadoActual = (pcActual?.estado || '').toUpperCase();
-    const estadoLibre = (typeof ESTADOS !== 'undefined' && ESTADOS.LIBRE) ? ESTADOS.LIBRE : 'LIBRE';
-
-    if (pcActual && estadoActual !== 'LIBRE' && estadoActual !== estadoLibre) {
-      setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra."); 
-      cargarComputadorasLibres(); 
-      setAutenticando(false); 
+    // 1. Autenticación del alumno
+    const auth = await autenticarAlumno(matricula.trim(), password);
+    if (!auth.ok) {
+      setErrorEnvio(auth.mensaje);
+      setShakeKey(k => k + 1);
+      setAutenticando(false);
       return;
     }
 
-    // Payload limpio enviado a la computadora
-    const actualizado = { 
-      id: pcSeleccionada,
-      estado: 'OCUPADO', 
-      alumno: nombreAlumno, 
-      hora_inicio: horaLocal, 
-      fecha: fechaISO 
-    };
+    const nombreAlumno = auth.nombre || matricula.trim();
+    const horaEnvio = horaISO();
+    const fechaEnvio = fechaActualISO();
 
-    // Actualizar estado del equipo
-    await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, actualizado);
-    
-    // Crear registro en la tabla de historial con todos los posibles nombres de campo soportados por el backend
-    await api.post('/seguimiento/registros-sala/', { 
-      computadora: pcSeleccionada, 
-      alumno: nombreAlumno, 
-      nombre_alumno: nombreAlumno,
-      hora_inicio: horaLocal,
-      hora_entrada: horaLocal,
-      fecha: fechaISO
-    });
+    // 2. Verificar que la PC siga libre (best-effort; si falla, dejamos que
+    //    el backend sea la fuente de verdad al hacer el PATCH de todas formas).
+    try {
+      const res = await api.get('/seguimiento/computadoras/');
+      const pcs = Array.isArray(res.data) ? res.data : (res.data.results || []);
+      const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+      if (pcActual && normalizaEstado(pcActual.estado) !== ESTADOS.LIBRE) {
+        setErrorEnvio("Esa computadora ya fue tomada. Selecciona otra.");
+        cargarComputadorasLibres();
+        setAutenticando(false);
+        return;
+      }
+    } catch (e) {
+      console.warn("No se pudo verificar el estado de la PC antes de registrar:", e);
+    }
+
+    // 3. Marcar la PC como ocupada — esto SÍ es crítico, si falla detenemos el flujo.
+    try {
+      await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, {
+        estado: 'OCUPADO',
+        alumno: nombreAlumno,
+        hora_inicio: horaEnvio,
+        fecha: fechaEnvio,
+      });
+    } catch (e) {
+      console.error("Error actualizando estado de la computadora:", e.response?.data || e);
+      setErrorEnvio("No se pudo marcar la computadora como ocupada. Intenta de nuevo.");
+      setShakeKey(k => k + 1);
+      setAutenticando(false);
+      return;
+    }
+
+    // 4. Crear el registro de historial — NO crítico: si falla, la PC ya quedó
+    //    ocupada correctamente y dejamos que el alumno continúe.
+    try {
+      await api.post('/seguimiento/registros-sala/', {
+        computadora: pcSeleccionada,
+        alumno: nombreAlumno,
+        hora_inicio: horaEnvio,
+        // "fecha" no se envía: el modelo RegistroAccesoSala la define con
+        // auto_now_add=True, así que el backend la asigna solo y cualquier
+        // valor que mandemos aquí sería ignorado.
+      });
+    } catch (e) {
+      console.error("No se pudo crear el registro de historial (no crítico):", e.response?.data || e);
+    }
 
     setNombreReal(nombreAlumno);
-    setHoraRegistro(horaLocal);
+    setHoraRegistro(horaActual()); // formato amigable solo para mostrar en pantalla
     setSubmitted(true);
     setAutenticando(false);
     cargarComputadorasLibres();
-  } catch (e) {
-    console.error("Error en handleSubmit:", e);
-    setErrorEnvio("No se pudo registrar el acceso en el servidor. Intenta de nuevo.");
-    setAutenticando(false);
-  }
-};
+  };
 
-const handleReset = async () => {
-  try {
-    const res = await api.get('/seguimiento/computadoras/');
-    const pcs = Array.isArray(res.data) ? res.data : (res.data.results || []);
-    const pcActual = pcs.find(pc => pc.id === pcSeleccionada);
+  const handleReset = async () => {
+    const horaFin = horaISO();
 
-    const ahora = new Date();
-    const horaFin = typeof horaActual === 'function' ? horaActual() : ahora.toLocaleTimeString('es-MX', { hour12: false });
-    const fechaISO = typeof fechaActualISO === 'function' ? fechaActualISO() : ahora.toISOString().split('T')[0];
-
-    // Si había un alumno en la PC, registramos su salida en la bitácora
-    if (pcActual?.alumno) {
-      await api.post('/seguimiento/registros-sala/', {
-        computadora: pcSeleccionada,
-        alumno: pcActual.alumno,
-        nombre_alumno: pcActual.alumno,
-        fecha: pcActual.fecha || fechaISO,
-        hora_inicio: pcActual.hora_inicio || pcActual.horaInicio || horaFin,
-        hora_fin: horaFin,
-        hora_salida: horaFin
-      });
+    // 1. Obtener el estado actual de la PC (best-effort)
+    let pcActual = null;
+    try {
+      const res = await api.get('/seguimiento/computadoras/');
+      const pcs = Array.isArray(res.data) ? res.data : (res.data.results || []);
+      pcActual = pcs.find(pc => pc.id === pcSeleccionada) || null;
+    } catch (e) {
+      console.warn("No se pudo obtener el estado actual de la PC antes de liberar:", e);
     }
 
-    // Definir estado libre resolviendo constantes
-    const valorLibre = (typeof ESTADOS !== 'undefined' && ESTADOS.LIBRE) ? ESTADOS.LIBRE : 'LIBRE';
+    // 2. Registrar la salida en el historial — no crítico, no bloquea el flujo.
+    if (pcActual?.alumno) {
+      try {
+        await api.post('/seguimiento/registros-sala/', {
+          computadora: pcSeleccionada,
+          alumno: pcActual.alumno,
+          hora_inicio: pcActual.hora_inicio || horaFin,
+          hora_fin: horaFin,
+        });
+      } catch (e) {
+        console.error("No se pudo registrar la salida en el historial (no crítico):", e.response?.data || e);
+      }
+    }
 
-    // Liberar la computadora limpia en la base de datos
-    await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, {
-      estado: valorLibre,
-      alumno: null,
-      hora_inicio: null,
-      fecha: null,
-    });
+    // 3. Liberar la computadora — esto sí es crítico.
+    try {
+      await api.patch(`/seguimiento/computadoras/${encodeURIComponent(pcSeleccionada)}/`, {
+        estado: ESTADOS.LIBRE,
+        alumno: null,
+        hora_inicio: null,
+        fecha: null,
+      });
+    } catch (e) {
+      console.error("Error liberando la computadora:", e.response?.data || e);
+      setErrorEnvio("No se pudo liberar la computadora en el servidor.");
+    }
 
-    // Resetear estados locales
+    // 4. Resetear estados locales (independientemente del resultado anterior,
+    //    para que el kiosko quede listo para el siguiente alumno).
     cargarComputadorasLibres();
     setMatricula(""); setPassword(""); setPcSeleccionada("");
     setErrors({}); setErrorEnvio(""); setHoraRegistro(null);
     setSubmitted(false); setNombreReal("");
-  } catch (e) {
-    console.error("Error en handleReset:", e);
-    setErrorEnvio("No se pudo liberar la computadora en el servidor.");
-  }
-};
+  };
 
   // ── RENDER ──────────────────────────────────────────────────────────────────
   return (

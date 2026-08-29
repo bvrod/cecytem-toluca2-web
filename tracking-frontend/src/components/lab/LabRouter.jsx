@@ -7,6 +7,25 @@
 // CREDENCIALES DE ADMIN (hardcodeadas — cámbialo cuando tengas backend):
 //   usuario  : "encargado"
 //   password : "cecytem2024"
+//
+// ⚠️ NOTA IMPORTANTE SOBRE AUTENTICACIÓN DEL ENCARGADO (leer antes de dudar
+// por qué las acciones del PanelEncargado fallan):
+// El login de encargado de este archivo SOLO valida contra la lista local
+// ADMINS de abajo — nunca llamaba al backend ni guardaba ningún token. Pero
+// tu ComputadoraSalaViewSet exige IsAuthenticated() para PATCH/POST/DELETE
+// (solo GET es libre). Eso significa que, antes de este cambio, TODAS las
+// acciones de encargado (liberar, mandar a mantenimiento, agregar/eliminar
+// equipo) se mandaban sin ningún token válido.
+// Ahora, al iniciar sesión como encargado, además de validar contra la lista
+// local, intentamos autenticar también contra tu backend real (mismo
+// endpoint que usan los alumnos) para obtener y guardar un access_token
+// válido. Esto es "best effort": si esa cuenta de encargado NO existe todavía
+// en tu sistema de usuarios, el login de encargado sigue funcionando igual
+// que antes (no te deja fuera), pero verás un aviso en consola — en ese caso
+// las escrituras seguirán fallando hasta que crees una cuenta real (rol
+// ADMIN o similar) con ese mismo username/password en tu backend, o hasta que
+// relajes los permisos de escritura de esos endpoints para uso interno del
+// laboratorio.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef } from "react";
@@ -17,6 +36,9 @@ import PanelEncargado from "./PanelEncargado";
 
 // ── Credenciales del super-usuario (encargado / admin) ────────────────────────
 // Cambia estos valores o múltiplalos si necesitas varios encargados.
+// IMPORTANTE: para que las acciones de escritura del panel funcionen contra
+// el backend real, idealmente estos mismos username/password deberían
+// también existir como cuentas reales en tu sistema de autenticación.
 const ADMINS = [
   { username: "encargado", password: "cecytem2024", nombre: "Encargado de Sala" },
   { username: "admin",     password: "admin1234",   nombre: "Administrador"      },
@@ -180,7 +202,11 @@ const STYLES = `
 `;
 
 // ── Utilidad: autenticar contra SIGART ────────────────────────────────────────
-async function loginSigart(username, password) {
+// enforceRol: si se pasa (p.ej. "ALUMNO"), rechaza cuando el JWT trae un rol
+// distinto. Para el login de encargado no lo exigimos, porque solo lo usamos
+// para obtener un token válido — el control de "quién es admin" ya lo hace la
+// lista local ADMINS.
+async function loginSigart(username, password, { enforceRol = null } = {}) {
   try {
     const res = await fetch(LOGIN_ENDPOINT, {
       method : "POST",
@@ -200,14 +226,14 @@ async function loginSigart(username, password) {
     } catch { /* no-op */ }
 
     const rol = (payload.rol ?? payload.role ?? payload.tipo ?? "").toUpperCase();
-    if (rol && rol !== "ALUMNO")
-      return { ok: false, msg: "Solo los alumnos usan este acceso." };
+    if (enforceRol && rol && rol !== enforceRol)
+      return { ok: false, msg: `Este acceso es solo para ${enforceRol.toLowerCase()}s.` };
 
     const nombre =
       [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
       payload.username || username;
 
-    return { ok: true, nombre, username: payload.username ?? username, token: data.access };
+    return { ok: true, nombre, username: payload.username ?? username, token: data.access, rol };
   } catch {
     return { ok: false, msg: "No se pudo conectar. Verifica la red." };
   }
@@ -247,7 +273,8 @@ function LoginGate({ onSuccess }) {
     setErrors({}); setApiError(""); setCargando(true);
 
     if (esAdmin) {
-      // ── Verificar contra lista local de admins ──────────────────────────
+      // ── 1. Verificar contra lista local de admins (esto es lo que decide
+      //       si entra o no al panel — sigue funcionando igual que antes) ──
       const match = ADMINS.find(
         a => a.username === username.trim() && a.password === password
       );
@@ -256,15 +283,35 @@ function LoginGate({ onSuccess }) {
         setShakeKey(k => k + 1);
         setCargando(false); return;
       }
-      onSuccess({ rol: ROL.ADMIN, nombre: match.nombre, username: match.username });
+
+      // ── 2. Best-effort: también intentamos autenticar contra el backend
+      //       real con las mismas credenciales, para que PanelEncargado
+      //       tenga un access_token válido y sus llamadas PATCH/POST/DELETE
+      //       (que requieren IsAuthenticated) funcionen. Si esta cuenta no
+      //       existe en el backend, NO bloqueamos el acceso al panel — solo
+      //       avisamos en consola, igual que se comportaba antes.
+      const resBackend = await loginSigart(username.trim(), password);
+      if (resBackend.ok) {
+        try { localStorage.setItem('access_token', resBackend.token); } catch {}
+      } else {
+        console.warn(
+          `[LabRouter] El usuario "${match.username}" no pudo autenticarse contra el backend ` +
+          `(${resBackend.msg}). Las acciones de escritura del PanelEncargado (liberar, mantenimiento, ` +
+          `agregar/eliminar equipo) requieren un token válido y probablemente fallarán hasta que exista ` +
+          `una cuenta real con este username/password en el backend, o se ajusten los permisos del endpoint.`
+        );
+      }
+
+      onSuccess({ rol: ROL.ADMIN, nombre: match.nombre, username: match.username, token: resBackend.ok ? resBackend.token : null });
     } else {
-      // ── Verificar contra SIGART ─────────────────────────────────────────
-      const res = await loginSigart(username.trim(), password);
+      // ── Verificar contra SIGART (solo alumnos) ──────────────────────────
+      const res = await loginSigart(username.trim(), password, { enforceRol: ROL.ALUMNO });
       if (!res.ok) {
         setApiError(res.msg);
         setShakeKey(k => k + 1);
         setCargando(false); return;
       }
+      try { localStorage.setItem('access_token', res.token); } catch {}
       onSuccess({ rol: ROL.ALUMNO, nombre: res.nombre, username: res.username, token: res.token });
     }
     setCargando(false);
@@ -523,6 +570,7 @@ export default function LabRouter() {
 
   const cerrarSesion = () => {
     try { window.sessionStorage.removeItem("labSesion"); } catch {}
+    try { window.localStorage.removeItem("access_token"); } catch {}
     setSesion(null);
   };
 
