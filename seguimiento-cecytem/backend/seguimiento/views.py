@@ -183,13 +183,38 @@ class ComputadoraSalaViewSet(viewsets.ModelViewSet):
         return resp
 
 
-class RegistroAccesoSalaViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+class RegistroAccesoSalaViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
     queryset = RegistroAccesoSala.objects.all().order_by('-fecha')
     serializer_class = RegistroAccesoSalaSerializer
     # CAMBIO: antes era IsAuthenticated (incluso para el GET, que es lo que
     # el PanelEncargado consulta cada 6 segundos) — por eso veías 401
     # repetidos en consola y el historial nunca cargaba.
     permission_classes = [AllowAny]
+    # NUEVO: DestroyModelMixin habilita DELETE /registros-sala/<id>/ individual.
+
+    # DELETE /api/seguimiento/registros-sala/borrar_mes/?anio=2026&mes=8
+    # Borra en un solo golpe todos los registros de historial de un mes
+    # calendario específico. Se usa desde "Historial de sesiones" en el
+    # PanelEncargado para poder limpiar meses ya exportados a Excel.
+    @action(detail=False, methods=['delete'], url_path='borrar_mes')
+    def borrar_mes(self, request):
+        anio = request.query_params.get('anio')
+        mes = request.query_params.get('mes')
+        if not anio or not mes:
+            return Response(
+                {"error": "Debes indicar 'anio' y 'mes' como query params, p.ej. ?anio=2026&mes=8"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            anio = int(anio)
+            mes = int(mes)
+        except ValueError:
+            return Response({"error": "'anio' y 'mes' deben ser números."}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = RegistroAccesoSala.objects.filter(fecha__year=anio, fecha__month=mes)
+        eliminados = qs.count()
+        qs.delete()
+        return Response({"status": "success", "eliminados": eliminados, "anio": anio, "mes": mes}, status=status.HTTP_200_OK)
 
 
 class IncidenciaViewSet(viewsets.ModelViewSet):

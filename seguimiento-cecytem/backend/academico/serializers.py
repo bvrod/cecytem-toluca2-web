@@ -12,7 +12,7 @@ class GrupoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Grupo
         fields = ['id', 'semestre', 'grupo_letra', 'carrera', 'carrera_display', 'turno', 'turno_display', 'total_alumnos']
-    
+
     def get_total_alumnos(self, obj):
         return obj.alumnos.count()
 
@@ -30,4 +30,8 @@ class AlumnoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Alumno
-        fields = ['id', 'user', 'matricula', 'nombre_completo', 'email', 'grupo', 'grupo_detalle']
+        # NUEVO: 'curp' agregado — antes no estaba en la lista de fields, así
+        # que aunque el frontend ya lo mandaba en el POST, DRF lo ignoraba
+        # silenciosamente (no se guardaba) y tampoco se regresaba en el GET
+        # (por eso la columna CURP del panel salía siempre vacía).
+        fields = ['id', 'user', 'curp', 'matricula', 'nombre_completo', 'email', 'grupo', 'grupo_detalle']

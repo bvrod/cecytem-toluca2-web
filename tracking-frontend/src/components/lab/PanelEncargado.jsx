@@ -1,6 +1,8 @@
 // src/components/Computo/PanelEncargado.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import api from "../../services/api";
+// Requiere: npm install xlsx  (SheetJS) — genera el archivo .xlsx directo en el navegador.
+import * as XLSX from "xlsx";
 
 const ESTADOS = {
   LIBRE: "LIBRE",
@@ -115,6 +117,41 @@ function fechaLegible(iso) {
   return d.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" });
 }
 
+// ── Utilidades de agrupación por semana/mes (para el historial) ────────────
+function inicioSemana(fechaISOStr) {
+  const d = new Date(`${fechaISOStr}T00:00:00`);
+  const dia = d.getDay(); // 0 = domingo
+  const diff = (dia === 0 ? -6 : 1) - dia; // la semana empieza en lunes
+  const lunes = new Date(d);
+  lunes.setDate(d.getDate() + diff);
+  return lunes;
+}
+function finSemana(fechaISOStr) {
+  const lunes = inicioSemana(fechaISOStr);
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  return domingo;
+}
+function fechaAISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function rangoSemanaLegible(fechaISOStr) {
+  const lunes = inicioSemana(fechaISOStr);
+  const domingo = finSemana(fechaISOStr);
+  const fmt = (d) => d.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+  return `${fmt(lunes)} – ${fmt(domingo)}`;
+}
+function mesLegible(mesISOStr) {
+  if (!mesISOStr) return "—";
+  const [anio, mes] = mesISOStr.split("-");
+  const d = new Date(Number(anio), Number(mes) - 1, 1);
+  return d.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+}
+function mesActualISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 // ---------------------- Almacenamiento compartido (fallback local) ----------------------
 // Solo se usa como respaldo si una petición al backend falla, para no perder
 // el cambio localmente. La fuente de verdad real es siempre la API.
@@ -211,6 +248,12 @@ export default function PanelEncargado() {
   const [computadoras, setComputadoras] = useState([]);
   const [incidencias, setIncidencias] = useState([]);
   const [historial, setHistorial] = useState([]);
+  const [agrupacionHistorial, setAgrupacionHistorial] = useState("dia"); // 'dia' | 'semana' | 'mes'
+  const [diaSeleccionado, setDiaSeleccionado] = useState(() => fechaAISO(new Date()));
+  const [semanaSeleccionada, setSemanaSeleccionada] = useState(() => fechaAISO(new Date()));
+  const [mesSeleccionado, setMesSeleccionado] = useState(() => mesActualISO());
+  const [exportando, setExportando] = useState(false);
+  const [borrandoMes, setBorrandoMes] = useState(false);
   const [vista, setVista] = useState("panel");
   const [filtroIncidencias, setFiltroIncidencias] = useState("pendientes");
   const [busquedaHistorial, setBusquedaHistorial] = useState("");
@@ -534,11 +577,79 @@ export default function PanelEncargado() {
       return true;
     });
 
-  const historialFiltrado = historial.filter((s) => {
+  const historialPeriodo = useMemo(() => {
+    if (agrupacionHistorial === "dia") {
+      return historial.filter((s) => s.fecha === diaSeleccionado);
+    }
+    if (agrupacionHistorial === "semana") {
+      const inicio = inicioSemana(semanaSeleccionada);
+      const fin = finSemana(semanaSeleccionada);
+      return historial.filter((s) => {
+        if (!s.fecha) return false;
+        const f = new Date(`${s.fecha}T00:00:00`);
+        return f >= inicio && f <= fin;
+      });
+    }
+    // 'mes'
+    return historial.filter((s) => (s.fecha || "").startsWith(mesSeleccionado));
+  }, [historial, agrupacionHistorial, diaSeleccionado, semanaSeleccionada, mesSeleccionado]);
+
+  const historialFiltrado = historialPeriodo.filter((s) => {
     const q = busquedaHistorial.trim().toLowerCase();
     if (!q) return true;
     return (s.alumno ?? "").toLowerCase().includes(q) || (s.pcId ?? "").toLowerCase().includes(q);
   });
+
+  // Exporta el período actualmente visible (día/semana/mes, ya filtrado por
+  // búsqueda si hay una) a un archivo .xlsx descargable.
+  const exportarExcel = () => {
+    if (historialFiltrado.length === 0) return;
+    setExportando(true);
+    try {
+      const filas = historialFiltrado.map((s) => ({
+        Equipo: s.pcId ?? "—",
+        Alumno: s.alumno ?? "—",
+        Fecha: s.fecha ?? "—",
+        Entrada: s.horaInicio ?? "—",
+        Salida: s.horaFin ?? "—",
+        "Duración": duracion(s.horaInicio, s.horaFin),
+      }));
+      const hoja = XLSX.utils.json_to_sheet(filas);
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, hoja, "Historial");
+
+      let sufijo = diaSeleccionado;
+      if (agrupacionHistorial === "semana") sufijo = `semana_${fechaAISO(inicioSemana(semanaSeleccionada))}`;
+      if (agrupacionHistorial === "mes") sufijo = mesSeleccionado;
+
+      XLSX.writeFile(libro, `historial_sala_computo_${sufijo}.xlsx`);
+    } finally {
+      setExportando(false);
+    }
+  };
+
+  // Borra en el servidor TODOS los registros del mes seleccionado (solo
+  // disponible en modo "mes"). Pensado para usarse después de exportar.
+  const borrarMes = async () => {
+    if (agrupacionHistorial !== "mes" || !mesSeleccionado) return;
+    const [anio, mes] = mesSeleccionado.split("-");
+    const confirmar = window.confirm(
+      `¿Eliminar TODOS los registros de historial de ${mesLegible(mesSeleccionado)}? ` +
+      `Esta acción no se puede deshacer. Asegúrate de haber exportado a Excel primero.`
+    );
+    if (!confirmar) return;
+    setBorrandoMes(true);
+    try {
+      const res = await api.delete(`/seguimiento/registros-sala/borrar_mes/?anio=${anio}&mes=${parseInt(mes, 10)}`);
+      alert(`Se eliminaron ${res.data?.eliminados ?? 0} registro(s) de ${mesLegible(mesSeleccionado)}.`);
+      await cargarTodo();
+    } catch (e) {
+      console.error("No se pudo borrar el historial del mes:", e.response?.data || e);
+      alert("No se pudo borrar el historial de este mes. Revisa la consola para más detalles.");
+    } finally {
+      setBorrandoMes(false);
+    }
+  };
 
   const ahora = new Date().toLocaleString("es-MX", {
     weekday: "long", year: "numeric", month: "long",
@@ -851,17 +962,99 @@ export default function PanelEncargado() {
             {/* ---------------------- VISTA: HISTORIAL DE SESIONES ---------------------- */}
             {vista === "historial" && (
               <div className="flex flex-col gap-4">
-                <input
-                  type="text"
-                  value={busquedaHistorial}
-                  onChange={(e) => setBusquedaHistorial(e.target.value)}
-                  placeholder="Buscar por alumno o equipo (ej. PC-03)..."
-                  className="w-full sm:w-80 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/50"
-                />
+
+                {/* Tabs de agrupación */}
+                <div className="flex items-center gap-2">
+                  {[
+                    { key: "dia", label: "Por día" },
+                    { key: "semana", label: "Por semana" },
+                    { key: "mes", label: "Por mes" },
+                  ].map((g) => (
+                    <button
+                      key={g.key}
+                      onClick={() => setAgrupacionHistorial(g.key)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                        agrupacionHistorial === g.key
+                          ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/40"
+                          : "bg-slate-900/60 text-slate-400 border-slate-700 hover:border-slate-600"
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Selector de período + búsqueda + acciones */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+                  {agrupacionHistorial === "dia" && (
+                    <input
+                      type="date"
+                      value={diaSeleccionado}
+                      onChange={(e) => setDiaSeleccionado(e.target.value)}
+                      className="bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/50"
+                    />
+                  )}
+                  {agrupacionHistorial === "semana" && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={semanaSeleccionada}
+                        onChange={(e) => setSemanaSeleccionada(e.target.value)}
+                        className="bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/50"
+                      />
+                      <span className="text-xs text-slate-500 font-mono whitespace-nowrap">
+                        Semana: {rangoSemanaLegible(semanaSeleccionada)}
+                      </span>
+                    </div>
+                  )}
+                  {agrupacionHistorial === "mes" && (
+                    <input
+                      type="month"
+                      value={mesSeleccionado}
+                      onChange={(e) => setMesSeleccionado(e.target.value)}
+                      className="bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/50"
+                    />
+                  )}
+
+                  <input
+                    type="text"
+                    value={busquedaHistorial}
+                    onChange={(e) => setBusquedaHistorial(e.target.value)}
+                    placeholder="Buscar por alumno o equipo (ej. PC-03)..."
+                    className="w-full sm:w-64 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/50"
+                  />
+
+                  <div className="flex-1" />
+
+                  <button
+                    onClick={exportarExcel}
+                    disabled={exportando || historialFiltrado.length === 0}
+                    className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:border-emerald-400/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {exportando ? "Exportando..." : "📊 Exportar a Excel"}
+                  </button>
+
+                  {agrupacionHistorial === "mes" && (
+                    <button
+                      onClick={borrarMes}
+                      disabled={borrandoMes || historialPeriodo.length === 0}
+                      className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:border-rose-400/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {borrandoMes ? "Borrando..." : "🗑️ Borrar este mes"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Resumen del período */}
+                <p className="text-xs text-slate-500">
+                  {agrupacionHistorial === "dia" && <>Mostrando <span className="text-slate-300 font-semibold">{historialPeriodo.length}</span> sesión(es) del {fechaLegible(diaSeleccionado)}.</>}
+                  {agrupacionHistorial === "semana" && <>Mostrando <span className="text-slate-300 font-semibold">{historialPeriodo.length}</span> sesión(es) de la semana del {rangoSemanaLegible(semanaSeleccionada)}.</>}
+                  {agrupacionHistorial === "mes" && <>Mostrando <span className="text-slate-300 font-semibold">{historialPeriodo.length}</span> sesión(es) de {mesLegible(mesSeleccionado)}.</>}
+                </p>
 
                 {historialFiltrado.length === 0 ? (
                   <div className="text-center text-slate-500 text-sm py-12 border border-dashed border-slate-800 rounded-2xl">
-                    Aún no hay sesiones registradas.
+                    No hay sesiones registradas en este período.
                   </div>
                 ) : (
                   <div className="overflow-x-auto rounded-2xl border border-slate-800">
@@ -889,6 +1082,7 @@ export default function PanelEncargado() {
                         ))}
                       </tbody>
                     </table>
+
                   </div>
                 )}
               </div>
