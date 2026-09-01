@@ -4,12 +4,14 @@ import { useAuth } from './context/AuthContext';
 import CecytoMascota from './imagenes/Cecyto.png';
 
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import AdminDashboard from './components/AdminDashboard';
 import DocenteDashboard from './components/DocenteDashboard';
 import AlumnoDashboard from './components/AlumnoDashboard';
 
 // ── Sala de cómputo — tiene su propio login ──────────────────────────────────
 import LabRouter from './components/lab/LabRouter';
+import Privacy from './pages/Privacy';
 
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;800;900&family=DM+Sans:wght@300;400;500&display=swap');
@@ -113,6 +115,9 @@ function App() {
 
   // /sala → Sala de cómputo con su propio login (LabRouter)
   if (currentPath === '/sala') return <LabRouter />;
+
+  // /aviso-de-privacidad → Página del Aviso de Privacidad
+  if (currentPath === '/aviso-de-privacidad') return <Privacy />;
 
   // Rutas legacy (mantenidas por compatibilidad)
   // if (currentPath === '/panel-alumno')    return <KioskoAlumno />;

@@ -752,12 +752,12 @@ function AlumnosSection() {
           <Btn onClick={() => setAlumnoModalOpen(true)}>+ Nuevo alumno</Btn>
         </div>
       </div>
-      <Table cols={["CURP", "Nombre", "Número de control", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
+      <Table cols={["Nombre", "Número de control", "Grupo", "Semestre", "Turno", ""]} loading={loading} emptyText="Sin alumnos registrados">
         {alumnos.filter(a => !groupFilter || String(a.grupo) === String(groupFilter)).map((alumno, idx) => {
           const grupo = grupos.find((g) => g.id === alumno.grupo);
           return (
             <TR key={alumno.id} idx={idx}>
-              <TD><span style={{ fontFamily: "monospace", fontSize: 12, color: T.cyan }}>{alumno.curp ?? "—"}</span></TD>
+              
               <TD>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Avatar label={alumno.nombre_completo ?? ""} />

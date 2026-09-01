@@ -1,6 +1,7 @@
 // src/components/Computo/PanelEncargado.jsx
 import { useState, useEffect, useRef, useMemo } from "react";
 import api from "../../services/api";
+import Footer from '../Footer';
 // Requiere: npm install xlsx  (SheetJS) — genera el archivo .xlsx directo en el navegador.
 import * as XLSX from "xlsx";
 
@@ -1091,9 +1092,9 @@ export default function PanelEncargado() {
         )}
 
         {/* Pie de página */}
-        <footer className="text-center text-slate-700 text-xs mt-4 pb-2">
-          CECyTEM · Panel de Encargado · Sistema de Sala de Cómputo
-        </footer>
+        <div className="mt-4">
+          <Footer />
+        </div>
       </div>
     </div>
   );
